@@ -1,4 +1,4 @@
-# |  (C) 2008-2020 Potsdam Institute for Climate Impact Research (PIK)
+# |  (C) 2008-2022 Potsdam Institute for Climate Impact Research (PIK)
 # |  authors, and contributors see CITATION.cff file. This file is part
 # |  of MAgPIE and licensed under AGPL-3.0-or-later. Under Section 7 of
 # |  AGPL-3.0, you are granted additional permissions described in the
@@ -6,56 +6,41 @@
 # |  Contact: magpie@pik-potsdam.de
 
 # --------------------------------------------------------------
-# description: create cellular cropland management data
+# description: Create INMS output dataset
 # comparison script: FALSE
 # ---------------------------------------------------------------
 
-#Version 1.00 - Benjamin Leon Bodirsky
-# 1.00: first working version
+# Version 1.00 - Benjamin Leon Bodirsky
+# Version 2.00 - Michael Crawford
 
-library(lucode2)
-library(magpie4)
 library(gms)
+library(magpie4)
 
-print("Start inms reporting reg runscript")
+message("Starting INMS grid-level output runscript")
 
 ############################# BASIC CONFIGURATION #######################################
+if (!exists("source_include")) {
 
-if(!exists("source_include")) {
+  title       <- NULL
+  outputdir   <- NULL
 
-  title       <- "inms_SSP2_RCP4p5_PolicyLow_v4"
-  outputdir       <- "output/inms_SSP2_RCP4p5_PolicyLow_v4_2020-07-13_15.37.07"
+  # Define arguments that can be read from command line
+  readArgs("outputdir", "title")
 
-  ###Define arguments that can be read from command line
-  readArgs("outputdir","title")
 }
 #########################################################################################
 
-print(paste0("script started for output directory ",outputdir))
-
+message("Script started for output directory: ", outputdir)
 cfg <- gms::loadConfig(file.path(outputdir, "config.yml"))
 title <- cfg$title
-print("generating INMS output for the run: ")
-print(title)
-title=strsplit(title,"_v")
 
-gdx <- paste0(outputdir,"/fulldata.gdx")
+message("Generating grid-level INMS output for the run: ", title)
+gdx <- file.path(outputdir, "fulldata.gdx")
 
-tgz <- paste0("/p/projects/landuse/data/input/archive/",strsplit(cfg$input[1],split = "c200")[[1]][[1]],"0.5.tgz")
-print(paste0("trying to extract lpj_yields_0.5.mz from ",tgz))
-untar(tarfile = tgz, files = "lpj_yields_0.5.mz", exdir=outputdir)
+baseDir <- getwd()
+INMSOutputDir <- file.path(baseDir, "output", "INMS_Reports")
+if (!dir.exists(INMSOutputDir)) {
+  dir.create(INMSOutputDir)
+}
 
-print("create an separate output directory for cellular results")
-outputpath<-paste0("./output/inms/")
-if(!dir.exists(outputpath)) {dir.create(outputpath)}
-#print("save origin path in folder so that original run data can be found")
-#write.table(x = outputdir,file = paste0(outputpath,"origin_folder.txt"),row.names = FALSE,col.names = FALSE)
-
-print("starting cellular output generation using getReportMAgPIE2LPJmL")
-
-a <- getReportGridINMS(gdx = gdx,
-                           folder=outputpath,
-                           dir = outputdir,
-                           scenario=paste0("v",title[[1]][1]),
-                           versionnr=paste0("v",title[[1]][2])
-                           )
+out <- getReportGridINMS(gdx = gdx, reportOutputDir = INMSOutputDir, magpieOutputDir = outputdir, scenario = title)
