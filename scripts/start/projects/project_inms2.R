@@ -14,7 +14,7 @@ source("scripts/start_functions.R")
 source("scripts/performance_test.R")
 source("config/default.cfg")
 
-### Set defaults
+# Set defaults
 codeCheck <- FALSE
 
 input <- c(regional    = "rev4.67_INMS_MSC__8651497a_magpie.tgz",
@@ -23,10 +23,11 @@ input <- c(regional    = "rev4.67_INMS_MSC__8651497a_magpie.tgz",
            additional  = "additional_data_rev4.08.tgz",
            calibration = "calibration_INMS_14Feb22.tgz")
 
-### General settings ###
+# General settings
 general_settings <- function(title) {
   source("config/default.cfg")
   cfg$input                  <- input
+  cfg$title                  <- title
   cfg                        <- gms::setScenario(cfg, "cc")
   cfg$force_download         <- TRUE
   cfg$gms$c_timesteps        <- 12
@@ -35,7 +36,6 @@ general_settings <- function(title) {
   cfg$gms$s15_elastic_demand <- 0
   cfg$gms$nitrogen           <- "rescaled_jan21"
   cfg$gms$som                <- "static_jan19"
-  cfg$title                  <- title
   cfg$gms$maccs              <- "on_sep16"
   cfg$gms$c56_emis_policy    <- "maccs_excl_cropland_n2o"
   #cfg$calib_cropland        <- FALSE
@@ -104,7 +104,7 @@ cfg <- general_settings(title = "SSP2_RCP4p5_PolicyHigh")
 # Development: historical trends (SSP2)
 # Land Use: medium regulation, medium productivity
 # Diet: medium meat and dairy
-cfg <- gms::setScenario(cfg,"SSP2")
+cfg <- gms::setScenario(cfg, "SSP2")
 # Climate: moderate mitigation (RCP4.5)
 cfg$gms$c56_pollutant_prices  <- "SSPDB-SSP2-45-REMIND-MAGPIE"
 cfg$gms$c60_2ndgen_biodem     <- "SSPDB-SSP2-45-REMIND-MAGPIE"
@@ -117,14 +117,14 @@ start_run(cfg = cfg, codeCheck = codeCheck)
 
 
 ### Best-case
-cfg <- general_settings(title = "SSP1_RCP2p6_PolicyHigh")
+cfg <- general_settings(title = "SSP1_RCP4p5_PolicyHigh")
 # Development: sustainable development (SSP1)
 # Land Use: strong regulation, high productivity (SSP1)
 # Diet: low meat and dairy
 cfg <- gms::setScenario(cfg, "SSP1")
-# Climate: moderate mitigation (RCP2.6)
-cfg$gms$c56_pollutant_prices  <- "SSPDB-SSP1-26-REMIND-MAGPIE"
-cfg$gms$c60_2ndgen_biodem     <- "SSPDB-SSP1-26-REMIND-MAGPIE"
+# Climate: moderate mitigation (RCP4.5)
+cfg$gms$c56_pollutant_prices  <- "SSPDB-SSP1-45-REMIND-MAGPIE"
+cfg$gms$c60_2ndgen_biodem     <- "SSPDB-SSP1-45-REMIND-MAGPIE"
 # N policy: high ambition
 cfg$gms$c50_scen_neff         <- "neff_ZhangBy2030_start2010"
 cfg$gms$c50_scen_neff_pasture <- "constant"
@@ -134,13 +134,13 @@ start_run(cfg = cfg, codeCheck = codeCheck)
 
 
 ### Best-case+
-cfg <- general_settings(title = "SSP1_RCP2p6_PolicyHigh_Diet")
+cfg <- general_settings(title = "SSP1_RCP4p5_PolicyHigh_Diet")
 # Development: sustainable development (SSP1)
 # Land Use: strong regulation, high productivity (SSP1)
 cfg <- gms::setScenario(cfg, "SSP1")
-# Climate: moderate mitigation (RCP2.6)
-cfg$gms$c56_pollutant_prices <- "SSPDB-SSP1-26-REMIND-MAGPIE"
-cfg$gms$c60_2ndgen_biodem    <- "SSPDB-SSP1-26-REMIND-MAGPIE"
+# Climate: moderate mitigation (RCP4.5)
+cfg$gms$c56_pollutant_prices <- "SSPDB-SSP1-45-REMIND-MAGPIE"
+cfg$gms$c60_2ndgen_biodem    <- "SSPDB-SSP1-45-REMIND-MAGPIE"
 # Diet: ambitious diet shift and food loss/waste reductions (EATLancet)
 cfg$gms$c15_food_scenario     <- "SSP1"
 cfg$gms$s15_exo_waste         <- 1
