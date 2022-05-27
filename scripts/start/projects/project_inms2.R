@@ -156,7 +156,7 @@ start_run(cfg = cfg, codeCheck = codeCheck)
 
 
 ### Bioenergy
-cfg <- general_settings(title = "SSP1_RCP2p6_PolicyHighBioenergy")
+cfg <- general_settings(title = "SSP1_RCP2p6_PolicyHigh")
 # Development: sustainable development (SSP1)
 # Land Use: strong regulation, high productivity (SSP1)
 # Diet: low meat and dairy
