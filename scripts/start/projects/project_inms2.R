@@ -35,7 +35,6 @@ general_settings <- function(title) {
   cfg$gms$factor_costs       <- "sticky_feb18"
   cfg$gms$s15_elastic_demand <- 0
   cfg$gms$nitrogen           <- "rescaled_jan21"
-  cfg$gms$som                <- "static_jan19"
   cfg$gms$maccs              <- "on_sep16"
   cfg$gms$c56_emis_policy    <- "maccs_excl_cropland_n2o"
   #cfg$calib_cropland        <- FALSE
@@ -134,7 +133,7 @@ start_run(cfg = cfg, codeCheck = codeCheck)
 
 
 ### Best-case+
-cfg <- general_settings(title = "SSP1_RCP4p5_PolicyHigh_Diet")
+cfg <- general_settings(title = "SSP1_RCP4p5_PolicyHighDiet")
 # Development: sustainable development (SSP1)
 # Land Use: strong regulation, high productivity (SSP1)
 cfg <- gms::setScenario(cfg, "SSP1")
@@ -157,7 +156,7 @@ start_run(cfg = cfg, codeCheck = codeCheck)
 
 
 ### Bioenergy
-cfg <- general_settings(title = "SSP1_RCP2p6_PolicyHigh_Bioenergy")
+cfg <- general_settings(title = "SSP1_RCP2p6_PolicyHighBioenergy")
 # Development: sustainable development (SSP1)
 # Land Use: strong regulation, high productivity (SSP1)
 # Diet: low meat and dairy
