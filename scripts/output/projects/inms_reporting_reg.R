@@ -58,6 +58,6 @@ missingyears = function(x) {
 
 a = missingyears(mif)
 
-write.reportProject(a, mapping = "mapping_inms.csv", file = file.path(outputdir, "report_inms.mif"))
+write.reportProject(a, mapping = "mapping_PIAM_INMS_regional.csv", file = file.path(outputdir, "report_inms.mif"))
 
 warnings()
