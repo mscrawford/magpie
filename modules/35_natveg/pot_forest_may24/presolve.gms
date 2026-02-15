@@ -222,33 +222,36 @@ p35_carbon_density_other(t,j,"youngsecdf",ac,ag_pools) = pm_carbon_density_secdf
 * -------------------------------------------
 * Edge-effect carbon density degradation
 * -------------------------------------------
-* Closure (Form 3b): log10(E) = alpha_j + beta*log10(A) + gamma*p + gamma2*p^2
-* where E = edge length (km), A = forest area (km2), p = forest fraction
-* f_edge = min(E * delta / A, 1) = fraction of forest within edge depth
+* Closure (Form 3b): log10(E) = alpha_j + beta*log10(A_km2) + gamma*p + gamma2*p^2
+* where E = edge length (km), A_km2 = forest area (km2), p = forest fraction
+* MAgPIE land is in Mha; closure needs km2, so convert inline: 1 Mha = 10000 km2
+* f_edge = min(E * delta / A_km2, 1) = fraction of forest within edge depth
 * carbon_factor = 1 - f_edge * d (d = degradation intensity in edge zone)
 * Applied to vegc pool only for primforest, secdforest, youngsecdf
 
 if(s35_edge_carbon = 1,
 
-* Total forest area in km2 (primforest + secdforest + forestry; 1 Mha = 10000 km2)
-  p35_forest_area_km2(j) = (pcm_land(j,"primforest") + pcm_land(j,"secdforest")
-                           + pcm_land(j,"forestry")) * 10000;
+* Total forest area (Mha)
+  p35_forest_area(j) = pcm_land(j,"primforest") + pcm_land(j,"secdforest")
+                      + pcm_land(j,"forestry");
 
-* Forest fraction (forest area / total land area)
+* Forest fraction (dimensionless: forest Mha / total land Mha)
   p35_forest_fraction(j) = 0;
   p35_forest_fraction(j)$(sum(land, pcm_land(j,land)) > 0) =
-    p35_forest_area_km2(j) / (sum(land, pcm_land(j,land)) * 10000);
+    p35_forest_area(j) / sum(land, pcm_land(j,land));
   p35_forest_fraction(j)$(p35_forest_fraction(j) > 1) = 1;
 
-* Edge fraction: predict edge, compute f_edge = E * delta / A
+* Edge fraction: closure predicts E(km) from A(km2) and p
+* Convert A from Mha to km2 inline: A_km2 = p35_forest_area * 10000
+* f_edge = E * delta / A_km2 (dimensionless)
   p35_edge_fraction(j) = 0;
-  p35_edge_fraction(j)$(p35_forest_area_km2(j) > 1e-6 AND f35_edge_intercept(j) > 0) =
+  p35_edge_fraction(j)$(p35_forest_area(j) > 1e-10 AND f35_edge_intercept(j) > 0) =
     min(
       10 ** (f35_edge_intercept(j)
-           + s35_edge_beta * log10(p35_forest_area_km2(j))
+           + s35_edge_beta * log10(p35_forest_area(j) * 10000)
            + s35_edge_gamma * p35_forest_fraction(j)
            + s35_edge_gamma2 * p35_forest_fraction(j) * p35_forest_fraction(j))
-      * s35_edge_depth / p35_forest_area_km2(j),
+      * s35_edge_depth / (p35_forest_area(j) * 10000),
     1);
 
 * Carbon edge factor: fraction of original carbon density retained
