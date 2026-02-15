@@ -219,6 +219,55 @@ m_boundfix(vm_land,(j,land_natveg),up,1e-6);
 p35_carbon_density_other(t,j,"othernat",ac,ag_pools) = pm_carbon_density_other_ac(t,j,ac,ag_pools);
 p35_carbon_density_other(t,j,"youngsecdf",ac,ag_pools) = pm_carbon_density_secdforest_ac(t,j,ac,ag_pools);
 
+* -------------------------------------------
+* Edge-effect carbon density degradation
+* -------------------------------------------
+* Closure (Form 3b): log10(E) = alpha_j + beta*log10(A) + gamma*p + gamma2*p^2
+* where E = edge length (km), A = forest area (km2), p = forest fraction
+* f_edge = min(E * delta / A, 1) = fraction of forest within edge depth
+* carbon_factor = 1 - f_edge * d (d = degradation intensity in edge zone)
+* Applied to vegc pool only for primforest, secdforest, youngsecdf
+
+if(s35_edge_carbon = 1,
+
+* Total forest area in km2 (primforest + secdforest + forestry; 1 Mha = 10000 km2)
+  p35_forest_area_km2(j) = (pcm_land(j,"primforest") + pcm_land(j,"secdforest")
+                           + pcm_land(j,"forestry")) * 10000;
+
+* Forest fraction (forest area / total land area)
+  p35_forest_fraction(j) = 0;
+  p35_forest_fraction(j)$(sum(land, pcm_land(j,land)) > 0) =
+    p35_forest_area_km2(j) / (sum(land, pcm_land(j,land)) * 10000);
+  p35_forest_fraction(j)$(p35_forest_fraction(j) > 1) = 1;
+
+* Edge fraction: predict edge, compute f_edge = E * delta / A
+  p35_edge_fraction(j) = 0;
+  p35_edge_fraction(j)$(p35_forest_area_km2(j) > 1e-6 AND f35_edge_intercept(j) > 0) =
+    min(
+      10 ** (f35_edge_intercept(j)
+           + s35_edge_beta * log10(p35_forest_area_km2(j))
+           + s35_edge_gamma * p35_forest_fraction(j)
+           + s35_edge_gamma2 * p35_forest_fraction(j) * p35_forest_fraction(j))
+      * s35_edge_depth / p35_forest_area_km2(j),
+    1);
+
+* Carbon edge factor: fraction of original carbon density retained
+  p35_carbon_edge_factor(j) = 1 - p35_edge_fraction(j) * s35_edge_degrad;
+
+* Apply to primforest vegc
+  fm_carbon_density(t,j,"primforest","vegc") =
+    fm_carbon_density(t,j,"primforest","vegc") * p35_carbon_edge_factor(j);
+
+* Apply to secdforest vegc (all age classes)
+  pm_carbon_density_secdforest_ac(t,j,ac,"vegc") =
+    pm_carbon_density_secdforest_ac(t,j,ac,"vegc") * p35_carbon_edge_factor(j);
+
+* Apply to youngsecdf via p35_carbon_density_other
+  p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") =
+    p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") * p35_carbon_edge_factor(j);
+
+);
+
 * ----------------------------
 * NPI/NDC protection policy
 * ----------------------------

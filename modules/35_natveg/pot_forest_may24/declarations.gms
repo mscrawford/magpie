@@ -33,6 +33,10 @@ parameters
  p35_protection_dist(j,ac)                               Distribution of secondary forest protection (1)
  p35_land_restoration(j,land_natveg)                     Actual secondary forest and other land restoration area (mio. ha)
  p35_restoration_shift(j)                                Restoration of other land instead of secdforest (mio. ha)
+ p35_forest_area_km2(j)                                  Total forest area per cluster for edge calc (km2)
+ p35_forest_fraction(j)                                  Forest fraction per cluster (1)
+ p35_edge_fraction(j)                                    Fraction of forest that is edge-affected (1)
+ p35_carbon_edge_factor(j)                               Multiplicative carbon density reduction from edge effects (1)
 ;
 
 equations
