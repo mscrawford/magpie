@@ -6,7 +6,7 @@
 *** |  Contact: magpie@pik-potsdam.de
 
 scalars
-s42_watdem_nonagr_scenario         Scenario for non agricultural water demand from WATERGAP     (1)             / 2 /
+s42_watdem_nonagr_scenario         Scenario for non agricultural water demand from WATERGAP     (1)             / 1 /
 *                                                                                1: SSP1
 *                                                                                2: SSP2
 *                                                                                3: SSP3
@@ -119,7 +119,7 @@ $if "%c42_watdem_scenario%" == "nocc" f42_env_flows(t_all,j) = f42_env_flows("y1
 $if "%c42_watdem_scenario%" == "nocc_hist" f42_env_flows(t_all,j)$(m_year(t_all) > sm_fix_cc) = f42_env_flows(t_all,j)$(m_year(t_all) = sm_fix_cc);
 m_fillmissingyears(f42_env_flows,"j");
 
-$setglobal c42_env_flow_policy  off
+$setglobal c42_env_flow_policy  on
 
 * Costs of pumping are calculated for India as per methodology in forthcoming paper by Singh et.al.
 parameter

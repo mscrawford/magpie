@@ -6,7 +6,7 @@
 *** |  Contact: magpie@pik-potsdam.de
 
 
-$setglobal c15_food_scenario  SSP2
+$setglobal c15_food_scenario  SSP1
 $setglobal c15_food_scenario_noselect  SSP2
 *   options:   SSP: "SSP1", "SSP2", "SSP3", "SSP4", "SSP5"
 *             SRES: "A1", "A2", "B1", "B2"

@@ -5,7 +5,7 @@
 *** |  MAgPIE License Exception, version 1.0 (see LICENSE file).
 *** |  Contact: magpie@pik-potsdam.de
 
-$setglobal c70_feed_scen  ssp2
+$setglobal c70_feed_scen  ssp1
 *   options:    SSP: ssp1, ssp2, ssp3, ssp4, ssp5
 *               SDP: SDP, SDP_EI, SDP_MC, SDP_RC
 *               other: constant
