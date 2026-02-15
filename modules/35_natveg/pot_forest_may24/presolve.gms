@@ -223,11 +223,14 @@ p35_carbon_density_other(t,j,"youngsecdf",ac,ag_pools) = pm_carbon_density_secdf
 * Edge-effect carbon density degradation
 * -------------------------------------------
 * Closure (Form 3b): log10(E) = alpha_j + beta*log10(A_km2) + gamma*p + gamma2*p^2
+* Closure (Form 3d): log10(E) = alpha_j + beta*log10(A_km2) + (gamma+gamma_reg)*p
+*                              + (gamma2+gamma2_reg)*p^2 + gamma3*p^3
 * where E = edge length (km), A_km2 = forest area (km2), p = forest fraction
 * MAgPIE land is in Mha; closure needs km2, so convert inline: 1 Mha = 10000 km2
 * f_edge = min(E * delta / A_km2, 1) = fraction of forest within edge depth
 * carbon_factor = 1 - f_edge * d (d = degradation intensity in edge zone)
 * Applied to vegc pool only for primforest, secdforest, youngsecdf
+* s35_edge_form: 0 = Form 3b (global gamma), 1 = Form 3d (regional gamma + p^3)
 
 if(s35_edge_carbon = 1,
 
@@ -245,14 +248,33 @@ if(s35_edge_carbon = 1,
 * Convert A from Mha to km2 inline: A_km2 = p35_forest_area * 10000
 * f_edge = E * delta / A_km2 (dimensionless)
   p35_edge_fraction(j) = 0;
-  p35_edge_fraction(j)$(p35_forest_area(j) > 1e-10 AND f35_edge_intercept(j) > 0) =
-    min(
-      10 ** (f35_edge_intercept(j)
-           + s35_edge_beta * log10(p35_forest_area(j) * 10000)
-           + s35_edge_gamma * p35_forest_fraction(j)
-           + s35_edge_gamma2 * p35_forest_fraction(j) * p35_forest_fraction(j))
-      * s35_edge_depth / (p35_forest_area(j) * 10000),
-    1);
+
+  if(s35_edge_form = 0,
+* Form 3b: global gamma coefficients
+    p35_edge_fraction(j)$(p35_forest_area(j) > 1e-10 AND f35_edge_intercept(j) > 0) =
+      min(
+        10 ** (f35_edge_intercept(j)
+             + s35_edge_beta * log10(p35_forest_area(j) * 10000)
+             + s35_edge_gamma * p35_forest_fraction(j)
+             + s35_edge_gamma2 * p35_forest_fraction(j) * p35_forest_fraction(j))
+        * s35_edge_depth / (p35_forest_area(j) * 10000),
+      1);
+  );
+
+  if(s35_edge_form = 1,
+* Form 3d: regional gamma + p^3 (uses 3d intercepts and regional adjustments)
+    p35_edge_fraction(j)$(p35_forest_area(j) > 1e-10 AND f35_edge_intercept_3d(j) > 0) =
+      min(
+        10 ** (f35_edge_intercept_3d(j)
+             + s35_edge_beta * log10(p35_forest_area(j) * 10000)
+             + (s35_edge_gamma + f35_edge_region_gamma(j)) * p35_forest_fraction(j)
+             + (s35_edge_gamma2 + f35_edge_region_gamma2(j))
+               * p35_forest_fraction(j) * p35_forest_fraction(j)
+             + s35_edge_gamma3
+               * p35_forest_fraction(j) * p35_forest_fraction(j) * p35_forest_fraction(j))
+        * s35_edge_depth / (p35_forest_area(j) * 10000),
+      1);
+  );
 
 * Carbon edge factor: fraction of original carbon density retained
   p35_carbon_edge_factor(j) = 1 - p35_edge_fraction(j) * s35_edge_degrad;

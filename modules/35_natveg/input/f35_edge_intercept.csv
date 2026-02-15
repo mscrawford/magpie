@@ -2,7 +2,7 @@
 * unit: 1 (log10 scale)
 * note: Form 3b: log10(E) = alpha_j + 0.8275597*log10(A) + 0.1806961*p + -1.2761439*p^2
 * origin: tasks/pipeline/06_export_for_magpie.R from closure_comparison.rds
-* creation date: Sun Feb 15 13:16:13 2026
+* creation date: Sun Feb 15 20:55:06 2026
 CAZ_1,1.793377
 CAZ_2,1.8688269
 CAZ_3,1.8360422
