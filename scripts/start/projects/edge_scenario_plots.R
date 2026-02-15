@@ -1,6 +1,6 @@
 # |  Plot comparison of 6 scenario runs (3 SSPs × 2 edge settings)
 # |  Input: report.rds from each run folder
-# |  Output: PDFs in output/plots/global_edge_area/
+# |  Output: PDFs in output/plots/
 
 library(ggplot2)
 
@@ -46,7 +46,7 @@ all_data$region_name <- all_data$region
 
 glo <- all_data[all_data$region_name == "World", ]
 
-plot_dir <- "../output/plots/global_edge_area"
+plot_dir <- "../output/plots"
 dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
 
 # --- Helper: extract and plot a variable ---

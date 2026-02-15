@@ -17,7 +17,7 @@
 #   output/SSP{1,2,3}_edge{ON,OFF}_*/fulldata.gdx  (6 runs)
 #
 # OUTPUTS:
-#   output/plots/global_edge_area/magpie_edge_*.pdf
+#   output/plots/magpie_edge_*.pdf
 # =============================================================================
 
 suppressPackageStartupMessages({
@@ -152,7 +152,7 @@ edge_diag <- do.call(rbind, lapply(run_info[c(2,4,6)], function(info) {
   }
 }))
 
-out_dir <- "../output/plots/global_edge_area"
+out_dir <- "../output/plots"
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 # =============================================================================
