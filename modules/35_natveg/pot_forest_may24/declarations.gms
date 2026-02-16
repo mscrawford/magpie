@@ -36,6 +36,7 @@ parameters
  p35_forest_area(j)                                      Total forest area per cluster for edge calc (mio. ha)
  p35_forest_fraction(j)                                  Forest fraction per cluster (1)
  p35_edge_fraction(j)                                    Fraction of forest that is edge-affected (1)
+ p35_edge_ratio(j)                                       Intermediate edge ratio lambda*E div A for exponential (1)
  p35_carbon_edge_factor(j)                               Multiplicative carbon density reduction from edge effects (1)
 ;
 

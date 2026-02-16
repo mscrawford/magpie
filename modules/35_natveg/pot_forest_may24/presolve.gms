@@ -227,7 +227,12 @@ p35_carbon_density_other(t,j,"youngsecdf",ac,ag_pools) = pm_carbon_density_secdf
 *                              + (gamma2+gamma2_reg)*p^2 + gamma3*p^3
 * where E = edge length (km), A_km2 = forest area (km2), p = forest fraction
 * MAgPIE land is in Mha; closure needs km2, so convert inline: 1 Mha = 10000 km2
-* f_edge = min(E * delta / A_km2, 1) = fraction of forest within edge depth
+*
+* Edge zone formula (s35_edge_formula):
+*   0 = Step function: f_edge = min(E * delta / A_km2, 1)
+*   1 = Exponential decay: r = lambda * E / A_km2, f_eff = r * (1 - exp(-1/r))
+*       Naturally handles strip overlap; no cap needed.
+*
 * carbon_factor = 1 - f_edge * d (d = degradation intensity in edge zone)
 * Applied to vegc pool only for primforest, secdforest, youngsecdf
 * s35_edge_form: 0 = Form 3b (global gamma), 1 = Form 3d (regional gamma + p^3)
@@ -246,25 +251,23 @@ if(s35_edge_carbon = 1,
 
 * Edge fraction: closure predicts E(km) from A(km2) and p
 * Convert A from Mha to km2 inline: A_km2 = p35_forest_area * 10000
-* f_edge = E * delta / A_km2 (dimensionless)
+* First compute edge ratio = E / A_km2, then apply step or exponential formula
   p35_edge_fraction(j) = 0;
+  p35_edge_ratio(j) = 0;
 
   if(s35_edge_form = 0,
-* Form 3b: global gamma coefficients
-    p35_edge_fraction(j)$(p35_forest_area(j) > 1e-10 AND f35_edge_intercept(j) > 0) =
-      min(
+* Form 3b: compute E/A ratio from closure with global gamma coefficients
+    p35_edge_ratio(j)$(p35_forest_area(j) > 1e-10 AND f35_edge_intercept(j) > 0) =
         10 ** (f35_edge_intercept(j)
              + s35_edge_beta * log10(p35_forest_area(j) * 10000)
              + s35_edge_gamma * p35_forest_fraction(j)
              + s35_edge_gamma2 * p35_forest_fraction(j) * p35_forest_fraction(j))
-        * s35_edge_depth / (p35_forest_area(j) * 10000),
-      1);
+        / (p35_forest_area(j) * 10000);
   );
 
   if(s35_edge_form = 1,
-* Form 3d: regional gamma + p^3 (uses 3d intercepts and regional adjustments)
-    p35_edge_fraction(j)$(p35_forest_area(j) > 1e-10 AND f35_edge_intercept_3d(j) > 0) =
-      min(
+* Form 3d: compute E/A ratio from closure with regional gamma + p^3
+    p35_edge_ratio(j)$(p35_forest_area(j) > 1e-10 AND f35_edge_intercept_3d(j) > 0) =
         10 ** (f35_edge_intercept_3d(j)
              + s35_edge_beta * log10(p35_forest_area(j) * 10000)
              + (s35_edge_gamma + f35_edge_region_gamma(j)) * p35_forest_fraction(j)
@@ -272,8 +275,22 @@ if(s35_edge_carbon = 1,
                * p35_forest_fraction(j) * p35_forest_fraction(j)
              + s35_edge_gamma3
                * p35_forest_fraction(j) * p35_forest_fraction(j) * p35_forest_fraction(j))
-        * s35_edge_depth / (p35_forest_area(j) * 10000),
-      1);
+        / (p35_forest_area(j) * 10000);
+  );
+
+* Apply edge zone formula to convert E/A ratio into edge-affected fraction
+  if(s35_edge_formula = 0,
+* Step function: f_edge = min(E/A * depth, 1)
+    p35_edge_fraction(j)$(p35_edge_ratio(j) > 0) =
+      min(p35_edge_ratio(j) * s35_edge_depth, 1);
+  );
+
+  if(s35_edge_formula = 1,
+* Exponential decay: r = lambda * E/A, f_eff = r * (1 - exp(-1/r))
+* Naturally saturates at 1 for small fragments (no cap needed)
+    p35_edge_fraction(j)$(p35_edge_ratio(j) > 0) =
+      s35_edge_lambda * p35_edge_ratio(j)
+      * (1 - exp(-1 / (s35_edge_lambda * p35_edge_ratio(j))));
   );
 
 * Carbon edge factor: fraction of original carbon density retained
