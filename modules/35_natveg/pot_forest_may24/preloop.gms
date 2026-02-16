@@ -44,6 +44,7 @@ p35_secdforest(t,j,ac) = 0;
 * initialize forest disturbance losses
 p35_disturbance_loss_secdf(t,j,ac) = 0;
 p35_disturbance_loss_primf(t,j) = 0;
+p35_edge_carbon_loss(t,j) = 0;
 
 * -------------------------------------------------------------
 * Initialize remaining potential forest establishment area

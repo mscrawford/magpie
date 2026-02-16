@@ -296,6 +296,13 @@ if(s35_edge_carbon = 1,
 * Carbon edge factor: fraction of original carbon density retained
   p35_carbon_edge_factor(j) = 1 - p35_edge_fraction(j) * s35_edge_degrad;
 
+* Calculate total carbon lost to edge effects BEFORE applying the factor
+* Loss = (1 - factor) * sum over forest types of (density_vegc * area)
+  p35_edge_carbon_loss(t,j) =
+    (1 - p35_carbon_edge_factor(j))
+    * (fm_carbon_density(t,j,"primforest","vegc") * pcm_land(j,"primforest")
+     + sum(ac, pm_carbon_density_secdforest_ac(t,j,ac,"vegc") * pc35_secdforest(j,ac)));
+
 * Apply to primforest vegc
   fm_carbon_density(t,j,"primforest","vegc") =
     fm_carbon_density(t,j,"primforest","vegc") * p35_carbon_edge_factor(j);

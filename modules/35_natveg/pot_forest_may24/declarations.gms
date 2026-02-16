@@ -38,6 +38,7 @@ parameters
  p35_edge_fraction(j)                                    Fraction of forest that is edge-affected (1)
  p35_edge_ratio(j)                                       Intermediate edge ratio lambda*E div A for exponential (1)
  p35_carbon_edge_factor(j)                               Multiplicative carbon density reduction from edge effects (1)
+ p35_edge_carbon_loss(t,j)                               Total vegetation carbon lost to edge degradation (mio. tC)
 ;
 
 equations
