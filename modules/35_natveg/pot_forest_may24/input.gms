@@ -27,7 +27,7 @@ s35_secdf_distribution Flag for secdf initialization (0=all secondary forest in 
 s35_forest_damage Damage simulation in forests (0=none 1=shifting agriculture 2= Damage from shifting agriculture is faded out by c35_forest_damage_end 4= f35_forest_shock scenario) / 2 /
 s35_forest_damage_end   Year of forest damage end  (1)              / 2050 /
 s35_npi_ndc_reversal    Year in which NPI NDC reversal should take place (1) / Inf /
-s35_edge_carbon         Switch for edge-effect carbon degradation (0=off 1=on) / 0 /
+s35_edge_carbon         Switch for edge-effect carbon degradation (0=off 1=on) / 1 /
 s35_edge_form           Edge closure form (0=Form3b 1=Form3d with regional gamma) / 1 /
 s35_edge_formula        Edge zone formula (0=step with cap 1=exponential decay) / 1 /
 s35_edge_depth          Edge depth in km for step formula (km)                / 0.5 /
