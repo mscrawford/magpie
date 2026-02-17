@@ -298,10 +298,15 @@ if(s35_edge_carbon = 1,
 
 * Calculate total carbon lost to edge effects BEFORE applying the factor
 * Loss = (1 - factor) * sum over forest types of (density_vegc * area)
+* Includes primforest, secdforest, and youngsecdf (young secondary forest < 20 tC/ha)
+* NOTE: forestry (managed plantations) is included in p35_forest_area for the closure
+*       but its carbon density is NOT edge-reduced (module 32 runs before module 35).
+*       This is a known limitation; managed plantation edges may warrant separate treatment.
   p35_edge_carbon_loss(t,j) =
     (1 - p35_carbon_edge_factor(j))
     * (fm_carbon_density(t,j,"primforest","vegc") * pcm_land(j,"primforest")
-     + sum(ac, pm_carbon_density_secdforest_ac(t,j,ac,"vegc") * pc35_secdforest(j,ac)));
+     + sum(ac, pm_carbon_density_secdforest_ac(t,j,ac,"vegc") * pc35_secdforest(j,ac))
+     + sum(ac, p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") * pc35_land_other(j,"youngsecdf",ac)));
 
 * Apply to primforest vegc
   fm_carbon_density(t,j,"primforest","vegc") =
