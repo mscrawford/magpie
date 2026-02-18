@@ -366,20 +366,20 @@ if(s35_edge_carbon = 1,
         p35_edge_pipeline(j) * (1 - exp(-m_yeardiff(t) / s35_edge_tau));
 
       p35_edge_pipeline(j) =
-        p35_edge_pipeline(j) - p35_edge_pipeline_release(t,j);
+        p35_edge_pipeline(j) * exp(-m_yeardiff(t) / s35_edge_tau);
 
     else
-* Subsequent timesteps: decay + add new committed + release
+* Subsequent timesteps: add new committed, then decay+release together
 * new_committed = increase in edge carbon loss stock since previous period
       p35_edge_pipeline(j) =
-        p35_edge_pipeline(j) * exp(-m_yeardiff(t) / s35_edge_tau)
+        p35_edge_pipeline(j)
         + max(0, p35_edge_carbon_loss(t,j) - p35_edge_carbon_loss_prev(j));
 
       p35_edge_pipeline_release(t,j) =
         p35_edge_pipeline(j) * (1 - exp(-m_yeardiff(t) / s35_edge_tau));
 
       p35_edge_pipeline(j) =
-        p35_edge_pipeline(j) - p35_edge_pipeline_release(t,j);
+        p35_edge_pipeline(j) * exp(-m_yeardiff(t) / s35_edge_tau);
 
     );
 
