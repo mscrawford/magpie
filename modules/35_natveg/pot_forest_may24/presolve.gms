@@ -242,8 +242,8 @@ if(s35_edge_carbon = 1,
 * Initialize pipeline parameters (needed even when pipeline is off to avoid GAMS error 141)
   p35_edge_pipeline_release(t,j) = 0;
   if(ord(t) = 1,
-    p35_edge_carbon_loss_prev(j) = 0;
-    p35_edge_pipeline(j) = 0;
+    p35_edge_realized_loss(j) = 0;
+    p35_edge_realized_loss_prev(j) = 0;
   );
 
 * Total forest area (Mha)
@@ -327,10 +327,14 @@ if(s35_edge_carbon = 1,
   p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") =
     p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") * p35_carbon_edge_factor(j);
 
-* --- Temporal pipeline for edge carbon emissions ---
+* --- Symmetric realized-loss pipeline for edge carbon emissions (Option B) ---
 * Instead of reporting edge carbon loss as an instantaneous stock change,
-* spread the atmospheric release over time using an exponential decay
-* with e-folding time tau (Brinck et al. 2017, Nature Comms).
+* track a "realized loss" that approaches the equilibrium loss with
+* exponential time constant tau (Brinck et al. 2017, Nature Comms).
+* Reported flow = change in realized loss per period.
+*
+* This is SYMMETRIC: realized loss increases during deforestation AND
+* decreases during reforestation, both at rate alpha = 1 - exp(-dt/tau).
 *
 * tau derivation:
 *   Brinck (2017) fitted an exponential decay model to pantropical satellite
@@ -352,39 +356,35 @@ if(s35_edge_carbon = 1,
   if(s35_edge_pipeline = 1,
 
     if(ord(t) = 1,
-* Initialize pipeline at first timestep
+* Initialize realized loss at first timestep
 * Realization fraction: r = 1 - (tau/T_hist) * (1 - exp(-T_hist/tau))
-* Pipeline(1995) = edge_carbon_loss(1995) * (1 - r)
-*                = edge_carbon_loss(1995) * (tau/T_hist) * (1 - exp(-T_hist/tau))
-      p35_edge_pipeline(j) =
+* Realized(1995) = edge_carbon_loss(1995) * r
+      p35_edge_realized_loss(j) =
         p35_edge_carbon_loss(t,j)
-        * (s35_edge_tau / s35_edge_thist)
-        * (1 - exp(-s35_edge_thist / s35_edge_tau));
+        * (1 - (s35_edge_tau / s35_edge_thist)
+             * (1 - exp(-s35_edge_thist / s35_edge_tau)));
 
-* First-period release from the legacy pipeline
-      p35_edge_pipeline_release(t,j) =
-        p35_edge_pipeline(j) * (1 - exp(-m_yeardiff(t) / s35_edge_tau));
+      p35_edge_realized_loss_prev(j) = 0;
 
-      p35_edge_pipeline(j) =
-        p35_edge_pipeline(j) * exp(-m_yeardiff(t) / s35_edge_tau);
+* First-period release = full realized amount (relative to zero baseline)
+      p35_edge_pipeline_release(t,j) = p35_edge_realized_loss(j);
 
     else
-* Subsequent timesteps: add new committed, then decay+release together
-* new_committed = increase in edge carbon loss stock since previous period
-      p35_edge_pipeline(j) =
-        p35_edge_pipeline(j)
-        + max(0, p35_edge_carbon_loss(t,j) - p35_edge_carbon_loss_prev(j));
+* Subsequent timesteps: realized approaches equilibrium symmetrically
+* alpha = 1 - exp(-dt/tau)
+      p35_edge_realized_loss(j) =
+        p35_edge_realized_loss(j)
+        + (1 - exp(-m_yeardiff(t) / s35_edge_tau))
+        * (p35_edge_carbon_loss(t,j) - p35_edge_realized_loss(j));
 
+* Flow = change in realized loss (for reporting via magpie4)
       p35_edge_pipeline_release(t,j) =
-        p35_edge_pipeline(j) * (1 - exp(-m_yeardiff(t) / s35_edge_tau));
-
-      p35_edge_pipeline(j) =
-        p35_edge_pipeline(j) * exp(-m_yeardiff(t) / s35_edge_tau);
+        p35_edge_realized_loss(j) - p35_edge_realized_loss_prev(j);
 
     );
 
-* Store current edge carbon loss for next period's delta calculation
-    p35_edge_carbon_loss_prev(j) = p35_edge_carbon_loss(t,j);
+* Store for next period's delta calculation
+    p35_edge_realized_loss_prev(j) = p35_edge_realized_loss(j);
 
   );
 

@@ -39,9 +39,9 @@ parameters
  p35_edge_ratio(j)                                       Intermediate edge ratio lambda*E div A for exponential (1)
  p35_carbon_edge_factor(j)                               Multiplicative carbon density reduction from edge effects (1)
  p35_edge_carbon_loss(t,j)                               Total vegetation carbon lost to edge degradation (mio. tC)
- p35_edge_pipeline(j)                                    Pipeline of committed but unreleased edge carbon (mio. tC)
- p35_edge_pipeline_release(t,j)                          Edge carbon released from pipeline this period (mio. tC)
- p35_edge_carbon_loss_prev(j)                            Previous-period edge carbon loss for pipeline delta (mio. tC)
+ p35_edge_realized_loss(j)                               Realized (actually degraded) edge carbon (mio. tC)
+ p35_edge_realized_loss_prev(j)                          Previous-period realized edge carbon loss (mio. tC)
+ p35_edge_pipeline_release(t,j)                          Change in realized edge carbon this period (mio. tC)
 ;
 
 equations
