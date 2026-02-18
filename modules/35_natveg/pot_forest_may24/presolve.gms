@@ -320,6 +320,67 @@ if(s35_edge_carbon = 1,
   p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") =
     p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") * p35_carbon_edge_factor(j);
 
+* --- Temporal pipeline for edge carbon emissions ---
+* Instead of reporting edge carbon loss as an instantaneous stock change,
+* spread the atmospheric release over time using an exponential decay
+* with e-folding time tau (Brinck et al. 2017, Nature Comms).
+*
+* tau derivation:
+*   Brinck (2017) fitted an exponential decay model to pantropical satellite
+*   data of edge zone biomass loss: B(t) = B0 * exp(-t/tau), finding tau = 13 yr
+*   (sensitivity range 10-20 yr). This is the only pantropical estimate;
+*   field studies give 10-32 yr (Laurance 2011) and imply ~12 yr (Silva Junior 2020).
+*   tau = 13 yr is used as default; future calibration against observed emission
+*   trajectories is needed (see RESULTS.md open tasks).
+*
+* T_hist derivation:
+*   T_hist = 41 yr is calibrated so that the pipeline at 1995 reproduces Brinck's
+*   0.34 GtC/yr tropical edge flux. The realization fraction r(41,13) = 0.70 means
+*   70% of equilibrium edge degradation has been realized by 1995.
+*
+* The pipeline is REPORTING-LAYER ONLY: the optimizer still sees instant stock
+* reduction via p35_carbon_edge_factor. Only the emission flow reported by
+* magpie4::reportEmissions is temporally spread.
+
+  if(s35_edge_pipeline = 1,
+
+    if(ord(t) = 1,
+* Initialize pipeline at first timestep
+* Realization fraction: r = 1 - (tau/T_hist) * (1 - exp(-T_hist/tau))
+* Pipeline(1995) = edge_carbon_loss(1995) * (1 - r)
+*                = edge_carbon_loss(1995) * (tau/T_hist) * (1 - exp(-T_hist/tau))
+      p35_edge_pipeline(j) =
+        p35_edge_carbon_loss(t,j)
+        * (s35_edge_tau / s35_edge_thist)
+        * (1 - exp(-s35_edge_thist / s35_edge_tau));
+
+* First-period release from the legacy pipeline
+      p35_edge_pipeline_release(t,j) =
+        p35_edge_pipeline(j) * (1 - exp(-m_yeardiff(t) / s35_edge_tau));
+
+      p35_edge_pipeline(j) =
+        p35_edge_pipeline(j) - p35_edge_pipeline_release(t,j);
+
+    else
+* Subsequent timesteps: decay + add new committed + release
+* new_committed = increase in edge carbon loss stock since previous period
+      p35_edge_pipeline(j) =
+        p35_edge_pipeline(j) * exp(-m_yeardiff(t) / s35_edge_tau)
+        + max(0, p35_edge_carbon_loss(t,j) - p35_edge_carbon_loss_prev(j));
+
+      p35_edge_pipeline_release(t,j) =
+        p35_edge_pipeline(j) * (1 - exp(-m_yeardiff(t) / s35_edge_tau));
+
+      p35_edge_pipeline(j) =
+        p35_edge_pipeline(j) - p35_edge_pipeline_release(t,j);
+
+    );
+
+* Store current edge carbon loss for next period's delta calculation
+    p35_edge_carbon_loss_prev(j) = p35_edge_carbon_loss(t,j);
+
+  );
+
 );
 
 * ----------------------------
