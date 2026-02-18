@@ -364,10 +364,10 @@ if(s35_edge_carbon = 1,
         * (1 - (s35_edge_tau / s35_edge_thist)
              * (1 - exp(-s35_edge_thist / s35_edge_tau)));
 
-      p35_edge_realized_loss_prev(j) = 0;
+      p35_edge_realized_loss_prev(j) = p35_edge_realized_loss(j);
 
-* First-period release = full realized amount (relative to zero baseline)
-      p35_edge_pipeline_release(t,j) = p35_edge_realized_loss(j);
+* First-period release = 0 (historical emissions already occurred before 1995)
+      p35_edge_pipeline_release(t,j) = 0;
 
     else
 * Subsequent timesteps: realized approaches equilibrium symmetrically

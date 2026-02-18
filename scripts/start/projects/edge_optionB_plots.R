@@ -14,20 +14,22 @@ output_dir <- "output"
 find_run <- function(pattern) {
   dirs <- list.dirs(output_dir, recursive = FALSE)
   d <- grep(pattern, dirs, value = TRUE)
-  if (length(d) == 0) stop("No run found matching: ", pattern)
+  # Only keep runs that have a report.rds
+  d <- d[file.exists(file.path(d, "report.rds"))]
+  if (length(d) == 0) stop("No completed run found matching: ", pattern)
   d[length(d)]  # latest match
 }
 
 run_info <- list(
   list(ssp = "SSP1", edge = "OFF",  pattern = "SSP1_optB_OFF"),
   list(ssp = "SSP1", edge = "INST", pattern = "SSP1_optB_INST"),
-  list(ssp = "SSP1", edge = "SYMM", pattern = "SSP1_optB_SYMM"),
+  list(ssp = "SSP1", edge = "SYMM", pattern = "SSP1_optB_SYMM_2"),
   list(ssp = "SSP2", edge = "OFF",  pattern = "SSP2_optB_OFF"),
   list(ssp = "SSP2", edge = "INST", pattern = "SSP2_optB_INST"),
-  list(ssp = "SSP2", edge = "SYMM", pattern = "SSP2_optB_SYMM"),
+  list(ssp = "SSP2", edge = "SYMM", pattern = "SSP2_optB_SYMM_2"),
   list(ssp = "SSP3", edge = "OFF",  pattern = "SSP3_optB_OFF"),
   list(ssp = "SSP3", edge = "INST", pattern = "SSP3_optB_INST"),
-  list(ssp = "SSP3", edge = "SYMM", pattern = "SSP3_optB_SYMM")
+  list(ssp = "SSP3", edge = "SYMM", pattern = "SSP3_optB_SYMM_2")
 )
 
 cat("Loading reports...\n")
