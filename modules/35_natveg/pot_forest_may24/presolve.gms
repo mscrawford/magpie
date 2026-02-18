@@ -239,6 +239,13 @@ p35_carbon_density_other(t,j,"youngsecdf",ac,ag_pools) = pm_carbon_density_secdf
 
 if(s35_edge_carbon = 1,
 
+* Initialize pipeline parameters (needed even when pipeline is off to avoid GAMS error 141)
+  p35_edge_pipeline_release(t,j) = 0;
+  if(ord(t) = 1,
+    p35_edge_carbon_loss_prev(j) = 0;
+    p35_edge_pipeline(j) = 0;
+  );
+
 * Total forest area (Mha)
   p35_forest_area(j) = pcm_land(j,"primforest") + pcm_land(j,"secdforest")
                       + pcm_land(j,"forestry");
