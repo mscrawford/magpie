@@ -32,12 +32,12 @@ s35_edge_form           Edge closure form (0=Form3b 1=Form3d with regional gamma
 s35_edge_formula        Edge zone formula (0=step with cap 1=exponential decay) / 1 /
 s35_edge_depth          Edge depth in km for step formula (km)                / 0.5 /
 s35_edge_lambda         Exponential decay length in km for exp formula (km)   / 0.059 /
-s35_edge_degrad         Fractional carbon loss in edge zone (1)                / 0.25 /
+s35_edge_degrad         Fractional carbon loss in edge zone (1)                / 0.5 /
 s35_edge_beta           Closure exponent on log10 forest area (1)              / 0.878441 /
 s35_edge_gamma          Closure coefficient on forest fraction p (1)           / -2.6885421 /
 s35_edge_gamma2         Closure coefficient on p squared (1)                   / 5.9352517 /
 s35_edge_gamma3         Closure coefficient on p cubed for Form3d (1)          / -4.853625 /
-s35_edge_pipeline       Switch for temporal pipeline (0=instant 1=tau-decay) (1) / 0 /
+s35_edge_pipeline       Switch for temporal pipeline (0=instant 1=tau-decay) (1) / 1 /
 s35_edge_tau            E-folding time for edge degradation (yr)               / 13 /
 s35_edge_thist          Duration of historical fragmentation before 1995 (yr)  / 41 /
 ;
