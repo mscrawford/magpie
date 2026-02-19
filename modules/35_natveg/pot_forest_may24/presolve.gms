@@ -239,13 +239,6 @@ p35_carbon_density_other(t,j,"youngsecdf",ac,ag_pools) = pm_carbon_density_secdf
 
 if(s35_edge_carbon = 1,
 
-* Initialize pipeline parameters (needed even when pipeline is off to avoid GAMS error 141)
-  p35_edge_pipeline_release(t,j) = 0;
-  if(ord(t) = 1,
-    p35_edge_realized_loss(j) = 0;
-    p35_edge_realized_loss_prev(j) = 0;
-  );
-
 * Total forest area (Mha)
   p35_forest_area(j) = pcm_land(j,"primforest") + pcm_land(j,"secdforest")
                       + pcm_land(j,"forestry");
@@ -327,66 +320,13 @@ if(s35_edge_carbon = 1,
   p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") =
     p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") * p35_carbon_edge_factor(j);
 
-* --- Symmetric realized-loss pipeline for edge carbon emissions (Option B) ---
-* Instead of reporting edge carbon loss as an instantaneous stock change,
-* track a "realized loss" that approaches the equilibrium loss with
-* exponential time constant tau (Brinck et al. 2017, Nature Comms).
-* Reported flow = change in realized loss per period.
-*
-* This is SYMMETRIC: realized loss increases during deforestation AND
-* decreases during reforestation, both at rate alpha = 1 - exp(-dt/tau).
-*
-* tau derivation:
-*   Brinck (2017) fitted an exponential decay model to pantropical satellite
-*   data of edge zone biomass loss: B(t) = B0 * exp(-t/tau), finding tau = 13 yr
-*   (sensitivity range 10-20 yr). This is the only pantropical estimate;
-*   field studies give 10-32 yr (Laurance 2011) and imply ~12 yr (Silva Junior 2020).
-*   tau = 13 yr is used as default; future calibration against observed emission
-*   trajectories is needed (see RESULTS.md open tasks).
-*
-* T_hist derivation:
-*   T_hist = 41 yr is calibrated so that the pipeline at 1995 reproduces Brinck's
-*   0.34 GtC/yr tropical edge flux. The realization fraction r(41,13) = 0.70 means
-*   70% of equilibrium edge degradation has been realized by 1995.
-*
-* The pipeline is REPORTING-LAYER ONLY: the optimizer still sees instant stock
-* reduction via p35_carbon_edge_factor. Only the emission flow reported by
-* magpie4::reportEmissions is temporally spread.
-
-  if(s35_edge_pipeline = 1,
-
-    if(ord(t) = 1,
-* Initialize realized loss at first timestep
-* Realization fraction: r = 1 - (tau/T_hist) * (1 - exp(-T_hist/tau))
-* Realized(1995) = edge_carbon_loss(1995) * r
-      p35_edge_realized_loss(j) =
-        p35_edge_carbon_loss(t,j)
-        * (1 - (s35_edge_tau / s35_edge_thist)
-             * (1 - exp(-s35_edge_thist / s35_edge_tau)));
-
-      p35_edge_realized_loss_prev(j) = p35_edge_realized_loss(j);
-
-* First-period release = 0 (historical emissions already occurred before 1995)
-      p35_edge_pipeline_release(t,j) = 0;
-
-    else
-* Subsequent timesteps: realized approaches equilibrium symmetrically
-* alpha = 1 - exp(-dt/tau)
-      p35_edge_realized_loss(j) =
-        p35_edge_realized_loss(j)
-        + (1 - exp(-m_yeardiff(t) / s35_edge_tau))
-        * (p35_edge_carbon_loss(t,j) - p35_edge_realized_loss(j));
-
-* Flow = change in realized loss (for reporting via magpie4)
-      p35_edge_pipeline_release(t,j) =
-        p35_edge_realized_loss(j) - p35_edge_realized_loss_prev(j);
-
-    );
-
-* Store for next period's delta calculation
-    p35_edge_realized_loss_prev(j) = p35_edge_realized_loss(j);
-
-  );
+* --- Temporal pipeline for edge carbon emissions ---
+* The temporal pipeline (Option B: symmetric realized-loss tracking with
+* exponential time constant tau) is now computed in magpie4::reportEmissions
+* rather than GAMS. This keeps the optimizer instant while allowing
+* post-hoc temporal spreading without re-running GAMS.
+* See docs/edge_calibration/OPTION_B_DESIGN.md for the design rationale.
+* The key output for magpie4 is p35_edge_carbon_loss(t,j) computed above.
 
 );
 

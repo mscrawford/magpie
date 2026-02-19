@@ -37,9 +37,6 @@ s35_edge_beta           Closure exponent on log10 forest area (1)              /
 s35_edge_gamma          Closure coefficient on forest fraction p (1)           / -2.6885421 /
 s35_edge_gamma2         Closure coefficient on p squared (1)                   / 5.9352517 /
 s35_edge_gamma3         Closure coefficient on p cubed for Form3d (1)          / -4.853625 /
-s35_edge_pipeline       Switch for temporal pipeline (0=instant 1=tau-decay) (1) / 1 /
-s35_edge_tau            E-folding time for edge degradation (yr)               / 13 /
-s35_edge_thist          Duration of historical fragmentation before 1995 (yr)  / 41 /
 ;
 
 table f35_forest_lost_share(i,driver_source) Share of area damanged by forest fires (1)
