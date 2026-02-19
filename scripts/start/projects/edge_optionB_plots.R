@@ -23,13 +23,13 @@ find_run <- function(pattern) {
 run_info <- list(
   list(ssp = "SSP1", edge = "OFF",  pattern = "SSP1_optB_OFF"),
   list(ssp = "SSP1", edge = "INST", pattern = "SSP1_optB_INST"),
-  list(ssp = "SSP1", edge = "SYMM", pattern = "SSP1_optB_SYMM_2"),
+  list(ssp = "SSP1", edge = "SYMM", pattern = "SSP1_optB_SYMMv2_"),
   list(ssp = "SSP2", edge = "OFF",  pattern = "SSP2_optB_OFF"),
   list(ssp = "SSP2", edge = "INST", pattern = "SSP2_optB_INST"),
-  list(ssp = "SSP2", edge = "SYMM", pattern = "SSP2_optB_SYMM_2"),
+  list(ssp = "SSP2", edge = "SYMM", pattern = "SSP2_optB_SYMMv2_"),
   list(ssp = "SSP3", edge = "OFF",  pattern = "SSP3_optB_OFF"),
   list(ssp = "SSP3", edge = "INST", pattern = "SSP3_optB_INST"),
-  list(ssp = "SSP3", edge = "SYMM", pattern = "SSP3_optB_SYMM_2")
+  list(ssp = "SSP3", edge = "SYMM", pattern = "SSP3_optB_SYMMv2_2")
 )
 
 cat("Loading reports...\n")
@@ -255,4 +255,108 @@ if (nrow(edge_summary) > 0) {
 }
 
 cat(sprintf("\nAll plots saved to: %s\n", normalizePath(plot_dir, mustWork = FALSE)))
+
+# =============================================================================
+# P12: Shifting cultivation comparison (SSP3 only)
+# =============================================================================
+cat("\nP12: Shifting cultivation comparison (SSP3)\n")
+shiftON_dir <- tryCatch(find_run("SSP3_optB_SYMMv2_shiftON"), error = function(e) NULL)
+if (!is.null(shiftON_dir)) {
+  r_shift <- readRDS(file.path(shiftON_dir, "report.rds"))
+  r_shift$ssp <- "SSP3"
+  r_shift$edge <- "SYMM+shiftON"
+  r_shift$region_name <- r_shift$region
+  glo_shift <- r_shift[r_shift$region_name == "World", ]
+
+  # Combine SSP3 runs for comparison
+  ssp3_runs <- rbind(
+    glo[glo$ssp == "SSP3", ],
+    glo_shift
+  )
+
+  edge_lines_ext <- c(OFF = "dotted", INST = "dashed", SYMM = "solid", `SYMM+shiftON` = "twodash")
+  edge_labs_ext <- c(OFF = "No edge", INST = "Instant", SYMM = "Option B", `SYMM+shiftON` = "Option B + shift cult ON")
+
+  # P12a: Total forest degradation
+  d12a <- ssp3_runs[ssp3_runs$variable == "Emissions|CO2|Land|Land-use Change|+|Forest degradation", ]
+  if (nrow(d12a) > 0) {
+    p12a <- ggplot(d12a, aes(x = period, y = value, linetype = edge, color = edge)) +
+      geom_line(linewidth = 1.2) +
+      scale_linetype_manual(values = edge_lines_ext, labels = edge_labs_ext) +
+      scale_color_manual(values = c(OFF = "grey60", INST = "#e41a1c", SYMM = "#377eb8", `SYMM+shiftON` = "#4daf4a"),
+                         labels = edge_labs_ext) +
+      labs(title = "SSP3: Forest Degradation Emissions",
+           subtitle = "Comparing persistent vs fading shifting cultivation",
+           x = "Year", y = "Mt CO2/yr", linetype = "Mode", color = "Mode") +
+      theme_minimal(base_size = 14) + theme(legend.position = "bottom")
+    ggsave(file.path(plot_dir, "ssp3_shiftcult_degradation.pdf"), p12a, width = 10, height = 6)
+    cat("  Saved: ssp3_shiftcult_degradation.pdf\n")
+  }
+
+  # P12b: Shifting cultivation component only
+  shift_var <- "Emissions|CO2|Land|Land-use Change|Forest degradation|+|Shifting cultivation"
+  d12b <- ssp3_runs[ssp3_runs$variable == shift_var, ]
+  if (nrow(d12b) > 0) {
+    p12b <- ggplot(d12b, aes(x = period, y = value, linetype = edge, color = edge)) +
+      geom_line(linewidth = 1.2) +
+      scale_linetype_manual(values = edge_lines_ext, labels = edge_labs_ext) +
+      scale_color_manual(values = c(OFF = "grey60", INST = "#e41a1c", SYMM = "#377eb8", `SYMM+shiftON` = "#4daf4a"),
+                         labels = edge_labs_ext) +
+      labs(title = "SSP3: Shifting Cultivation Emissions Only",
+           subtitle = "s35_forest_damage=1 (constant) vs =2 (faded out by 2050)",
+           x = "Year", y = "Mt CO2/yr", linetype = "Mode", color = "Mode") +
+      theme_minimal(base_size = 14) + theme(legend.position = "bottom")
+    ggsave(file.path(plot_dir, "ssp3_shiftcult_only.pdf"), p12b, width = 10, height = 6)
+    cat("  Saved: ssp3_shiftcult_only.pdf\n")
+  }
+
+  # P12c: Edge degradation component
+  d12c <- ssp3_runs[ssp3_runs$variable == edge_var, ]
+  if (nrow(d12c) > 0) {
+    p12c <- ggplot(d12c, aes(x = period, y = value, linetype = edge, color = edge)) +
+      geom_line(linewidth = 1.2) +
+      scale_linetype_manual(values = edge_lines_ext, labels = edge_labs_ext) +
+      scale_color_manual(values = c(OFF = "grey60", INST = "#e41a1c", SYMM = "#377eb8", `SYMM+shiftON` = "#4daf4a"),
+                         labels = edge_labs_ext) +
+      labs(title = "SSP3: Edge Degradation Emissions",
+           subtitle = "Does persistent shifting cultivation change edge dynamics?",
+           x = "Year", y = "Mt CO2/yr", linetype = "Mode", color = "Mode") +
+      theme_minimal(base_size = 14) + theme(legend.position = "bottom")
+    ggsave(file.path(plot_dir, "ssp3_shiftcult_edge.pdf"), p12c, width = 10, height = 6)
+    cat("  Saved: ssp3_shiftcult_edge.pdf\n")
+  }
+
+  # P12d: Total LUC emissions
+  d12d <- ssp3_runs[ssp3_runs$variable == "Emissions|CO2|Land|+|Land-use Change", ]
+  if (nrow(d12d) > 0) {
+    p12d <- ggplot(d12d, aes(x = period, y = value, linetype = edge, color = edge)) +
+      geom_line(linewidth = 1.2) +
+      scale_linetype_manual(values = edge_lines_ext, labels = edge_labs_ext) +
+      scale_color_manual(values = c(OFF = "grey60", INST = "#e41a1c", SYMM = "#377eb8", `SYMM+shiftON` = "#4daf4a"),
+                         labels = edge_labs_ext) +
+      labs(title = "SSP3: Total LUC Emissions",
+           subtitle = "Impact of persistent shifting cultivation on total land-use change",
+           x = "Year", y = "Mt CO2/yr", linetype = "Mode", color = "Mode") +
+      theme_minimal(base_size = 14) + theme(legend.position = "bottom")
+    ggsave(file.path(plot_dir, "ssp3_shiftcult_luc_total.pdf"), p12d, width = 10, height = 6)
+    cat("  Saved: ssp3_shiftcult_luc_total.pdf\n")
+  }
+
+  # Summary table
+  cat("\n=== SSP3 Shifting Cultivation Summary ===\n")
+  for (v in c(shift_var, edge_var, "Emissions|CO2|Land|Land-use Change|+|Forest degradation")) {
+    cat(sprintf("\n%s:\n", sub(".*\\|", "", v)))
+    for (yr in c(2020, 2050, 2100)) {
+      vals <- sapply(c("SYMM", "SYMM+shiftON"), function(e) {
+        x <- ssp3_runs$value[ssp3_runs$variable == v & ssp3_runs$edge == e & ssp3_runs$period == yr]
+        if (length(x) == 0) NA else x
+      })
+      cat(sprintf("  %d: SYMM=%.1f  shiftON=%.1f  diff=%.1f MtCO2/yr\n",
+                  yr, vals[1], vals[2], vals[2] - vals[1]))
+    }
+  }
+} else {
+  cat("  SKIP: SSP3_optB_SYMMv2_shiftON not found yet\n")
+}
+
 cat("\n=== Done ===\n")
