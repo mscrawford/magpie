@@ -177,15 +177,19 @@ if (SMOKE_ONLY) {
 # ---- Phase 1: endogenous-TC references --------------------------------------
 
 message("\n========== Phase 1: endogenous-TC reference runs ==========")
-scen_names_p1 <- names(TC_VS_LANDUSE_SCENARIOS)  # BAU, Energy, Full
+scen_names_p1 <- names(TC_VS_LANDUSE_SCENARIOS)
 
 in_flight  <- character(0)
 started_at <- list()
 
 for (scen in scen_names_p1) {
+  title <- tcRunName(scen)
+  if (runCompleted(title)) {
+    message(sprintf("[%s] SKIP (already completed): %s", format(Sys.time()), title))
+    next
+  }
   in_flight <- waitForSlot(in_flight, MAX_PARALLEL, started_at)
   run_cfg <- applyTCScenario(cfg, scen)
-  title <- tcRunName(scen)  # e.g. "TC_BAU_endo"
   launchRun(run_cfg, title)
   in_flight        <- c(in_flight, title)
   started_at[[title]] <- Sys.time()
@@ -227,6 +231,11 @@ for (i in seq_len(nrow(sweep_jobs))) {
   scen <- sweep_jobs$scenario[i]
   f    <- sweep_jobs$f[i]
   title <- tcRunName(scen, f)
+
+  if (runCompleted(title)) {
+    message(sprintf("[%s] SKIP (already completed): %s", format(Sys.time()), title))
+    next
+  }
 
   in_flight <- waitForSlot(in_flight, MAX_PARALLEL, started_at)
 

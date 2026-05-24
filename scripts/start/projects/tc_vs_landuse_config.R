@@ -8,54 +8,64 @@
 # Scenario definitions for the "TC vs land-use change" experiment.
 # See scripts/start/projects/tc_vs_landuse.R for the orchestrator.
 #
-# Three scenarios:
-#   BAU    : no carbon price, no diet transition
-#   Energy : moderate 2C carbon price with comprehensive AFOLU coverage, no diet
-#   Full   : Energy + EAT-Lancet Flexitarian (2500 kcal) diet transition
+# Sequential additive design (each row adds one layer on top of the previous):
+#   BAU         : no carbon price, no land conservation, no diet
+#   Energy      : 1.5C carbon price (PkBudg650) with comprehensive AFOLU coverage
+#   EnergyCons  : Energy + land conservation (30by30, future + WDPA baseline)
+#   Full        : Energy + land conservation + EAT-Lancet Flexitarian diet
+#
+# Climate-policy choice: PkBudg650 (~$300/tC in 2050, 1.5C pathway). The prior
+# round used PkBudg1000 (2C) but all sweep runs were feasible at any f, which
+# suggested the 2C signal didn't bind hard enough to differentiate scenarios.
+
+# Shared carbon-price block for all non-BAU scenarios (1.5C / PkBudg650)
+.energy_block <- list(
+  c56_pollutant_prices          = "R34M410-SSP2-PkBudg650",
+  c56_pollutant_prices_noselect = "R34M410-SSP2-PkBudg650",
+  c56_emis_policy               = "all_nosoil",
+  c56_mute_ghgprices_until      = "y2025"
+)
+
+# Shared land-conservation block (30by30 future + WDPA baseline, 2025->2050)
+.landcons_block <- list(
+  c22_protect_scenario          = "30by30",
+  c22_protect_scenario_noselect = "30by30",
+  s22_conservation_start        = 2025,
+  s22_conservation_target       = 2050,
+  s22_restore_land              = 1
+)
+
+# Shared diet-transition block (EAT-Lancet FLX, 2500 kcal, 2025->2050 linear)
+.diet_block <- list(
+  s15_exo_diet                  = 1,
+  c15_EAT_scen                  = "FLX",
+  c15_kcal_scen                 = "2500kcal",
+  s15_exo_foodscen_start        = 2025,
+  s15_exo_foodscen_target       = 2050,
+  s15_exo_foodscen_convergence  = 1
+)
 
 TC_VS_LANDUSE_SCENARIOS <- list(
 
   BAU = list(
-    # Carbon price: default ~no price
+    # Default ~no carbon price; default conservation; endogenous diet
     c56_pollutant_prices          = "R34M410-SSP2-NPi2025",
     c56_pollutant_prices_noselect = "R34M410-SSP2-NPi2025",
     c56_emis_policy               = "reddnatveg_nosoil",
     c56_mute_ghgprices_until      = "y2030",
-    # Diet: endogenous
     s15_exo_diet                  = 0
   ),
 
-  Energy = list(
-    # Carbon price: 2C pathway, comprehensive AFOLU coverage (CO2 LULUCF + CH4 + N2O)
-    c56_pollutant_prices          = "R34M410-SSP2-PkBudg1000",
-    c56_pollutant_prices_noselect = "R34M410-SSP2-PkBudg1000",
-    c56_emis_policy               = "all_nosoil",
-    c56_mute_ghgprices_until      = "y2025",
-    # Diet: endogenous
-    s15_exo_diet                  = 0
-  ),
-
-  Full = list(
-    # Carbon price: same as Energy
-    c56_pollutant_prices          = "R34M410-SSP2-PkBudg1000",
-    c56_pollutant_prices_noselect = "R34M410-SSP2-PkBudg1000",
-    c56_emis_policy               = "all_nosoil",
-    c56_mute_ghgprices_until      = "y2025",
-    # Diet: EAT-Lancet Flexitarian, 2500 kcal/cap/day, linear transition 2025-2050
-    s15_exo_diet                  = 1,
-    c15_EAT_scen                  = "FLX",
-    c15_kcal_scen                 = "2500kcal",
-    s15_exo_foodscen_start        = 2025,
-    s15_exo_foodscen_target       = 2050,
-    s15_exo_foodscen_convergence  = 1
-  )
+  Energy     = .energy_block,
+  EnergyCons = c(.energy_block, .landcons_block),
+  Full       = c(.energy_block, .landcons_block, .diet_block)
 )
 
 # TC blending fractions for the sweep (f = 1 is covered by the endogenous reference)
 TC_VS_LANDUSE_FRACTIONS <- c(0, 1/2, 3/4)
 
 # Scenarios that get a TC sweep (BAU is only the tau-source baseline)
-TC_VS_LANDUSE_SWEEP_SCENARIOS <- c("Energy", "Full")
+TC_VS_LANDUSE_SWEEP_SCENARIOS <- c("Energy", "EnergyCons", "Full")
 
 # Apply a scenario's switches to a cfg object
 applyTCScenario <- function(cfg, scenario_name) {

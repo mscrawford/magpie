@@ -55,17 +55,19 @@ my_theme <- theme_bw(base_size = 11) +
         strip.background = element_rect(fill = "grey95", color = NA),
         legend.position = "right")
 
-scenario_levels <- c("BAU", "Energy", "Full")
+# Scenario order = increasing layering of policies
+scenario_levels <- c("BAU", "Energy", "EnergyCons", "Full")
 f_label <- function(f_num) {
   ifelse(f_num == 1.0, "f=1 (endogenous)", sprintf("f=%.2f", f_num))
 }
+f_levels <- c("f=0.00", "f=0.50", "f=0.75", "f=1 (endogenous)")
 
 # ---- Plot 1: feasibility heatmap --------------------------------------------
 
 p1_data <- summary_df |>
   mutate(scenario = factor(scenario, levels = scenario_levels),
          f_label  = factor(f_label(f_num),
-                           levels = c("f=0.00", "f=0.50", "f=0.75", "f=1 (endogenous)")),
+                           levels = f_levels),
          status   = case_when(
            !exists           ~ "missing",
            is.na(feasible)   ~ "unreadable",
@@ -155,7 +157,7 @@ if (!is.null(land_df)) {
   land_df$year_num <- as.numeric(sub("y", "", land_df[[year_col]]))
   land_df$scenario <- factor(land_df$scenario, levels = scenario_levels)
   land_df$f_label  <- factor(f_label(land_df$f_num),
-                             levels = c("f=0.00", "f=0.50", "f=0.75", "f=1 (endogenous)"))
+                             levels = f_levels)
 
   p2 <- ggplot(land_df, aes(x = year_num, y = value,
                             fill = .data[[land_col]])) +
@@ -222,7 +224,7 @@ if (!is.null(tau_df)) {
   tau_df$year_num <- as.numeric(sub("y", "", tau_df[[year_col_t]]))
   tau_df$scenario <- factor(tau_df$scenario, levels = scenario_levels)
   tau_df$f_label  <- factor(f_label(tau_df$f_num),
-                            levels = c("f=0.00", "f=0.50", "f=0.75", "f=1 (endogenous)"))
+                            levels = f_levels)
 
   # Plot tau as global mean per (scenario, f, tautype)
   tau_mean <- tau_df |>
@@ -250,7 +252,7 @@ if (!is.null(emis_df)) {
   emis_df$year_num <- as.numeric(sub("y", "", emis_df[[year_col_e]]))
   emis_df$scenario <- factor(emis_df$scenario, levels = scenario_levels)
   emis_df$f_label  <- factor(f_label(emis_df$f_num),
-                             levels = c("f=0.00", "f=0.50", "f=0.75", "f=1 (endogenous)"))
+                             levels = f_levels)
 
   # Aggregate over emission sources for a top-level view
   emis_total <- emis_df |>
@@ -277,7 +279,7 @@ if (!is.null(prod_df)) {
   prod_df$year_num <- as.numeric(sub("y", "", prod_df[[year_col_p]]))
   prod_df$scenario <- factor(prod_df$scenario, levels = scenario_levels)
   prod_df$f_label  <- factor(f_label(prod_df$f_num),
-                             levels = c("f=0.00", "f=0.50", "f=0.75", "f=1 (endogenous)"))
+                             levels = f_levels)
 
   # Total production over time, summed across commodities
   prod_total <- prod_df |>
