@@ -74,24 +74,47 @@ cfg <- gms::setScenario(cfg, c("SSP2", "NPI"))
 
 # ---- helpers ----------------------------------------------------------------
 
-#' Has a run finished writing its fulldata.gdx?
+#' Has a run finished GAMS solving? Uses runstatistics.rda's `modelstat`
+#' field, which submit.R populates at line 79-84 immediately after GAMS
+#' returns, BEFORE postprocessing (output_check, disaggregation, etc.)
+#' starts. Using modelstat (not timeGAMSEnd, which is set after
+#' postprocessing) lets us free a parallel slot as soon as the heavyweight
+#' GAMS solve is done. Note: fulldata.gdx is written incrementally per
+#' timestep by core/calculations.gms, so its existence alone does NOT
+#' imply the run is done -- the runstatistics-based check is canonical.
 runCompleted <- function(title) {
-  gdx <- file.path("output", title, "fulldata.gdx")
-  if (!file.exists(gdx)) return(FALSE)
-  # Wait a beat to make sure GAMS has finished writing
-  Sys.sleep(2)
-  ms <- try(magpie4::modelstat(gdx), silent = TRUE)
-  is.magpie(ms)
+  rs <- file.path("output", title, "runstatistics.rda")
+  if (!file.exists(rs)) return(FALSE)
+  e <- new.env()
+  res <- try(load(rs, envir = e), silent = TRUE)
+  if (inherits(res, "try-error")) return(FALSE)
+  !is.null(e$stats$modelstat)
 }
 
 #' Did all timesteps of a completed run solve feasibly?
-#' Returns TRUE / FALSE / NA (NA if GDX unreadable).
+#' Returns TRUE / FALSE / NA (NA if no readable signal).
+#' Reads modelstat from runstatistics.rda first (set by submit.R after GAMS
+#' exits) and falls back to the GDX.
 runFeasible <- function(title) {
-  gdx <- file.path("output", title, "fulldata.gdx")
-  if (!file.exists(gdx)) return(NA)
-  ms <- try(magpie4::modelstat(gdx), silent = TRUE)
-  if (!is.magpie(ms)) return(NA)
-  all(ms %in% c(2, 7))
+  rs <- file.path("output", title, "runstatistics.rda")
+  ms <- NULL
+  if (file.exists(rs)) {
+    e <- new.env()
+    if (!inherits(try(load(rs, envir = e), silent = TRUE), "try-error")) {
+      ms <- e$stats$modelstat
+    }
+  }
+  if (is.null(ms)) {
+    gdx <- file.path("output", title, "fulldata.gdx")
+    if (!file.exists(gdx)) return(NA)
+    ms <- try(magpie4::modelstat(gdx), silent = TRUE)
+    if (!is.magpie(ms)) return(NA)
+  }
+  ms_num <- as.numeric(ms)
+  # Ignore 0-valued slots (unused timesteps in the modelstat parameter array)
+  ms_num <- ms_num[ms_num != 0]
+  if (length(ms_num) == 0) return(NA)
+  all(ms_num %in% c(2, 7))
 }
 
 #' Wait for a batch of in-flight runs to drop below `cap`, polling every
