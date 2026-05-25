@@ -40,3 +40,19 @@ gamslice.txt
 
 /renv.lock
 .Rproj.user
+
+# Locally installed AI agent infrastructure (user-specific, NEVER push to pik-piam)
+# These are clones/installs that live in the MAgPIE working tree but are not part of MAgPIE itself.
+AGENT.md
+CLAUDE.md
+PREPROC_AGENT.md
+/magpie-agent/
+/magpie-preproc-agent/
+.claude/
+.copilot/
+
+# Agent-side validation/report artifacts that may land in parent root
+# (root cause: validate_consistency.sh historically wrote REPORT_DIR before chdir into agent;
+#  fixed in scripts/validate_consistency.sh as of 2026-05-25, but kept here defensively)
+validation_report_*.txt
+.cache/
