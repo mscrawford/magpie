@@ -45,6 +45,24 @@
   s15_exo_foodscen_convergence  = 1
 )
 
+# Biodiversity target block (Module 44 bii_target realization)
+# s44_bii_target = 0.78 per default.cfg notes: "(very) strong increase of BII"
+# Linear ramp from s44_start_year (2030) to s44_target_year (2100, defaults)
+.biodiv_block <- list(
+  s44_bii_target                = 0.78,
+  c44_bii_decrease              = 1
+)
+
+# Nitrogen abatement block (Module 57 MACCs, on_aug22 realization)
+# s57_maxmac_n_soil = 201 / s57_maxmac_n_awms = 201 force the MACC mitigation
+# step to its maximum (per default.cfg: "201: maximum level of mitigation").
+# This adds N-specific MACC abatement on top of the base NUE trajectory --
+# we do NOT change c50_scen_neff (base trajectory stays at SSP2 default).
+.nitrogen_block <- list(
+  s57_maxmac_n_soil             = 201,
+  s57_maxmac_n_awms             = 201
+)
+
 TC_VS_LANDUSE_SCENARIOS <- list(
 
   BAU = list(
@@ -58,14 +76,15 @@ TC_VS_LANDUSE_SCENARIOS <- list(
 
   Energy     = .energy_block,
   EnergyCons = c(.energy_block, .landcons_block),
-  Full       = c(.energy_block, .landcons_block, .diet_block)
+  Full       = c(.energy_block, .landcons_block, .diet_block),
+  FullPlus   = c(.energy_block, .landcons_block, .diet_block, .biodiv_block, .nitrogen_block)
 )
 
 # TC blending fractions for the sweep (f = 1 is covered by the endogenous reference)
 TC_VS_LANDUSE_FRACTIONS <- c(0, 1/2, 3/4)
 
 # Scenarios that get a TC sweep (BAU is only the tau-source baseline)
-TC_VS_LANDUSE_SWEEP_SCENARIOS <- c("Energy", "EnergyCons", "Full")
+TC_VS_LANDUSE_SWEEP_SCENARIOS <- c("Energy", "EnergyCons", "Full", "FullPlus")
 
 # Apply a scenario's switches to a cfg object
 applyTCScenario <- function(cfg, scenario_name) {

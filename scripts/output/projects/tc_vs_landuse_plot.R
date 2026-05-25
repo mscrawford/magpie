@@ -56,7 +56,7 @@ my_theme <- theme_bw(base_size = 11) +
         legend.position = "right")
 
 # Scenario order = increasing layering of policies
-scenario_levels <- c("BAU", "Energy", "EnergyCons", "Full")
+scenario_levels <- c("BAU", "Energy", "EnergyCons", "Full", "FullPlus")
 f_label <- function(f_num) {
   ifelse(f_num == 1.0, "f=1 (endogenous)", sprintf("f=%.2f", f_num))
 }
@@ -326,6 +326,117 @@ if (!is.null(prod_df)) {
 
   ggsave(file.path(OUT_DIR, "06_production.pdf"), p6,
          width = 11, height = 4)
+}
+
+# ---- Plot 8 + CSV: marginal contribution decomposition ---------------------
+
+# For an outcome Y at year 2100, the experiment supports a clean
+# decomposition because we have all four corner points of the (TC, Diet)
+# 2x2 with the policies layered consistently:
+#
+#                    diet OFF              diet ON
+#   TC at BAU        Y(EnergyCons, f=0)    Y(Full, f=0)
+#   TC at endo (f=1) Y(EnergyCons, f=1)    Y(Full, f=1)
+#
+# Reference cell: Y_ref = Y(EnergyCons, f=0) -- carbon price + 30by30 active
+# but TC stuck at BAU and no diet transition.
+#
+#   delta_TC    = Y_ref - Y(EnergyCons, f=1)   (TC alone, diet off)
+#   delta_Diet  = Y_ref - Y(Full, f=0)         (diet alone, TC off)
+#   delta_Both  = Y_ref - Y(Full, f=1)         (both together)
+#   synergy     = delta_Both - (delta_TC + delta_Diet)
+#                 < 0 -> substitutes; > 0 -> complements
+#
+# Sign convention: positive delta = the lever REDUCES Y (good for cropland,
+# food prices; bad if you wanted secdforest expansion -- caveat in the
+# README).
+
+computeMarginalContributions <- function(year = 2100) {
+  pick <- function(df, scen, fnum, year_num) {
+    s <- df |> filter(scenario == scen, abs(f_num - fnum) < 1e-9, year_num == !!year_num)
+    if (nrow(s) == 0) return(NA_real_)
+    sum(s$value, na.rm = TRUE)
+  }
+  # Outcomes to decompose: cropland, primforest, secdforest from land_df;
+  # food price index from fpi_df. Sum across data dim for land totals.
+  out <- list()
+
+  if (exists("land_df") && !is.null(land_df)) {
+    for (lt in c("crop", "primforest", "secdforest")) {
+      sub <- land_df |> filter(.data[[land_col]] == lt)
+      Y_ref      <- pick(sub, "EnergyCons", 0,   year)
+      Y_TC       <- pick(sub, "EnergyCons", 1,   year)
+      Y_Diet     <- pick(sub, "Full",       0,   year)
+      Y_Both     <- pick(sub, "Full",       1,   year)
+      delta_TC   <- Y_ref - Y_TC
+      delta_Diet <- Y_ref - Y_Diet
+      delta_Both <- Y_ref - Y_Both
+      out[[length(out) + 1]] <- data.frame(
+        outcome = paste0("land_", lt, "_Mha"),
+        year = year,
+        Y_ref = Y_ref, Y_TC_only = Y_TC, Y_Diet_only = Y_Diet, Y_Both = Y_Both,
+        delta_TC = delta_TC, delta_Diet = delta_Diet, delta_Both = delta_Both,
+        synergy = delta_Both - (delta_TC + delta_Diet),
+        TC_share_of_Both   = ifelse(delta_Both != 0, delta_TC / delta_Both, NA),
+        Diet_share_of_Both = ifelse(delta_Both != 0, delta_Diet / delta_Both, NA),
+        stringsAsFactors = FALSE
+      )
+    }
+  }
+  if (exists("fpi_df") && !is.null(fpi_df)) {
+    Y_ref      <- pick(fpi_df, "EnergyCons", 0,   year)
+    Y_TC       <- pick(fpi_df, "EnergyCons", 1,   year)
+    Y_Diet     <- pick(fpi_df, "Full",       0,   year)
+    Y_Both     <- pick(fpi_df, "Full",       1,   year)
+    out[[length(out) + 1]] <- data.frame(
+      outcome = "food_price_index",
+      year = year,
+      Y_ref = Y_ref, Y_TC_only = Y_TC, Y_Diet_only = Y_Diet, Y_Both = Y_Both,
+      delta_TC = Y_ref - Y_TC, delta_Diet = Y_ref - Y_Diet, delta_Both = Y_ref - Y_Both,
+      synergy = (Y_ref - Y_Both) - ((Y_ref - Y_TC) + (Y_ref - Y_Diet)),
+      TC_share_of_Both   = ifelse((Y_ref - Y_Both) != 0, (Y_ref - Y_TC) / (Y_ref - Y_Both), NA),
+      Diet_share_of_Both = ifelse((Y_ref - Y_Both) != 0, (Y_ref - Y_Diet) / (Y_ref - Y_Both), NA),
+      stringsAsFactors = FALSE
+    )
+  }
+  do.call(rbind, out)
+}
+
+mc_df <- tryCatch(computeMarginalContributions(year = 2100), error = function(e) NULL)
+if (!is.null(mc_df)) {
+  write.csv(mc_df, file.path(OUT_DIR, "marginal_contributions.csv"),
+            row.names = FALSE)
+  message("\nMarginal contribution decomposition (year = 2100, reference = EnergyCons f=0):")
+  print(mc_df[, c("outcome", "delta_TC", "delta_Diet", "delta_Both", "synergy",
+                  "TC_share_of_Both", "Diet_share_of_Both")], row.names = FALSE)
+
+  # Bar plot: side-by-side deltas
+  mc_long <- mc_df |>
+    select(outcome, delta_TC, delta_Diet, delta_Both) |>
+    tidyr::pivot_longer(cols = c(delta_TC, delta_Diet, delta_Both),
+                        names_to = "lever", values_to = "delta") |>
+    mutate(lever = factor(lever,
+                          levels = c("delta_TC", "delta_Diet", "delta_Both"),
+                          labels = c("TC only", "Diet only", "TC + Diet (combined)")))
+
+  p8 <- ggplot(mc_long, aes(x = lever, y = delta, fill = lever)) +
+    geom_col(width = 0.7) +
+    geom_text(aes(label = round(delta, 1)), vjust = -0.3, size = 3) +
+    facet_wrap(~ outcome, scales = "free_y", nrow = 1) +
+    scale_fill_manual(values = c("TC only" = "#1f77b4",
+                                 "Diet only" = "#2ca02c",
+                                 "TC + Diet (combined)" = "#9467bd")) +
+    labs(title = "Marginal contribution of TC vs Diet vs both (2100)",
+         subtitle = paste0("Reference cell: EnergyCons at f=0 (carbon price + 30by30 active, TC at BAU level, no diet).\n",
+                           "Positive bar = lever REDUCES the outcome (cropland Mha, food price index)."),
+         x = NULL, y = "Reduction from reference (units = outcome unit)",
+         fill = NULL) +
+    my_theme +
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 15, hjust = 1))
+
+  ggsave(file.path(OUT_DIR, "08_marginal_contributions.pdf"), p8,
+         width = 11, height = 5)
 }
 
 message("\nPlots written to ", normalizePath(OUT_DIR))
