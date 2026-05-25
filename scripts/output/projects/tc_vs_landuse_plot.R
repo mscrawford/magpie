@@ -271,6 +271,36 @@ if (!is.null(emis_df)) {
          width = 11, height = 4)
 }
 
+# ---- Plot 7: food price index ----------------------------------------------
+
+extractFoodPriceIndex <- function(gdx) {
+  x <- try(magpie4::priceIndexFood(gdx, level = "glo"), silent = TRUE)
+  if (inherits(x, "try-error") || is.null(x)) return(NULL)
+  as.data.frame(x)
+}
+
+fpi_df <- collect(extractFoodPriceIndex)
+if (!is.null(fpi_df)) {
+  names(fpi_df) <- tolower(names(fpi_df))
+  year_col_f <- intersect(c("year", "years"), names(fpi_df))[1]
+  fpi_df$year_num <- as.numeric(sub("y", "", fpi_df[[year_col_f]]))
+  fpi_df$scenario <- factor(fpi_df$scenario, levels = scenario_levels)
+  fpi_df$f_label  <- factor(f_label(fpi_df$f_num), levels = f_levels)
+
+  p7 <- ggplot(fpi_df, aes(x = year_num, y = value,
+                           color = f_label, group = f_label)) +
+    geom_line(linewidth = 0.7) +
+    geom_hline(yintercept = 100, linetype = "dotted", color = "grey50") +
+    facet_wrap(~ scenario, nrow = 1) +
+    labs(title = "Global food price index (Laspeyres, baseyear 2005)",
+         subtitle = "100 = 2005 baseline. BAU sits at ~83 by 2100.",
+         x = "Year", y = "Index", color = "Blend fraction") +
+    my_theme
+
+  ggsave(file.path(OUT_DIR, "07_food_price_index.pdf"), p7,
+         width = 12, height = 4)
+}
+
 prod_df <- collect(extractProduction)
 if (!is.null(prod_df)) {
   names(prod_df) <- tolower(names(prod_df))

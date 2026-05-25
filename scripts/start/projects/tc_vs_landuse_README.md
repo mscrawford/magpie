@@ -46,13 +46,27 @@ The EAT-Lancet diet brings endogenous tau back down to BAU levels: under reduced
 | EnergyCons | -18   | -214  | -292   | -359  | **-341**                 |
 | Full       | -387  | -402  | -407   | -412  | **-25**                  |
 
-### Two headline findings
+### Global food price index in 2050 / 2100 (Laspeyres, baseyear 2005)
+
+| Scenario   | f=0       | f=0.5     | f=0.75    | f=1       |
+|------------|-----------|-----------|-----------|-----------|
+| BAU        | 82 / 83   | -         | -         | -         |
+| Energy     | 189 / 204 | 184 / 186 | 179 / 177 | 177 / 171 |
+| EnergyCons | 191 / 205 | 188 / 185 | 182 / 177 | 179 / 170 |
+| Full       | 159 / 146 | 160 / 147 | 159 / 145 | 158 / 144 |
+
+(values shown as `2050 / 2100`)
+
+### Three headline findings
 
 **1. TC and demand-side reduction are substitutes for land-sparing.**
 Under the carbon price alone (Energy, EnergyCons), 96-97% of the cropland savings depend on TC headroom: at BAU TC the carbon price delivers essentially no cropland sparing (-13 to -18 Mha). With the EAT-Lancet diet added (Full), 94% of the sparing happens at BAU TC; further TC headroom adds only ~25 Mha. The diet transition substitutes for the TC requirement on the cropland frontier.
 
 **2. 30by30 does not bind on the cropland frontier in this configuration.**
 EnergyCons land allocation matches Energy within 5 Mha of cropland at every f. The constraint *is* active - it redistributes protection: primary forest is +47 Mha higher under EnergyCons (and secondary forest correspondingly lower) - but agricultural pressure is absorbed elsewhere on the global land budget, not transmitted to the cropland margin.
+
+**3. Food prices are dominated by carbon pricing, partly buffered by TC, and substantially relieved by the diet transition.**
+The 1.5C carbon price roughly doubles food prices over BAU by 2100 (Energy: 204 vs BAU 83 at f=0). TC headroom buys back ~15% (Energy f=0 -> f=1: 204 -> 171). The EAT-Lancet diet is the dominant lever: Full prices in 2100 land at 144-147 *regardless of TC blend* (~30% lower than Energy_f=1, ~30% lower than Energy_f=0). The same TC-substitution pattern from cropland appears here: in Full, demand-side reduction does the work that TC would have done in the carbon-price-only world.
 
 ## Limitations
 
@@ -70,6 +84,7 @@ EnergyCons land allocation matches Energy within 5 Mha of cropland at every f. T
 - Tau-blending utility: `scripts/output/extra/blend_tau.R`
 - Plotting: `scripts/output/projects/tc_vs_landuse_plot.R`
 - Run outputs: `output/TC_{BAU,Energy,EnergyCons,Full}_{endo,f00,f50,f75}/`
-- Plots: `output/tc_vs_landuse_plots/0{1..6}_*.pdf`
-  - `02_land_allocation_grid.pdf` is the headline visual
+- Plots: `output/tc_vs_landuse_plots/0{1..7}_*.pdf`
+  - `02_land_allocation_grid.pdf` is the headline land-use visual
   - `04_tau_trajectory.pdf` shows the per-scenario tau ranges
+  - `07_food_price_index.pdf` shows the global food price index over time
