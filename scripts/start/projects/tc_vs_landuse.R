@@ -10,21 +10,31 @@
 # position: 5
 # ----------------------------------------------------------
 #
-# Experimental design (see plan i-d-like-to-make-vast-toucan.md):
+# Orchestrator for the TC-vs-land-use experiment. See
+# scripts/start/projects/tc_vs_landuse_README.md for the methods writeup.
 #
-# Phase 1: 3 endogenous-TC reference runs (BAU, Energy, Full)
-# Phase 2: 6 fixed-TC sweep runs ({Energy, Full} x f in {0, 1/2, 3/4})
-#          with tau blended between BAU and the matching endogenous reference.
+# Scenarios are defined in tc_vs_landuse_config.R. For each non-BAU scenario,
+# this script runs:
+#   - an endogenous-TC reference (Phase 1)
+#   - exogenous-TC sweep runs with tau fixed to a blend of BAU and the
+#     scenario's own endogenous tau, at f in {0, 0.5, 0.75} (Phase 2). f=1
+#     reuses the endogenous reference.
 #
-# Local execution model:
-#   cfg$sequential <- FALSE   -> Rscript submit.R launches GAMS in background,
-#                                 start_run() returns once prep is done.
-#   start_run() prep is serialized via gms::model_lock; only one prep at a time.
-#   singleGAMSfile() embeds the contents of f13_tau_scenario.csv into the
-#     run's own full.gms, so subsequent runs can safely overwrite the CSV.
+# Usage (local, from the magpie repo root):
+#   TC_VS_LANDUSE_PARALLEL=3 Rscript scripts/start/projects/tc_vs_landuse.R
 #
-# We launch up to MAX_PARALLEL GAMS jobs concurrently, polling for completion
-# via magpie4::modelstat() reads of fulldata.gdx.
+# Idempotent: runs that already have a runstatistics.rda with `modelstat`
+# set are skipped. To force a re-run, delete the output/TC_<title>/ folder.
+#
+# Local execution mechanics:
+#   cfg$sequential <- FALSE   -> Rscript submit.R launches GAMS in background;
+#                                start_run() returns once prep is done.
+#   start_run() prep is serialised via gms::model_lock (one prep at a time).
+#   gms::singleGAMSfile() embeds the contents of f13_tau_scenario.csv into
+#     the run's own full.gms, so subsequent runs can safely overwrite the CSV.
+#
+# Up to MAX_PARALLEL GAMS jobs run concurrently, polled for completion via
+# runstatistics.rda (canonical "GAMS exited" signal -- see runCompleted()).
 
 suppressMessages({
   library(lucode2)
@@ -47,10 +57,6 @@ MAX_PARALLEL <- as.integer(Sys.getenv("TC_VS_LANDUSE_PARALLEL", "4"))
 # Default "coup2100" matches the MAgPIE default (17 timesteps to 2100).
 # Use "5year2050" for faster turnaround (12 timesteps to 2050).
 TIMESTEPS <- Sys.getenv("TC_VS_LANDUSE_TIMESTEPS", "coup2100")
-
-# Override via env var TC_VS_LANDUSE_SMOKE=1 to run a single BAU at low
-# resolution and then exit (validates the stack without burning compute).
-SMOKE_ONLY <- Sys.getenv("TC_VS_LANDUSE_SMOKE", "0") == "1"
 
 # Polling interval and per-run wall-clock budget for the wait loop.
 POLL_SECONDS    <- 60L
@@ -157,21 +163,6 @@ launchRun <- function(cfg, title) {
   # lock_timeout in gms::model_lock is in minutes; 60 = 1h, plenty of slack
   start_run(cfg, codeCheck = FALSE, lock_timeout = 60)
   title
-}
-
-# ---- smoke test path --------------------------------------------------------
-
-if (SMOKE_ONLY) {
-  message("SMOKE_ONLY=1 -> running a single BAU at minimum resolution (3 timesteps)")
-  smoke_cfg <- applyTCScenario(cfg, "BAU")
-  smoke_cfg$gms$c_timesteps <- "quicktest"   # y1995, y2010, y2025 only
-  smoke_cfg$sequential <- TRUE               # foreground/blocking so we see errors immediately
-  title <- launchRun(smoke_cfg, "TC_BAU_smoke")
-  if (!runCompleted(title)) {
-    stop("Smoke test failed: ", title, " did not produce a readable fulldata.gdx")
-  }
-  message(sprintf("Smoke test OK. Feasible: %s", runFeasible(title)))
-  quit(save = "no", status = 0)
 }
 
 # ---- Phase 1: endogenous-TC references --------------------------------------

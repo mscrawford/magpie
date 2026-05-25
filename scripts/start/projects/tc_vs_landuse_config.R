@@ -74,17 +74,22 @@ TC_VS_LANDUSE_SCENARIOS <- list(
     s15_exo_diet                  = 0
   ),
 
-  Energy     = .energy_block,
-  EnergyCons = c(.energy_block, .landcons_block),
-  Full       = c(.energy_block, .landcons_block, .diet_block),
-  FullPlus   = c(.energy_block, .landcons_block, .diet_block, .biodiv_block, .nitrogen_block)
+  Energy         = .energy_block,
+  EnergyCons     = c(.energy_block, .landcons_block),
+  Full           = c(.energy_block, .landcons_block, .diet_block),
+  FullPlus       = c(.energy_block, .landcons_block, .diet_block, .biodiv_block, .nitrogen_block),
+
+  # "EnergyFST minus diet" = FullPlus minus the diet transition. Gives the
+  # missing 2x2 cell ("Diet OFF" with all other FST layers ON) needed to
+  # cleanly decompose TC vs Diet within the full-FST frame.
+  EnergyConsBioN = c(.energy_block, .landcons_block, .biodiv_block, .nitrogen_block)
 )
 
 # TC blending fractions for the sweep (f = 1 is covered by the endogenous reference)
 TC_VS_LANDUSE_FRACTIONS <- c(0, 1/2, 3/4)
 
 # Scenarios that get a TC sweep (BAU is only the tau-source baseline)
-TC_VS_LANDUSE_SWEEP_SCENARIOS <- c("Energy", "EnergyCons", "Full", "FullPlus")
+TC_VS_LANDUSE_SWEEP_SCENARIOS <- c("Energy", "EnergyCons", "Full", "FullPlus", "EnergyConsBioN")
 
 # Apply a scenario's switches to a cfg object
 applyTCScenario <- function(cfg, scenario_name) {

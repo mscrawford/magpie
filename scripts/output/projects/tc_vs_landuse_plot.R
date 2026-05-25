@@ -47,16 +47,20 @@ message("Run inventory (full):")
 print(summary_df[, c("scenario", "f", "f_num", "feasible", "exists")],
       row.names = FALSE)
 
-# 3-scenario analysis design: BAU, Energy, and the comprehensive
-# transformation (was internally FullPlus, displayed as "EnergyFST").
-# EnergyCons (Energy + 30by30 alone) and Full (Energy + 30by30 + diet, no
-# biodiv/N) data remains on disk but is filtered out of the analysis.
+# Display-layer filtering: the analysis SHOWS 3 scenarios (BAU, Energy,
+# EnergyFST = internally FullPlus). EnergyCons and Full remain on disk and
+# are USED by the marginal-contribution decomposition (which needs the 2x2
+# of TC x Diet to be clean), but are not shown as separate scenarios in
+# the time-series plots.
 ACTIVE_SCENARIOS_INTERNAL <- c("BAU", "Energy", "FullPlus")
 ACTIVE_DISPLAY <- c(BAU = "BAU", Energy = "Energy", FullPlus = "EnergyFST")
 
+# summary_df_full keeps ALL scenarios (used by decomposition).
+# summary_df is filtered + relabeled for display.
+summary_df_full <- summary_df
 summary_df <- summary_df[summary_df$scenario %in% ACTIVE_SCENARIOS_INTERNAL, ]
 summary_df$scenario <- ACTIVE_DISPLAY[summary_df$scenario]
-message("\nRun inventory (active analysis set):")
+message("\nRun inventory (active analysis set, for display):")
 print(summary_df[, c("scenario", "f", "f_num", "feasible", "exists")],
       row.names = FALSE)
 
@@ -137,9 +141,17 @@ extractEmissions <- function(gdx) {
   as.data.frame(x)
 }
 
-# Build a tall data frame for a given extractor across all feasible runs.
-collect <- function(extractor) {
-  feasible <- summary_df[isTRUE_vec(summary_df$feasible) & summary_df$exists, ]
+isTRUE_vec <- function(x) {
+  vapply(x, isTRUE, logical(1))
+}
+
+# Build a tall data frame for a given extractor across all feasible runs in
+# the provided source dataframe. Default source = summary_df (display
+# subset). Pass source = summary_df_full to read EVERY scenario (used by
+# the marginal-contribution decomposition, which needs internal-name
+# scenarios EnergyCons and Full).
+collect <- function(extractor, source = summary_df) {
+  feasible <- source[isTRUE_vec(source$feasible) & source$exists, ]
   out <- list()
   for (i in seq_len(nrow(feasible))) {
     df <- extractor(feasible$gdx[i])
@@ -151,10 +163,6 @@ collect <- function(extractor) {
   }
   if (length(out) == 0) return(NULL)
   do.call(rbind, out)
-}
-
-isTRUE_vec <- function(x) {
-  vapply(x, isTRUE, logical(1))
 }
 
 # ---- Plot 2: land allocation over time, faceted (scenario x f) -------------
@@ -364,54 +372,77 @@ if (!is.null(prod_df)) {
 # food prices; bad if you wanted secdforest expansion -- caveat in the
 # README).
 
+# Pull the decomposition's data from the UNFILTERED inventory because the
+# 2x2 of TC x Diet requires the internal-name scenarios EnergyCons (= Energy
+# + 30by30, no diet) and Full (= EnergyCons + diet). These are filtered out
+# of the display set but still on disk.
+land_df_full <- collect(extractLand, source = summary_df_full)
+if (!is.null(land_df_full)) {
+  names(land_df_full) <- tolower(names(land_df_full))
+}
+fpi_df_full <- collect(extractFoodPriceIndex, source = summary_df_full)
+if (!is.null(fpi_df_full)) {
+  names(fpi_df_full) <- tolower(names(fpi_df_full))
+}
+
 computeMarginalContributions <- function(year = 2100) {
-  pick <- function(df, scen, fnum, year_num) {
-    s <- df |> filter(scenario == scen, abs(f_num - fnum) < 1e-9, year_num == !!year_num)
-    if (nrow(s) == 0) return(NA_real_)
-    sum(s$value, na.rm = TRUE)
+  pick <- function(df, scen, fnum, year_target) {
+    yr <- as.numeric(sub("y", "", df$year %||% df$years))
+    keep <- df$scenario == scen & abs(df$f_num - fnum) < 1e-9 & yr == year_target
+    if (!any(keep)) return(NA_real_)
+    sum(df$value[keep], na.rm = TRUE)
   }
-  # 3-scenario decomposition: Energy = carbon price only; EnergyFST adds the
-  # full Food System Transformation bundle (diet + 30by30 + biodiv target + N
-  # MACCs). Reference cell = Energy at f=0 (carbon price active, TC at BAU,
-  # no FST). The two "treatments" are TC headroom (within Energy) and FST
-  # (between Energy and EnergyFST).
+  `%||%` <- function(a, b) if (is.null(a)) b else a
+
+  # TC x Diet 2x2 within the "Energy + 30by30 active" frame:
+  #
+  #                  | Diet OFF              Diet ON
+  #   TC at BAU      | EnergyCons f=0        Full f=0
+  #   TC at endo     | EnergyCons f=1        Full f=1
+  #
+  # Reference cell  Y_ref = Y(EnergyCons, f=0)  ("policies on, TC at BAU,
+  # no diet"). This is the OLD decomposition the experiment originally
+  # used. It does NOT include biodiv + N MACCs (which are in EnergyFST /
+  # FullPlus only); a future EnergyConsBioN scenario would let us redo
+  # this 2x2 inside the full-FST frame.
   out <- list()
 
-  if (exists("land_df") && !is.null(land_df)) {
+  if (!is.null(land_df_full)) {
+    land_col_f <- intersect(c("data1", "data", "kall", "land"), names(land_df_full))[1]
     for (lt in c("crop", "primforest", "secdforest")) {
-      sub <- land_df |> filter(.data[[land_col]] == lt)
-      Y_ref      <- pick(sub, "Energy",    0, year)
-      Y_TC       <- pick(sub, "Energy",    1, year)
-      Y_FST      <- pick(sub, "EnergyFST", 0, year)
-      Y_Both     <- pick(sub, "EnergyFST", 1, year)
+      sub <- land_df_full[land_df_full[[land_col_f]] == lt, ]
+      Y_ref      <- pick(sub, "EnergyCons", 0, year)
+      Y_TC       <- pick(sub, "EnergyCons", 1, year)
+      Y_Diet     <- pick(sub, "Full",       0, year)
+      Y_Both     <- pick(sub, "Full",       1, year)
       delta_TC   <- Y_ref - Y_TC
-      delta_FST  <- Y_ref - Y_FST
+      delta_Diet <- Y_ref - Y_Diet
       delta_Both <- Y_ref - Y_Both
       out[[length(out) + 1]] <- data.frame(
         outcome = paste0("land_", lt, "_Mha"),
         year = year,
-        Y_ref = Y_ref, Y_TC_only = Y_TC, Y_FST_only = Y_FST, Y_Both = Y_Both,
-        delta_TC = delta_TC, delta_FST = delta_FST, delta_Both = delta_Both,
-        synergy = delta_Both - (delta_TC + delta_FST),
-        TC_share_of_Both  = ifelse(delta_Both != 0, delta_TC  / delta_Both, NA),
-        FST_share_of_Both = ifelse(delta_Both != 0, delta_FST / delta_Both, NA),
+        Y_ref = Y_ref, Y_TC_only = Y_TC, Y_Diet_only = Y_Diet, Y_Both = Y_Both,
+        delta_TC = delta_TC, delta_Diet = delta_Diet, delta_Both = delta_Both,
+        synergy = delta_Both - (delta_TC + delta_Diet),
+        TC_share_of_Both   = ifelse(delta_Both != 0, delta_TC   / delta_Both, NA),
+        Diet_share_of_Both = ifelse(delta_Both != 0, delta_Diet / delta_Both, NA),
         stringsAsFactors = FALSE
       )
     }
   }
-  if (exists("fpi_df") && !is.null(fpi_df)) {
-    Y_ref      <- pick(fpi_df, "Energy",    0, year)
-    Y_TC       <- pick(fpi_df, "Energy",    1, year)
-    Y_FST      <- pick(fpi_df, "EnergyFST", 0, year)
-    Y_Both     <- pick(fpi_df, "EnergyFST", 1, year)
+  if (!is.null(fpi_df_full)) {
+    Y_ref      <- pick(fpi_df_full, "EnergyCons", 0, year)
+    Y_TC       <- pick(fpi_df_full, "EnergyCons", 1, year)
+    Y_Diet     <- pick(fpi_df_full, "Full",       0, year)
+    Y_Both     <- pick(fpi_df_full, "Full",       1, year)
     out[[length(out) + 1]] <- data.frame(
       outcome = "food_price_index",
       year = year,
-      Y_ref = Y_ref, Y_TC_only = Y_TC, Y_FST_only = Y_FST, Y_Both = Y_Both,
-      delta_TC = Y_ref - Y_TC, delta_FST = Y_ref - Y_FST, delta_Both = Y_ref - Y_Both,
-      synergy = (Y_ref - Y_Both) - ((Y_ref - Y_TC) + (Y_ref - Y_FST)),
-      TC_share_of_Both  = ifelse((Y_ref - Y_Both) != 0, (Y_ref - Y_TC)  / (Y_ref - Y_Both), NA),
-      FST_share_of_Both = ifelse((Y_ref - Y_Both) != 0, (Y_ref - Y_FST) / (Y_ref - Y_Both), NA),
+      Y_ref = Y_ref, Y_TC_only = Y_TC, Y_Diet_only = Y_Diet, Y_Both = Y_Both,
+      delta_TC = Y_ref - Y_TC, delta_Diet = Y_ref - Y_Diet, delta_Both = Y_ref - Y_Both,
+      synergy = (Y_ref - Y_Both) - ((Y_ref - Y_TC) + (Y_ref - Y_Diet)),
+      TC_share_of_Both   = ifelse((Y_ref - Y_Both) != 0, (Y_ref - Y_TC)   / (Y_ref - Y_Both), NA),
+      Diet_share_of_Both = ifelse((Y_ref - Y_Both) != 0, (Y_ref - Y_Diet) / (Y_ref - Y_Both), NA),
       stringsAsFactors = FALSE
     )
   }
@@ -422,28 +453,28 @@ mc_df <- tryCatch(computeMarginalContributions(year = 2100), error = function(e)
 if (!is.null(mc_df)) {
   write.csv(mc_df, file.path(OUT_DIR, "marginal_contributions.csv"),
             row.names = FALSE)
-  message("\nMarginal contribution decomposition (year = 2100, reference = Energy f=0):")
-  print(mc_df[, c("outcome", "delta_TC", "delta_FST", "delta_Both", "synergy",
-                  "TC_share_of_Both", "FST_share_of_Both")], row.names = FALSE)
+  message("\nMarginal contribution decomposition (year = 2100, reference = EnergyCons f=0):")
+  print(mc_df[, c("outcome", "delta_TC", "delta_Diet", "delta_Both", "synergy",
+                  "TC_share_of_Both", "Diet_share_of_Both")], row.names = FALSE)
 
   mc_long <- mc_df |>
-    select(outcome, delta_TC, delta_FST, delta_Both) |>
-    tidyr::pivot_longer(cols = c(delta_TC, delta_FST, delta_Both),
+    select(outcome, delta_TC, delta_Diet, delta_Both) |>
+    tidyr::pivot_longer(cols = c(delta_TC, delta_Diet, delta_Both),
                         names_to = "lever", values_to = "delta") |>
     mutate(lever = factor(lever,
-                          levels = c("delta_TC", "delta_FST", "delta_Both"),
-                          labels = c("TC only", "FST only", "TC + FST (combined)")))
+                          levels = c("delta_TC", "delta_Diet", "delta_Both"),
+                          labels = c("TC only", "Diet only", "TC + Diet (combined)")))
 
   p8 <- ggplot(mc_long, aes(x = lever, y = delta, fill = lever)) +
     geom_col(width = 0.7) +
     geom_text(aes(label = round(delta, 1)), vjust = -0.3, size = 3) +
     facet_wrap(~ outcome, scales = "free_y", nrow = 1) +
     scale_fill_manual(values = c("TC only" = "#1f77b4",
-                                 "FST only" = "#2ca02c",
-                                 "TC + FST (combined)" = "#9467bd")) +
-    labs(title = "Marginal contribution of TC vs FST vs both (2100)",
-         subtitle = paste0("Reference cell: Energy at f=0 (1.5C carbon price active, TC at BAU level, no FST).\n",
-                           "FST = 30by30 + EAT-Lancet FLX 2500kcal + s44_bii_target=0.78 + s57_maxmac_n=201.\n",
+                                 "Diet only" = "#2ca02c",
+                                 "TC + Diet (combined)" = "#9467bd")) +
+    labs(title = "Marginal contribution of TC vs Diet vs both (2100)",
+         subtitle = paste0("Reference cell: EnergyCons f=0 (1.5C carbon price + 30by30 active, TC at BAU, no diet).\n",
+                           "Treatment cell: Full f=1 (adds EAT-Lancet FLX 2500kcal). Excludes biodiv+N (those live in EnergyFST).\n",
                            "Positive bar = lever REDUCES the outcome (cropland Mha, food price index)."),
          x = NULL, y = "Reduction from reference (units = outcome unit)",
          fill = NULL) +

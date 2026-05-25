@@ -60,29 +60,32 @@ Pasture follows the same pattern (BAU 3162 -> Energy_f1 2820 -> EnergyFST_f1 210
 
 The 1.5C carbon price roughly doubles food prices over BAU (Energy_f0: 204 vs BAU 83 in 2100). TC headroom inside Energy buys back ~15% (204 -> 171). The FST bundle does NOT reduce food prices: EnergyFST_f0 (205) sits essentially at Energy_f0 (204), and EnergyFST_f1 (176) is a few points ABOVE Energy_f1 (171). The diet's price-relieving effect is canceled by the price pressure from 30by30 + BII + N abatement.
 
-## Marginal contribution of TC vs FST vs both (decomposition)
+## Marginal contribution of TC vs Diet vs both (decomposition)
 
-Reference cell `Y_ref = Y(Energy, f=0)`: 1.5C carbon price active, TC at BAU level, no FST. Effects sum if independent; negative synergy means substitutes. Sign convention: positive `delta` = lever REDUCES the outcome. From `output/tc_vs_landuse_plots/marginal_contributions.csv` (2100):
+Reference cell `Y_ref = Y(EnergyCons, f=0)`: 1.5C carbon price + 30by30 active, TC at BAU level, no diet. Treatment cell `Y(Full, f=1)`: TC + diet both on (30by30 already in both cells). Effects sum if independent; negative synergy means substitutes. Sign convention: positive `delta` = lever REDUCES the outcome. From `output/tc_vs_landuse_plots/marginal_contributions.csv` (2100):
 
-| Outcome        | Y_ref | delta_TC | delta_FST | delta_Both | synergy | TC share | FST share |
-|----------------|-------|----------|-----------|------------|---------|----------|-----------|
-| Cropland (Mha) | 1910  | 349      | 506       | **764**    | -91     | 46%      | 66%       |
-| Food price idx | 204   | 33       | -1        | **28**     | -4      | 118%     | -4%       |
-| Primary forest (Mha, growth) | 1279 | -6 | -34 | -35 | (FST dominates) | - | - |
+| Outcome        | Y_ref | delta_TC | delta_Diet | delta_Both | synergy | TC share | Diet share |
+|----------------|-------|----------|------------|------------|---------|----------|------------|
+| Cropland (Mha) | 1905  | 340      | 369        | **394**    | **-315**| 86%      | 94%        |
+| Food price idx | 205   | 35       | 59         | **61**     | **-33** | 57%      | 97%        |
+| Primary forest (Mha, growth) | 1310 | 0 | 0 | 0 | - | - | - |
+| Secdforest (Mha, growth) | 2447 | -49 | -47 | -54 | +42 (substitution with flipped sign for growth) | - | - |
+
+**Frame caveat:** This decomposition lives in the **Energy + 30by30 frame** -- it uses scenarios `EnergyCons` (= Energy + 30by30, no diet) and `Full` (= EnergyCons + diet). It does NOT include the biodiv + N MACCs that are part of EnergyFST. The 4-run `EnergyConsBioN` scenario currently in flight will let us run a parallel decomposition within the full-FST frame; until then, treat this decomposition as the clean TC-vs-diet question with the climate-policy and land-protection layers already in the reference.
 
 ### Headline findings
 
-**1. FST does most of the land-sparing; TC adds substantially on top; synergy is mild.**
-Cropland sparing decomposes as TC 349 Mha (46% of combined), FST 506 Mha (66% of combined), combined 764 Mha. Synergy of -91 Mha means the two levers are partial substitutes (~12% over-attribution) but mostly complementary on land. The dominant FST lever within the bundle is the diet transition (~370 Mha at zero TC); 30by30 + biodiv + N add the rest via land conversion limits.
+**1. TC and diet are strong substitutes on the cropland frontier.**
+Diet alone delivers 94% of what TC + diet combined achieve; TC alone delivers 86%. Adding both together yields only ~6 percentage points more than diet alone. Synergy = -315 Mha (the levers' deltas sum to 180% of the combined effect). Mechanism: both levers reduce the same scarcity (land needed to meet food demand) -- TC from the supply side (yield per ha up), diet from the demand side (kcal demand down).
 
-**2. TC is the dominant lever for food affordability; FST is neutral-to-slightly-negative.**
-TC alone (Energy f=0 -> f=1) reduces the 2100 food price index by 33 points (204 -> 171). FST alone (Energy f=0 -> EnergyFST f=0) shifts it by -1 point - essentially neutral. Combined (EnergyFST f=1) gives 28 points of price relief, which is 5 points LESS than TC alone could deliver inside the Energy world. The biodiv + N + 30by30 constraints push food prices up enough to cancel the diet's price-reducing effect.
+**2. Diet is the dominant lever for food affordability.**
+Diet alone reduces the 2100 food price index by 59 points (205 -> 146); TC alone by 35; combined by 61. Diet captures 97% of the combined effect on prices. The mechanism is the same as for land -- reduced demand (especially livestock) lowers production cost.
 
-**3. EnergyFST achieves the strongest land outcomes but isn't the cheapest food.**
-Cropland 1146 Mha (vs Energy_f1 1561 and BAU 1923); pasture 2109 (vs 2820, 3162); +28 Mha primary forest protected. Food price 176 vs Energy_f1's 171 - FST costs ~3% in food price for ~26% additional cropland sparing.
+**3. EnergyFST (carbon + 30by30 + diet + biodiv + N) achieves the strongest land outcomes but is NOT the cheapest food.**
+Cropland 1146 Mha (vs Energy_f1 1561 and BAU 1923); pasture 2109 (vs 2820, 3162); +28 Mha primary forest protected. Food price 176 vs Energy_f1's 171 -- the biodiv + N constraints add price pressure that partly cancels the diet's price-reducing effect.
 
-**4. TC headroom regains marginal value under FST.**
-Inside Energy, TC reduces food prices by 33 pts (204 -> 171). Inside EnergyFST, TC reduces prices by 29 pts (205 -> 176) - nearly the same magnitude. So the binding FST constraints (30by30 + BII + N MACCs) keep TC's price-buffering value intact, in contrast with a diet-only "transformation" where TC would have been largely redundant on prices.
+**4. TC headroom regains marginal value under the full FST bundle.**
+Inside the simpler `Full` (no biodiv/N), going from f=0 to f=1 changes the 2100 food price index by only ~2 points (146 -> 144) -- TC is nearly redundant on prices when only diet is doing the demand-side work. Inside `EnergyFST` (with biodiv + N), going from f=0 to f=1 changes the food price by ~29 points (205 -> 176). The biodiv + N constraints make intensification headroom valuable again -- TC's substitutability with diet (findings 1-2) is conditional on not stacking biodiv + N on top.
 
 ## Limitations
 
