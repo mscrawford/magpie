@@ -63,6 +63,18 @@
   s57_maxmac_n_awms             = 201
 )
 
+# Water protection block (Module 42, environmental flow policy ON)
+# c42_env_flow_policy = "on" applies global EFP. s42_env_flow_scenario = 2
+# uses the Smakhtin (2004) gridcell-specific algorithm (default), so the
+# s42_env_flow_fraction has no effect under this scenario. Start/target
+# years aligned with the other FST transitions (2025-2050).
+.water_block <- list(
+  c42_env_flow_policy           = "on",
+  s42_env_flow_scenario         = 2,
+  s42_efp_startyear             = 2025,
+  s42_efp_targetyear            = 2050
+)
+
 TC_VS_LANDUSE_SCENARIOS <- list(
 
   BAU = list(
@@ -77,12 +89,14 @@ TC_VS_LANDUSE_SCENARIOS <- list(
   Energy         = .energy_block,
   EnergyCons     = c(.energy_block, .landcons_block),
   Full           = c(.energy_block, .landcons_block, .diet_block),
-  FullPlus       = c(.energy_block, .landcons_block, .diet_block, .biodiv_block, .nitrogen_block),
+  FullPlus       = c(.energy_block, .landcons_block, .diet_block,
+                     .biodiv_block, .nitrogen_block, .water_block),
 
   # "EnergyFST minus diet" = FullPlus minus the diet transition. Gives the
   # missing 2x2 cell ("Diet OFF" with all other FST layers ON) needed to
   # cleanly decompose TC vs Diet within the full-FST frame.
-  EnergyConsBioN = c(.energy_block, .landcons_block, .biodiv_block, .nitrogen_block)
+  EnergyConsBioN = c(.energy_block, .landcons_block,
+                     .biodiv_block, .nitrogen_block, .water_block)
 )
 
 # TC blending fractions for the sweep (f = 1 is covered by the endogenous reference)

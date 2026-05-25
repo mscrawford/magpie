@@ -12,9 +12,9 @@ Three scenarios:
 |------------|--------------------------------|-------------------|------------|
 | BAU        | `R34M410-SSP2-NPi2025`         | `reddnatveg_nosoil` | none |
 | Energy     | `R34M410-SSP2-PkBudg650` (1.5C)| `all_nosoil`      | none |
-| EnergyFST  | `R34M410-SSP2-PkBudg650`       | `all_nosoil`      | `c22_protect_scenario=30by30` (2025-2050); `s15_exo_diet=1`, `c15_EAT_scen=FLX`, `c15_kcal_scen=2500kcal` (2025-2050); `s44_bii_target=0.78` (Module 44 BII); `s57_maxmac_n_soil=201`, `s57_maxmac_n_awms=201` (Module 57 N MACCs at max step) |
+| EnergyFST  | `R34M410-SSP2-PkBudg650`       | `all_nosoil`      | `c22_protect_scenario=30by30` (2025-2050); `s15_exo_diet=1`, `c15_EAT_scen=FLX`, `c15_kcal_scen=2500kcal` (2025-2050); `s44_bii_target=0.78` (Module 44 BII); `s57_maxmac_n_soil=201`, `s57_maxmac_n_awms=201` (Module 57 N MACCs at max step); `c42_env_flow_policy="on"`, `s42_env_flow_scenario=2` (Module 42 environmental flow protection, Smakhtin gridcell-specific, 2025-2050) |
 
-SSP2 + NPI base for all scenarios. `coup2100` timesteps. h12 regions. Base NUE trajectory (`c50_scen_neff`) unchanged - all N abatement comes via the Module 57 MACCs.
+SSP2 + NPI base for all scenarios. `coup2100` timesteps. h12 regions. Base NUE trajectory (`c50_scen_neff`) unchanged - all N abatement comes via the Module 57 MACCs. Base water-demand scenarios unchanged - water protection comes via the Module 42 environmental flow policy.
 
 (Two intermediate scenarios were run and dropped from the active analysis: `EnergyCons` (Energy + 30by30 alone) and `Full` (Energy + 30by30 + diet, no biodiv/N). Their run outputs remain on disk under `output/TC_EnergyCons_*` and `output/TC_Full_*` if needed.)
 
