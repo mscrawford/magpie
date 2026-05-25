@@ -16,7 +16,7 @@ Three scenarios:
 
 SSP2 + NPI base for all scenarios. `coup2100` timesteps. h12 regions. Base NUE trajectory (`c50_scen_neff`) unchanged - all N abatement comes via the Module 57 MACCs. Base water-demand scenarios unchanged - water protection comes via the Module 42 environmental flow policy.
 
-(Two intermediate scenarios were run and dropped from the active analysis: `EnergyCons` (Energy + 30by30 alone) and `Full` (Energy + 30by30 + diet, no biodiv/N). Their run outputs remain on disk under `output/TC_EnergyCons_*` and `output/TC_Full_*` if needed.)
+(Three additional scenarios are used internally by the marginal-contribution decomposition: `EnergyCons` (Energy + 30by30 alone), `Full` (Energy + 30by30 + diet, no biodiv/N/water), and `EnergyConsBioN` (EnergyFST minus diet). They populate the 2x2s in the two decomposition frames. Their run outputs live under `output/TC_{EnergyCons,Full,EnergyConsBioN}_*`.)
 
 For each non-BAU scenario, the run is repeated with tau fixed exogenously (`tc=exo`, `c13_croparea_consv=0`, `s13_ignore_tau_historical=1`) at the blend
 
@@ -62,30 +62,46 @@ The 1.5C carbon price roughly doubles food prices over BAU (Energy_f0: 204 vs BA
 
 ## Marginal contribution of TC vs Diet vs both (decomposition)
 
-Reference cell `Y_ref = Y(EnergyCons, f=0)`: 1.5C carbon price + 30by30 active, TC at BAU level, no diet. Treatment cell `Y(Full, f=1)`: TC + diet both on (30by30 already in both cells). Effects sum if independent; negative synergy means substitutes. Sign convention: positive `delta` = lever REDUCES the outcome. From `output/tc_vs_landuse_plots/marginal_contributions.csv` (2100):
+Two parallel decompositions, each a clean 2x2 of (TC, Diet) within a different policy frame. Sign convention: positive `delta` = lever REDUCES the outcome. Negative synergy = substitutes. From `output/tc_vs_landuse_plots/marginal_contributions.csv` (2100):
+
+### Frame 1: carbon price + 30by30 only (no biodiv / N / water)
+
+`Y_ref = Y(EnergyCons, f=0)`; treatment = `Full`.
 
 | Outcome        | Y_ref | delta_TC | delta_Diet | delta_Both | synergy | TC share | Diet share |
 |----------------|-------|----------|------------|------------|---------|----------|------------|
 | Cropland (Mha) | 1905  | 340      | 369        | **394**    | **-315**| 86%      | 94%        |
 | Food price idx | 205   | 35       | 59         | **61**     | **-33** | 57%      | 97%        |
-| Primary forest (Mha, growth) | 1310 | 0 | 0 | 0 | - | - | - |
-| Secdforest (Mha, growth) | 2447 | -49 | -47 | -54 | +42 (substitution with flipped sign for growth) | - | - |
+| Secdforest (Mha, growth) | 2447 | -49 | -47 | -54 | +42 (sign flipped for growth) | - | - |
 
-**Frame caveat:** This decomposition lives in the **Energy + 30by30 frame** -- it uses scenarios `EnergyCons` (= Energy + 30by30, no diet) and `Full` (= EnergyCons + diet). It does NOT include the biodiv + N MACCs that are part of EnergyFST. The 4-run `EnergyConsBioN` scenario currently in flight will let us run a parallel decomposition within the full-FST frame; until then, treat this decomposition as the clean TC-vs-diet question with the climate-policy and land-protection layers already in the reference.
+### Frame 2: full FST (carbon + 30by30 + biodiv + N MACCs + water EFP)
+
+`Y_ref = Y(EnergyConsBioN, f=0)`; treatment = `FullPlus` (= EnergyFST).
+
+| Outcome        | Y_ref | delta_TC | delta_Diet | delta_Both | synergy | TC share | Diet share |
+|----------------|-------|----------|------------|------------|---------|----------|------------|
+| Cropland (Mha) | 1872  | 620      | 441        | **714**    | **-348**| 87%      | 62%        |
+| Food price idx | 289   | 99       | 82         | **112**    | **-69** | 88%      | 73%        |
+| Secdforest (Mha, growth) | 2382 | -100 | -90 | -117 | +73 (sign flipped) | - | - |
 
 ### Headline findings
 
-**1. TC and diet are strong substitutes on the cropland frontier.**
-Diet alone delivers 94% of what TC + diet combined achieve; TC alone delivers 86%. Adding both together yields only ~6 percentage points more than diet alone. Synergy = -315 Mha (the levers' deltas sum to 180% of the combined effect). Mechanism: both levers reduce the same scarcity (land needed to meet food demand) -- TC from the supply side (yield per ha up), diet from the demand side (kcal demand down).
+**1. TC and diet are strong substitutes on the cropland frontier in BOTH frames.**
+Old frame: synergy -315 Mha; full-FST frame: -348 Mha. The substitution intensity (synergy / sum-of-individuals) is similar (-44% vs -38%). The two levers reduce the same scarcity (land needed to meet food demand) from opposite sides -- TC from the supply side (yield per ha), diet from the demand side (kcal demand). This holds regardless of whether biodiv + N + water are also binding.
 
-**2. Diet is the dominant lever for food affordability.**
-Diet alone reduces the 2100 food price index by 59 points (205 -> 146); TC alone by 35; combined by 61. Diet captures 97% of the combined effect on prices. The mechanism is the same as for land -- reduced demand (especially livestock) lowers production cost.
+**2. The full-FST frame amplifies both levers (and the combined effect almost doubles).**
+Cropland: TC's marginal contribution grows from 340 to 620 Mha when biodiv + N + water are also binding; diet's grows from 369 to 441; combined grows from 394 to 714 Mha. Mechanism: the extra environmental constraints push the reference state into a much-more-constrained corner (EnergyConsBioN f=0 has cropland near BAU but food price 289 -- the model needs to keep feeding people on tight land + nitrogen + water with no TC headroom). Each lever's marginal value scales with how much constraint slack it can unlock.
 
-**3. EnergyFST (carbon + 30by30 + diet + biodiv + N) achieves the strongest land outcomes but is NOT the cheapest food.**
-Cropland 1146 Mha (vs Energy_f1 1561 and BAU 1923); pasture 2109 (vs 2820, 3162); +28 Mha primary forest protected. Food price 176 vs Energy_f1's 171 -- the biodiv + N constraints add price pressure that partly cancels the diet's price-reducing effect.
+**3. The food-price story flips between frames.**
+Frame 1: Diet dominates food-price relief (ΔDiet = 59 vs ΔTC = 35; Diet share 97% vs TC share 57%).
+Frame 2: TC slightly dominates (ΔTC = 99 vs ΔDiet = 82; TC share 88% vs Diet share 73%).
+Why: biodiv + N + water raise the price pressure massively (Y_ref jumps from 205 to 289 -- a +84 pt cost just from adding those layers at BAU TC and no diet). TC's intensification relieves that pressure more efficiently than diet's demand reduction in absolute terms.
 
-**4. TC headroom regains marginal value under the full FST bundle.**
-Inside the simpler `Full` (no biodiv/N), going from f=0 to f=1 changes the 2100 food price index by only ~2 points (146 -> 144) -- TC is nearly redundant on prices when only diet is doing the demand-side work. Inside `EnergyFST` (with biodiv + N), going from f=0 to f=1 changes the food price by ~29 points (205 -> 176). The biodiv + N constraints make intensification headroom valuable again -- TC's substitutability with diet (findings 1-2) is conditional on not stacking biodiv + N on top.
+**4. Endogenous tau scales with constraint tightness.**
+BAU 1.85; Energy 2.16; EnergyCons 2.16 (30by30 alone doesn't change intensification need); Full 1.85 (diet alone relaxes it back to BAU); EnergyConsBioN **2.82** (highest -- biodiv + N + water without diet force maximal intensification); FullPlus 2.43 (diet partly relieves it again). The model's intensification demand is roughly proportional to how much demand-side flexibility is taken away by the FST constraints.
+
+**5. EnergyConsBioN at f=0 is the most-constrained feasible scenario.**
+Food price 289 (3.5x BAU); cropland 1872 Mha (nearly BAU's 1923). Translation: if you impose 1.5C carbon price + 30by30 + biodiv (BII 0.78) + max N MACCs + water EFP, AND fix TC at BAU AND don't change diet -- the model still finds a feasible solution, but food becomes ~3.5x more expensive than BAU. Both TC headroom and diet shift are needed to bring the price back to ~177 (FullPlus f=1).
 
 ## Limitations
 

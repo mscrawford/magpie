@@ -385,66 +385,77 @@ if (!is.null(fpi_df_full)) {
   names(fpi_df_full) <- tolower(names(fpi_df_full))
 }
 
-computeMarginalContributions <- function(year = 2100) {
+`%||%` <- function(a, b) if (is.null(a)) b else a
+
+# Decompose TC x Diet within a 2x2 of scenarios, parameterised by which
+# scenarios define the (Diet OFF, Diet ON) columns. The two frames we run:
+#   - "carbon+30by30" frame:   ref=EnergyCons,    treat=Full      (no biodiv/N/water)
+#   - "full-FST"      frame:   ref=EnergyConsBioN, treat=FullPlus (with biodiv+N+water)
+# Each frame's 2x2:
+#                  | Diet OFF                       Diet ON
+#   TC at BAU      | ref_scen   f=0                 treat_scen f=0
+#   TC at endo     | ref_scen   f=1                 treat_scen f=1
+decomposeFrame <- function(year, ref_scen, treat_scen, frame_label) {
   pick <- function(df, scen, fnum, year_target) {
     yr <- as.numeric(sub("y", "", df$year %||% df$years))
     keep <- df$scenario == scen & abs(df$f_num - fnum) < 1e-9 & yr == year_target
     if (!any(keep)) return(NA_real_)
     sum(df$value[keep], na.rm = TRUE)
   }
-  `%||%` <- function(a, b) if (is.null(a)) b else a
-
-  # TC x Diet 2x2 within the "Energy + 30by30 active" frame:
-  #
-  #                  | Diet OFF              Diet ON
-  #   TC at BAU      | EnergyCons f=0        Full f=0
-  #   TC at endo     | EnergyCons f=1        Full f=1
-  #
-  # Reference cell  Y_ref = Y(EnergyCons, f=0)  ("policies on, TC at BAU,
-  # no diet"). This is the OLD decomposition the experiment originally
-  # used. It does NOT include biodiv + N MACCs (which are in EnergyFST /
-  # FullPlus only); a future EnergyConsBioN scenario would let us redo
-  # this 2x2 inside the full-FST frame.
-  out <- list()
-
+  rows <- list()
   if (!is.null(land_df_full)) {
     land_col_f <- intersect(c("data1", "data", "kall", "land"), names(land_df_full))[1]
     for (lt in c("crop", "primforest", "secdforest")) {
       sub <- land_df_full[land_df_full[[land_col_f]] == lt, ]
-      Y_ref      <- pick(sub, "EnergyCons", 0, year)
-      Y_TC       <- pick(sub, "EnergyCons", 1, year)
-      Y_Diet     <- pick(sub, "Full",       0, year)
-      Y_Both     <- pick(sub, "Full",       1, year)
-      delta_TC   <- Y_ref - Y_TC
-      delta_Diet <- Y_ref - Y_Diet
-      delta_Both <- Y_ref - Y_Both
-      out[[length(out) + 1]] <- data.frame(
+      Y_ref  <- pick(sub, ref_scen,   0, year)
+      Y_TC   <- pick(sub, ref_scen,   1, year)
+      Y_Diet <- pick(sub, treat_scen, 0, year)
+      Y_Both <- pick(sub, treat_scen, 1, year)
+      d_TC   <- Y_ref - Y_TC; d_Diet <- Y_ref - Y_Diet; d_Both <- Y_ref - Y_Both
+      rows[[length(rows) + 1]] <- data.frame(
+        frame = frame_label,
         outcome = paste0("land_", lt, "_Mha"),
         year = year,
+        ref_scenario = ref_scen, treat_scenario = treat_scen,
         Y_ref = Y_ref, Y_TC_only = Y_TC, Y_Diet_only = Y_Diet, Y_Both = Y_Both,
-        delta_TC = delta_TC, delta_Diet = delta_Diet, delta_Both = delta_Both,
-        synergy = delta_Both - (delta_TC + delta_Diet),
-        TC_share_of_Both   = ifelse(delta_Both != 0, delta_TC   / delta_Both, NA),
-        Diet_share_of_Both = ifelse(delta_Both != 0, delta_Diet / delta_Both, NA),
-        stringsAsFactors = FALSE
-      )
+        delta_TC = d_TC, delta_Diet = d_Diet, delta_Both = d_Both,
+        synergy = d_Both - (d_TC + d_Diet),
+        TC_share_of_Both   = ifelse(d_Both != 0, d_TC   / d_Both, NA),
+        Diet_share_of_Both = ifelse(d_Both != 0, d_Diet / d_Both, NA),
+        stringsAsFactors = FALSE)
     }
   }
   if (!is.null(fpi_df_full)) {
-    Y_ref      <- pick(fpi_df_full, "EnergyCons", 0, year)
-    Y_TC       <- pick(fpi_df_full, "EnergyCons", 1, year)
-    Y_Diet     <- pick(fpi_df_full, "Full",       0, year)
-    Y_Both     <- pick(fpi_df_full, "Full",       1, year)
-    out[[length(out) + 1]] <- data.frame(
+    Y_ref  <- pick(fpi_df_full, ref_scen,   0, year)
+    Y_TC   <- pick(fpi_df_full, ref_scen,   1, year)
+    Y_Diet <- pick(fpi_df_full, treat_scen, 0, year)
+    Y_Both <- pick(fpi_df_full, treat_scen, 1, year)
+    d_TC   <- Y_ref - Y_TC; d_Diet <- Y_ref - Y_Diet; d_Both <- Y_ref - Y_Both
+    rows[[length(rows) + 1]] <- data.frame(
+      frame = frame_label,
       outcome = "food_price_index",
       year = year,
+      ref_scenario = ref_scen, treat_scenario = treat_scen,
       Y_ref = Y_ref, Y_TC_only = Y_TC, Y_Diet_only = Y_Diet, Y_Both = Y_Both,
-      delta_TC = Y_ref - Y_TC, delta_Diet = Y_ref - Y_Diet, delta_Both = Y_ref - Y_Both,
-      synergy = (Y_ref - Y_Both) - ((Y_ref - Y_TC) + (Y_ref - Y_Diet)),
-      TC_share_of_Both   = ifelse((Y_ref - Y_Both) != 0, (Y_ref - Y_TC)   / (Y_ref - Y_Both), NA),
-      Diet_share_of_Both = ifelse((Y_ref - Y_Both) != 0, (Y_ref - Y_Diet) / (Y_ref - Y_Both), NA),
-      stringsAsFactors = FALSE
-    )
+      delta_TC = d_TC, delta_Diet = d_Diet, delta_Both = d_Both,
+      synergy = d_Both - (d_TC + d_Diet),
+      TC_share_of_Both   = ifelse(d_Both != 0, d_TC   / d_Both, NA),
+      Diet_share_of_Both = ifelse(d_Both != 0, d_Diet / d_Both, NA),
+      stringsAsFactors = FALSE)
+  }
+  do.call(rbind, rows)
+}
+
+computeMarginalContributions <- function(year = 2100) {
+  out <- list()
+  # Old frame: carbon price + 30by30 (no biodiv/N/water). Always available.
+  out[[1]] <- decomposeFrame(year, "EnergyCons", "Full", "carbon+30by30")
+  # New frame: full FST (carbon + 30by30 + biodiv + N + water). Requires
+  # EnergyConsBioN + FullPlus to have run; silently skips if missing.
+  if (any(summary_df_full$scenario == "EnergyConsBioN") &&
+      any(summary_df_full$scenario == "FullPlus")) {
+    fst_rows <- decomposeFrame(year, "EnergyConsBioN", "FullPlus", "full-FST")
+    if (!is.null(fst_rows)) out[[length(out) + 1]] <- fst_rows
   }
   do.call(rbind, out)
 }
@@ -453,12 +464,12 @@ mc_df <- tryCatch(computeMarginalContributions(year = 2100), error = function(e)
 if (!is.null(mc_df)) {
   write.csv(mc_df, file.path(OUT_DIR, "marginal_contributions.csv"),
             row.names = FALSE)
-  message("\nMarginal contribution decomposition (year = 2100, reference = EnergyCons f=0):")
-  print(mc_df[, c("outcome", "delta_TC", "delta_Diet", "delta_Both", "synergy",
+  message("\nMarginal contribution decomposition (year = 2100):")
+  print(mc_df[, c("frame", "outcome", "delta_TC", "delta_Diet", "delta_Both", "synergy",
                   "TC_share_of_Both", "Diet_share_of_Both")], row.names = FALSE)
 
   mc_long <- mc_df |>
-    select(outcome, delta_TC, delta_Diet, delta_Both) |>
+    select(frame, outcome, delta_TC, delta_Diet, delta_Both) |>
     tidyr::pivot_longer(cols = c(delta_TC, delta_Diet, delta_Both),
                         names_to = "lever", values_to = "delta") |>
     mutate(lever = factor(lever,
@@ -467,14 +478,13 @@ if (!is.null(mc_df)) {
 
   p8 <- ggplot(mc_long, aes(x = lever, y = delta, fill = lever)) +
     geom_col(width = 0.7) +
-    geom_text(aes(label = round(delta, 1)), vjust = -0.3, size = 3) +
-    facet_wrap(~ outcome, scales = "free_y", nrow = 1) +
+    geom_text(aes(label = round(delta, 1)), vjust = -0.3, size = 2.8) +
+    facet_grid(frame ~ outcome, scales = "free_y") +
     scale_fill_manual(values = c("TC only" = "#1f77b4",
                                  "Diet only" = "#2ca02c",
                                  "TC + Diet (combined)" = "#9467bd")) +
-    labs(title = "Marginal contribution of TC vs Diet vs both (2100)",
-         subtitle = paste0("Reference cell: EnergyCons f=0 (1.5C carbon price + 30by30 active, TC at BAU, no diet).\n",
-                           "Treatment cell: Full f=1 (adds EAT-Lancet FLX 2500kcal). Excludes biodiv+N (those live in EnergyFST).\n",
+    labs(title = "Marginal contribution of TC vs Diet vs both (2100), two frames",
+         subtitle = paste0("Rows: 'carbon+30by30' (ref=EnergyCons f=0, treat=Full) vs 'full-FST' (ref=EnergyConsBioN f=0, treat=FullPlus, adds biodiv+N+water).\n",
                            "Positive bar = lever REDUCES the outcome (cropland Mha, food price index)."),
          x = NULL, y = "Reduction from reference (units = outcome unit)",
          fill = NULL) +
@@ -483,7 +493,7 @@ if (!is.null(mc_df)) {
           axis.text.x = element_text(angle = 15, hjust = 1))
 
   ggsave(file.path(OUT_DIR, "08_marginal_contributions.pdf"), p8,
-         width = 11, height = 5)
+         width = 11, height = 7)
 }
 
 message("\nPlots written to ", normalizePath(OUT_DIR))
