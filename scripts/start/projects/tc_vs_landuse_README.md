@@ -16,7 +16,7 @@ Three scenarios:
 
 SSP2 + NPI base for all scenarios. `coup2100` timesteps. h12 regions. Base NUE trajectory (`c50_scen_neff`) unchanged - all N abatement comes via the Module 57 MACCs. Base water-demand scenarios unchanged - water protection comes via the Module 42 environmental flow policy.
 
-(One additional scenario is used by the marginal-contribution decomposition: `EnergyConsBioN` = EnergyFST minus the diet transition. It populates the "Diet OFF" column of the 2x2. Two earlier scenarios -- `EnergyCons` (Energy + 30by30 alone) and `Full` (Energy + 30by30 + diet, no biodiv/N/water) -- were also run during the design iteration; their outputs remain on disk under `output/TC_{EnergyCons,Full}_*` but are not used by the active analysis.)
+(One additional scenario is used by the marginal-contribution decomposition: `EnergyConsBioN` = EnergyFST minus the diet transition. It populates the "Diet OFF" column of the 2x2.)
 
 For each non-BAU scenario, the run is repeated with tau fixed exogenously (`tc=exo`, `c13_croparea_consv=0`, `s13_ignore_tau_historical=1`) at the blend
 
