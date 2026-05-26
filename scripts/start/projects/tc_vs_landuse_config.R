@@ -8,17 +8,21 @@
 # Scenario definitions for the "TC vs land-use change" experiment.
 # See scripts/start/projects/tc_vs_landuse.R for the orchestrator.
 #
-# Sequential additive design (each row adds one layer on top of the previous):
-#   BAU         : no carbon price, no land conservation, no diet
-#   Energy      : 1.5C carbon price (PkBudg650) with comprehensive AFOLU coverage
-#   EnergyCons  : Energy + land conservation (30by30, future + WDPA baseline)
-#   Full        : Energy + land conservation + EAT-Lancet Flexitarian diet
+# Three transformation packages:
+#   BAU         : default ~no carbon price, no land conservation, no diet
+#   TransNoDiet : full FST backdrop minus the diet transition
+#                 (carbon + 30by30 + biodiv + N MACCs + water EFP)
+#   TransDiet   : full FST backdrop including the diet transition
+#                 (TransNoDiet + EAT-Lancet FLX)
 #
-# Climate-policy choice: PkBudg650 (~$300/tC in 2050, 1.5C pathway). The prior
-# round used PkBudg1000 (2C) but all sweep runs were feasible at any f, which
-# suggested the 2C signal didn't bind hard enough to differentiate scenarios.
+# Each transition package is run twice: once with endogenous TC ("TCendo"),
+# once with tau pinned to BAU's trajectory ("TCbau"). BAU itself runs
+# only with endogenous TC; its endo tau IS the TCbau reference for the
+# transition runs.
+#
+# Climate-policy choice: PkBudg650 (~$300/tC in 2050, 1.5C pathway).
 
-# Shared carbon-price block for all non-BAU scenarios (1.5C / PkBudg650)
+# Shared carbon-price block (1.5C / PkBudg650)
 .energy_block <- list(
   c56_pollutant_prices          = "R34M410-SSP2-PkBudg650",
   c56_pollutant_prices_noselect = "R34M410-SSP2-PkBudg650",
@@ -46,28 +50,18 @@
 )
 
 # Biodiversity target block (Module 44 bii_target realization)
-# s44_bii_target = 0.78 per default.cfg notes: "(very) strong increase of BII"
-# Linear ramp from s44_start_year (2030) to s44_target_year (2100, defaults)
 .biodiv_block <- list(
   s44_bii_target                = 0.78,
   c44_bii_decrease              = 1
 )
 
-# Nitrogen abatement block (Module 57 MACCs, on_aug22 realization)
-# s57_maxmac_n_soil = 201 / s57_maxmac_n_awms = 201 force the MACC mitigation
-# step to its maximum (per default.cfg: "201: maximum level of mitigation").
-# This adds N-specific MACC abatement on top of the base NUE trajectory --
-# we do NOT change c50_scen_neff (base trajectory stays at SSP2 default).
+# Nitrogen abatement block (Module 57 MACCs at max step, on_aug22 realization)
 .nitrogen_block <- list(
   s57_maxmac_n_soil             = 201,
   s57_maxmac_n_awms             = 201
 )
 
-# Water protection block (Module 42, environmental flow policy ON)
-# c42_env_flow_policy = "on" applies global EFP. s42_env_flow_scenario = 2
-# uses the Smakhtin (2004) gridcell-specific algorithm (default), so the
-# s42_env_flow_fraction has no effect under this scenario. Start/target
-# years aligned with the other FST transitions (2025-2050).
+# Water protection block (Module 42 environmental flow policy ON)
 .water_block <- list(
   c42_env_flow_policy           = "on",
   s42_env_flow_scenario         = 2,
@@ -86,24 +80,18 @@ TC_VS_LANDUSE_SCENARIOS <- list(
     s15_exo_diet                  = 0
   ),
 
-  Energy         = .energy_block,
-  EnergyCons     = c(.energy_block, .landcons_block),
-  Full           = c(.energy_block, .landcons_block, .diet_block),
-  FullPlus       = c(.energy_block, .landcons_block, .diet_block,
-                     .biodiv_block, .nitrogen_block, .water_block),
+  # Full FST backdrop minus diet: carbon + 30by30 + biodiv + N MACCs + water EFP
+  TransNoDiet = c(.energy_block, .landcons_block,
+                  .biodiv_block, .nitrogen_block, .water_block),
 
-  # "EnergyFST minus diet" = FullPlus minus the diet transition. Gives the
-  # missing 2x2 cell ("Diet OFF" with all other FST layers ON) needed to
-  # cleanly decompose TC vs Diet within the full-FST frame.
-  EnergyConsBioN = c(.energy_block, .landcons_block,
-                     .biodiv_block, .nitrogen_block, .water_block)
+  # Full FST backdrop including diet
+  TransDiet   = c(.energy_block, .landcons_block, .diet_block,
+                  .biodiv_block, .nitrogen_block, .water_block)
 )
 
-# TC blending fractions for the sweep (f = 1 is covered by the endogenous reference)
-TC_VS_LANDUSE_FRACTIONS <- c(0, 1/2, 3/4)
-
-# Scenarios that get a TC sweep (BAU is only the tau-source baseline)
-TC_VS_LANDUSE_SWEEP_SCENARIOS <- c("Energy", "EnergyCons", "Full", "FullPlus", "EnergyConsBioN")
+# Scenarios that get a TCbau companion (tau pinned at BAU level). BAU itself
+# is only run endogenously; its own tau is the pin target.
+TC_VS_LANDUSE_TCBAU_SCENARIOS <- c("TransNoDiet", "TransDiet")
 
 # Apply a scenario's switches to a cfg object
 applyTCScenario <- function(cfg, scenario_name) {
@@ -114,7 +102,7 @@ applyTCScenario <- function(cfg, scenario_name) {
   cfg
 }
 
-# Apply exo-TC flags (for sweep runs that fix tau exogenously)
+# Apply exo-TC flags (for TCbau runs that fix tau to BAU's trajectory)
 applyExoTCFlags <- function(cfg) {
   cfg$gms$tc                          <- "exo"
   cfg$gms$c13_croparea_consv          <- 0
@@ -122,11 +110,10 @@ applyExoTCFlags <- function(cfg) {
   cfg
 }
 
-# Standard run-name convention
-tcRunName <- function(scenario_name, f = NA) {
-  if (is.na(f)) {
-    sprintf("TC_%s_endo", scenario_name)
-  } else {
-    sprintf("TC_%s_f%02d", scenario_name, round(f * 100))
+# Run-name convention: <scenario>_<TCstate>, TCstate in {TCendo, TCbau}
+tcRunName <- function(scenario_name, tc_state = "TCendo") {
+  if (!tc_state %in% c("TCendo", "TCbau")) {
+    stop("tc_state must be 'TCendo' or 'TCbau', got: ", tc_state)
   }
+  sprintf("%s_%s", scenario_name, tc_state)
 }
