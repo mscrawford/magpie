@@ -447,17 +447,17 @@ decomposeFrame <- function(year, ref_scen, treat_scen, frame_label) {
 }
 
 computeMarginalContributions <- function(year = 2100) {
-  out <- list()
-  # Old frame: carbon price + 30by30 (no biodiv/N/water). Always available.
-  out[[1]] <- decomposeFrame(year, "EnergyCons", "Full", "carbon+30by30")
-  # New frame: full FST (carbon + 30by30 + biodiv + N + water). Requires
-  # EnergyConsBioN + FullPlus to have run; silently skips if missing.
-  if (any(summary_df_full$scenario == "EnergyConsBioN") &&
-      any(summary_df_full$scenario == "FullPlus")) {
-    fst_rows <- decomposeFrame(year, "EnergyConsBioN", "FullPlus", "full-FST")
-    if (!is.null(fst_rows)) out[[length(out) + 1]] <- fst_rows
+  # Single-frame decomposition within the comprehensive FST backdrop
+  # (carbon price + 30by30 + biodiv + N MACCs + water EFP, ALL ON in every
+  # cell of the 2x2). Reference = EnergyConsBioN f=0 (FST minus diet, BAU
+  # TC). Treatment = FullPlus f=1 (FST with TC + diet). The two levers
+  # tested are TC headroom and the EAT-Lancet diet; all other FST layers
+  # are part of the always-on backdrop, not levers.
+  if (!any(summary_df_full$scenario == "EnergyConsBioN") ||
+      !any(summary_df_full$scenario == "FullPlus")) {
+    return(NULL)
   }
-  do.call(rbind, out)
+  decomposeFrame(year, "EnergyConsBioN", "FullPlus", "full-FST")
 }
 
 mc_df <- tryCatch(computeMarginalContributions(year = 2100), error = function(e) NULL)
@@ -469,7 +469,7 @@ if (!is.null(mc_df)) {
                   "TC_share_of_Both", "Diet_share_of_Both")], row.names = FALSE)
 
   mc_long <- mc_df |>
-    select(frame, outcome, delta_TC, delta_Diet, delta_Both) |>
+    select(outcome, delta_TC, delta_Diet, delta_Both) |>
     tidyr::pivot_longer(cols = c(delta_TC, delta_Diet, delta_Both),
                         names_to = "lever", values_to = "delta") |>
     mutate(lever = factor(lever,
@@ -478,13 +478,14 @@ if (!is.null(mc_df)) {
 
   p8 <- ggplot(mc_long, aes(x = lever, y = delta, fill = lever)) +
     geom_col(width = 0.7) +
-    geom_text(aes(label = round(delta, 1)), vjust = -0.3, size = 2.8) +
-    facet_grid(frame ~ outcome, scales = "free_y") +
+    geom_text(aes(label = round(delta, 1)), vjust = -0.3, size = 3) +
+    facet_wrap(~ outcome, scales = "free_y", nrow = 1) +
     scale_fill_manual(values = c("TC only" = "#1f77b4",
                                  "Diet only" = "#2ca02c",
                                  "TC + Diet (combined)" = "#9467bd")) +
-    labs(title = "Marginal contribution of TC vs Diet vs both (2100), two frames",
-         subtitle = paste0("Rows: 'carbon+30by30' (ref=EnergyCons f=0, treat=Full) vs 'full-FST' (ref=EnergyConsBioN f=0, treat=FullPlus, adds biodiv+N+water).\n",
+    labs(title = "Marginal contribution of TC vs Diet vs both (2100)",
+         subtitle = paste0("Reference: EnergyConsBioN f=0 (full FST backdrop minus diet, TC at BAU). Treatment: FullPlus f=1.\n",
+                           "FST backdrop (always on in every cell): 1.5C carbon price + 30by30 + biodiv (BII 0.78) + N MACCs (max) + water EFP.\n",
                            "Positive bar = lever REDUCES the outcome (cropland Mha, food price index)."),
          x = NULL, y = "Reduction from reference (units = outcome unit)",
          fill = NULL) +
@@ -493,7 +494,7 @@ if (!is.null(mc_df)) {
           axis.text.x = element_text(angle = 15, hjust = 1))
 
   ggsave(file.path(OUT_DIR, "08_marginal_contributions.pdf"), p8,
-         width = 11, height = 7)
+         width = 11, height = 5)
 }
 
 message("\nPlots written to ", normalizePath(OUT_DIR))
