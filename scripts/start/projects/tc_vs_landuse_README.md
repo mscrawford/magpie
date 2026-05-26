@@ -1,8 +1,12 @@
-# TC vs land-use change: marginal contribution to food-system transformation
+# TC's importance for enabling food-system transformations
 
 ## Question
 
-How much of the cropland-sparing and food-price relief that MAgPIE achieves under an aggressive 1.5C climate policy comes from endogenous TC (`tau` in module 13_tc) versus from food-system transformation (FST: diet shift + land protection + biodiversity target + N abatement)? At what TC level does land-use change stop being able to substitute?
+**How important is endogenous TC (`tau` in module 13_tc) for enabling food-system transformations, and how does TC's marginal value change across plausible transformation packages?**
+
+Specifically: in a world that is also pursuing other goals (carbon pricing, 30by30, biodiversity, N abatement, water protection), how much does TC headroom matter for both **land outcomes** (cropland, forest, etc.) and **societal/welfare outcomes** (consumer food prices, production, calories, etc.)? Does TC matter more or less when a dietary shift is also in play? Are there individual policies (per FST atom) where TC's importance is unusually high?
+
+Six FST atoms are treated symmetrically as policy levers: **Energy** (carbon price), **30by30** (land conservation), **Diet** (EAT-Lancet), **Biodiv** (BII target), **N MACCs**, **Water EFP**. None is privileged as an "always-on" backdrop in the design; BAU is the no-policy reference.
 
 ## Design
 
@@ -62,9 +66,11 @@ Pasture follows the same pattern (BAU 3162 -> Energy_f1 2820 -> EnergyFST_f1 210
 
 The 1.5C carbon price roughly doubles consumer food prices over BAU (Energy_f0: 204 vs BAU 83 in 2100). TC headroom inside Energy buys back ~15% (204 -> 171). The FST bundle does NOT reduce food prices: EnergyFST_f0 (205) sits essentially at Energy_f0 (204), and EnergyFST_f1 (176) is a few points ABOVE Energy_f1 (171). The diet's price-relieving effect is canceled by the price pressure from 30by30 + BII + N abatement.
 
-## Marginal contribution of TC vs Diet vs both (decomposition)
+## Marginal contribution of TC vs Diet vs both (within the full-FST package)
 
-The decomposition lives entirely inside the **full FST backdrop**: 1.5C carbon price + 30by30 + biodiv (BII 0.78) + N MACCs (max step) + water EFP -- ALL on in every cell of the 2x2. We are NOT decomposing the BAU -> FST transition into its layer-by-layer contributions; the question is *"given that the full FST package is being implemented, what is the marginal value of TC headroom vs the diet shift?"*
+This is the **per-package** view of the headline question: when the full FST package is being implemented, how much does TC headroom matter relative to the dietary shift? It is NOT a decomposition of BAU -> FST into per-atom contributions -- that question requires per-atom scenarios (queued as next work; see "Outstanding analysis" at the end).
+
+The decomposition lives entirely inside the **full FST backdrop**: 1.5C carbon price + 30by30 + biodiv (BII 0.78) + N MACCs (max step) + water EFP -- ALL on in every cell of the 2x2.
 
 The 2x2:
 
@@ -99,11 +105,16 @@ Food price 289 (3.5x BAU's 83); cropland 1872 Mha (nearly BAU's 1923). Translati
 **4. Endogenous tau scales with constraint tightness.**
 BAU 1.85; Energy 2.16; EnergyConsBioN **2.82** (highest -- the full FST minus diet forces maximal intensification); FullPlus 2.43 (diet partly relieves it). The model's intensification demand is roughly proportional to how much demand-side flexibility is taken away by the FST constraints.
 
+## Outstanding analysis (planned next)
+
+- **Per-atom TC sensitivity**: run each of the 5 remaining FST atoms alone (30by30, Diet, Biodiv, N, Water) at f=0 and f=1, to ask "which single FST policy creates the most demand for TC headroom?" -- the per-package view (above) tells you TC's importance with/without diet, but doesn't isolate which other layer is binding hardest. 10 new runs at PkBudg650, ~5-6h on 3-parallel.
+- **Wider output variables**: extract from the existing GDX files -- GHG emissions (LULUCF CO2, CH4, N2O), N pollution (Module 51), water use, achieved BII (Module 44), per-commodity production, kcal per capita, agricultural employment (Module 36), system costs. No new runs needed.
+
 ## Limitations
 
 - The blend is a 1-D cut through (t x h x tautype) tau space. f=1 means "this scenario's own endogenous tau," not a global maximum across scenarios.
-- "Feasibility" is GAMS modelstat 2/7. Climate policy is implemented as price signals (Module 56), not hard emission caps. The hard constraints in EnergyFST are 30by30 (Module 22), the BII lower bound (Module 44), and the N MACC max step (Module 57). All three together still produce feasible solves at every f tested.
-- FST bundles four levers; the decomposition treats them collectively. To isolate diet, 30by30, biodiv, and N individually would require additional scenarios (the `EnergyCons` and `Full` runs on disk give partial coverage if needed).
+- "Feasibility" is GAMS modelstat 2/7. Climate policy is implemented as price signals (Module 56), not hard emission caps. The hard constraints in EnergyFST are 30by30 (Module 22), the BII lower bound (Module 44), the N MACC max step (Module 57), and the water EFP (Module 42). Together they still produce feasible solves at every f tested.
+- The current decomposition is per-package (TC vs Diet, with the other FST layers always on). Per-atom TC sensitivity -- testing each FST atom alone with f=0 + f=1 -- is queued (see "Outstanding analysis").
 - Carbon-price coverage is `all_nosoil` (excludes soil C).
 
 ## Files
@@ -111,11 +122,10 @@ BAU 1.85; Energy 2.16; EnergyConsBioN **2.82** (highest -- the full FST minus di
 - Branch: `experiment/tc-marginal-pb` on `mscrawford/magpie`
   - https://github.com/mscrawford/magpie/tree/experiment/tc-marginal-pb
 - Orchestrator: `scripts/start/projects/tc_vs_landuse.R`
-- Scenario definitions: `scripts/start/projects/tc_vs_landuse_config.R` (config still defines BAU, Energy, EnergyCons, Full, FullPlus; the plotter filters to BAU, Energy, FullPlus and relabels FullPlus -> EnergyFST in displays)
+- Scenario definitions: `scripts/start/projects/tc_vs_landuse_config.R` (config defines BAU, Energy, EnergyCons, Full, FullPlus, EnergyConsBioN; the plotter displays BAU, Energy, FullPlus (relabeled EnergyFST) and uses EnergyConsBioN for the decomposition's "Diet OFF" cell)
 - Tau-blending utility: `scripts/output/extra/blend_tau.R`
 - Plotting: `scripts/output/projects/tc_vs_landuse_plot.R`
-- Active run outputs: `output/TC_{BAU,Energy,FullPlus}_{endo,f00,f50,f75}/`
-- Dropped-from-analysis run outputs (still on disk): `output/TC_{EnergyCons,Full}_{endo,f00,f50,f75}/`
+- Active run outputs: `output/TC_{BAU_endo, Energy_*, FullPlus_*, EnergyConsBioN_{endo,f00}}/`
 - Plots: `output/tc_vs_landuse_plots/0{1..8}_*.pdf`
   - `02_land_allocation_grid.pdf` is the headline land-use visual
   - `04_tau_trajectory.pdf` shows the per-scenario tau ranges
