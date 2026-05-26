@@ -48,7 +48,7 @@ The 1.5C carbon price pushes endogenous TC up 17% over BAU. Adding the full FST 
 
 Pasture follows the same pattern (BAU 3162 -> Energy_f1 2820 -> EnergyFST_f1 2109 Mha). Primary forest in 2100 is 1313 Mha under EnergyFST vs 1285 Mha under Energy_f1: 30by30 + BII jointly protect ~28 Mha more primary forest. Forestry grows from 338 (BAU) to 637 (Energy_f1) to 913 (EnergyFST_f1) Mha through carbon-price-induced afforestation that the FST bundle further amplifies.
 
-### Global food price index in 2050 / 2100 (Laspeyres, baseyear 2005)
+### Global consumer food price index in 2050 / 2100 (Laspeyres, baseyear 2005)
 
 | Scenario  | f=0       | f=0.5     | f=0.75    | f=1       |
 |-----------|-----------|-----------|-----------|-----------|
@@ -58,7 +58,9 @@ Pasture follows the same pattern (BAU 3162 -> Energy_f1 2820 -> EnergyFST_f1 210
 
 (values shown as `2050 / 2100`)
 
-The 1.5C carbon price roughly doubles food prices over BAU (Energy_f0: 204 vs BAU 83 in 2100). TC headroom inside Energy buys back ~15% (204 -> 171). The FST bundle does NOT reduce food prices: EnergyFST_f0 (205) sits essentially at Energy_f0 (204), and EnergyFST_f1 (176) is a few points ABOVE Energy_f1 (171). The diet's price-relieving effect is canceled by the price pressure from 30by30 + BII + N abatement.
+**Metric note:** `magpie4::priceIndexFood()` returns a Laspeyres index of **consumer prices** (producer prices + marketing margins + value-added, pulled from Module 15's `FoodDemandModuleConsumerPrices` -- not the producer-side `prices(type="producer")`). Baseyear 2005 = index 100; BAU drifts down to ~83 by 2100 as productivity grows faster than demand.
+
+The 1.5C carbon price roughly doubles consumer food prices over BAU (Energy_f0: 204 vs BAU 83 in 2100). TC headroom inside Energy buys back ~15% (204 -> 171). The FST bundle does NOT reduce food prices: EnergyFST_f0 (205) sits essentially at Energy_f0 (204), and EnergyFST_f1 (176) is a few points ABOVE Energy_f1 (171). The diet's price-relieving effect is canceled by the price pressure from 30by30 + BII + N abatement.
 
 ## Marginal contribution of TC vs Diet vs both (decomposition)
 
