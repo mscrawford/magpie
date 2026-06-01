@@ -7,8 +7,8 @@
 
 # pin_bau_tau.R
 #
-# Utility for the "TC vs land-use change" experiment (see
-# scripts/start/projects/tc_vs_landuse.R).
+# Utility for the yield-gap experiment (see
+# scripts/start/projects/yield_gap.R).
 #
 # Extracts the endogenous land-use intensity (tau) trajectory from a
 # completed BAU MAgPIE run and writes it to the Module 13 exo realization

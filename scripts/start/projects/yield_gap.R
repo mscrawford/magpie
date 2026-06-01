@@ -10,10 +10,10 @@
 # position: 5
 # ----------------------------------------------------------
 #
-# Orchestrator for the TC-vs-land-use experiment. See
-# scripts/start/projects/tc_vs_landuse_README.md for the methods writeup.
+# Orchestrator for the yield-gap experiment. See
+# scripts/start/projects/yield_gap_README.md for the methods writeup.
 #
-# Scenarios are defined in tc_vs_landuse_config.R. The experiment runs:
+# Scenarios are defined in yield_gap_config.R. The experiment runs:
 #   - Phase 1: one endogenous-TC run per scenario (TC_<scen>_TCendo)
 #   - Phase 2: for each transition scenario, a run with tau pinned to BAU's
 #              trajectory (TC_<scen>_TCbau), via cfg$gms$tc = "exo" and the
@@ -22,7 +22,7 @@
 # Final inventory: 1 BAU + 2 transition scenarios x 2 TC states = 5 runs.
 #
 # Usage (local, from the magpie repo root):
-#   TC_VS_LANDUSE_PARALLEL=3 Rscript scripts/start/projects/tc_vs_landuse.R
+#   YIELD_GAP_PARALLEL=3 Rscript scripts/start/projects/yield_gap.R
 #
 # Idempotent: runs that already have a runstatistics.rda with `modelstat`
 # set are skipped. To force a re-run, delete the output/TC_<title>/ folder.
@@ -46,15 +46,15 @@ suppressMessages({
 })
 
 source("scripts/start_functions.R")
-source("scripts/start/projects/tc_vs_landuse_config.R")
+source("scripts/start/projects/yield_gap_config.R")
 source("scripts/output/extra/pin_bau_tau.R")
 
 # ---- knobs ------------------------------------------------------------------
 
-MAX_PARALLEL <- as.integer(Sys.getenv("TC_VS_LANDUSE_PARALLEL", "4"))
+MAX_PARALLEL <- as.integer(Sys.getenv("YIELD_GAP_PARALLEL", "4"))
 
 # Default "coup2100" matches the MAgPIE default (17 timesteps to 2100).
-TIMESTEPS <- Sys.getenv("TC_VS_LANDUSE_TIMESTEPS", "coup2100")
+TIMESTEPS <- Sys.getenv("YIELD_GAP_TIMESTEPS", "coup2100")
 
 POLL_SECONDS    <- 60L
 MAX_WAIT_HOURS  <- 24L
@@ -150,7 +150,7 @@ launchRun <- function(cfg, title) {
 # ---- Phase 1: endogenous-TC runs (TCendo) -----------------------------------
 
 message("\n========== Phase 1: endogenous-TC runs (TCendo) ==========")
-scen_names <- names(TC_VS_LANDUSE_SCENARIOS)
+scen_names <- names(YIELD_GAP_SCENARIOS)
 
 in_flight  <- character(0)
 started_at <- list()
@@ -190,7 +190,7 @@ message("\n========== Phase 2: BAU-pinned TC runs (TCbau) ==========")
 in_flight  <- character(0)
 started_at <- list()
 
-for (scen in TC_VS_LANDUSE_TCBAU_SCENARIOS) {
+for (scen in YIELD_GAP_TCBAU_SCENARIOS) {
   title <- tcRunName(scen, "TCbau")
 
   if (runCompleted(title)) {
@@ -217,13 +217,13 @@ waitForAll(in_flight, started_at)
 message("\n========== Summary ==========")
 summary_rows <- list()
 
-for (scen in names(TC_VS_LANDUSE_SCENARIOS)) {
+for (scen in names(YIELD_GAP_SCENARIOS)) {
   title <- tcRunName(scen, "TCendo")
   summary_rows[[length(summary_rows) + 1]] <- data.frame(
     scenario = scen, tc_state = "TCendo", title = title,
     feasible = runFeasible(title), stringsAsFactors = FALSE)
 }
-for (scen in TC_VS_LANDUSE_TCBAU_SCENARIOS) {
+for (scen in YIELD_GAP_TCBAU_SCENARIOS) {
   title <- tcRunName(scen, "TCbau")
   summary_rows[[length(summary_rows) + 1]] <- data.frame(
     scenario = scen, tc_state = "TCbau", title = title,
@@ -233,6 +233,6 @@ for (scen in TC_VS_LANDUSE_TCBAU_SCENARIOS) {
 summary_df <- do.call(rbind, summary_rows)
 print(summary_df, row.names = FALSE)
 
-saveRDS(summary_df, "output/tc_vs_landuse_summary.rds")
+saveRDS(summary_df, "output/yield_gap_summary.rds")
 
-message("\nDone. Run scripts/output/projects/tc_vs_landuse_plot.R to generate plots.")
+message("\nDone. Run scripts/output/projects/yield_gap_plot.R to generate plots.")

@@ -5,8 +5,8 @@
 # |  MAgPIE License Exception, version 1.0 (see LICENSE file).
 # |  Contact: magpie@pik-potsdam.de
 
-# Scenario definitions for the "TC vs land-use change" experiment.
-# See scripts/start/projects/tc_vs_landuse.R for the orchestrator.
+# Scenario definitions for the yield-gap experiment.
+# See scripts/start/projects/yield_gap.R for the orchestrator.
 #
 # Three transformation packages:
 #   BAU         : default ~no carbon price, no land conservation, no diet
@@ -69,7 +69,7 @@
   s42_efp_targetyear            = 2050
 )
 
-TC_VS_LANDUSE_SCENARIOS <- list(
+YIELD_GAP_SCENARIOS <- list(
 
   BAU = list(
     # Default ~no carbon price; default conservation; endogenous diet
@@ -91,13 +91,13 @@ TC_VS_LANDUSE_SCENARIOS <- list(
 
 # Scenarios that get a TCbau companion (tau pinned at BAU level). BAU itself
 # is only run endogenously; its own tau is the pin target.
-TC_VS_LANDUSE_TCBAU_SCENARIOS <- c("TransNoDiet", "TransDiet")
+YIELD_GAP_TCBAU_SCENARIOS <- c("TransNoDiet", "TransDiet")
 
 # Apply a scenario's switches to a cfg object
 applyTCScenario <- function(cfg, scenario_name) {
-  s <- TC_VS_LANDUSE_SCENARIOS[[scenario_name]]
+  s <- YIELD_GAP_SCENARIOS[[scenario_name]]
   if (is.null(s)) stop("Unknown scenario: ", scenario_name,
-                       ". Available: ", paste(names(TC_VS_LANDUSE_SCENARIOS), collapse = ", "))
+                       ". Available: ", paste(names(YIELD_GAP_SCENARIOS), collapse = ", "))
   for (k in names(s)) cfg$gms[[k]] <- s[[k]]
   cfg
 }

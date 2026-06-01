@@ -34,7 +34,7 @@ BAU runs only with endogenous TC; its own tau IS the TCbau pin target. Total: **
 
 `Y_ref = Y(TransNoDiet, TCbau)`: full FST minus diet, TC pinned at BAU level. Most-constrained feasible cell.
 
-Sign convention: **positive `delta` = lever REDUCES the outcome.** Negative synergy = substitutes.
+Sign convention: **`delta = Y_treatment - Y_ref`**, so positive `delta` = lever INCREASES the outcome, negative `delta` = lever DECREASES it (natural reading). Positive synergy = substitutes (combined effect smaller in magnitude than the sum of individual effects).
 
 ## Results
 
@@ -74,23 +74,23 @@ The transition backdrop without TC and without diet (TransNoDiet TCbau, the refe
 
 ## Marginal-contribution decomposition (TC vs Diet)
 
-From `output/tc_vs_landuse_plots/marginal_contributions.csv` (year = 2100):
+From `output/yield_gap_plots/marginal_contributions.csv` (year = 2100):
 
 | Outcome             | Y_ref | delta_TC | delta_Diet | delta_Both | synergy  | TC share | Diet share |
 |---------------------|-------|----------|------------|------------|----------|----------|------------|
-| Cropland (Mha)      | 1872  | 620      | 441        | **714**    | **-348** | 87%      | 62%        |
-| Food price idx      | 289   | 99       | 82         | **112**    | **-69**  | 88%      | 73%        |
-| Secdforest (Mha)*   | 2415  | -100     | -90        | -117       | +73      | -        | -          |
+| Cropland (Mha)      | 1872  | -620     | -441       | **-714**   | **+348** | 87%      | 62%        |
+| Food price idx      | 289   | -99      | -82        | **-112**   | **+69**  | 88%      | 73%        |
+| Secdforest (Mha)    | 2415  | +100     | +90        | +117       | -73      | -        | -          |
 
-*Secdforest entries are negative (the levers grow secdforest, not reduce it); reported here for completeness.
+Shares are `delta_lever / delta_Both`; sign-invariant (unchanged by the convention flip).
 
 ### Headline findings
 
 **1. TC and diet are strong substitutes on the cropland frontier.**
-Synergy = -348 Mha cropland: the levers' deltas (620 + 441 = 1061) sum to 49% more than their combined effect (714). They reduce the same scarcity (land needed to meet food demand) from opposite sides -- TC from the supply side (yield per ha), diet from the demand side (kcal demand). Either alone gets you most of the way: TC alone delivers 87% of the combined cropland savings; diet alone delivers 62%.
+Synergy = +348 Mha cropland: the levers' individual deltas (-620 + -441 = -1061 Mha) sum to 49% more cropland savings than their combined effect (-714 Mha). They reduce the same scarcity (land needed to meet food demand) from opposite sides -- TC from the supply side (yield per ha), diet from the demand side (kcal demand). Either alone gets you most of the way: TC alone delivers 87% of the combined cropland savings; diet alone delivers 62%.
 
 **2. TC is the dominant lever for food affordability under the full transition backdrop.**
-TC alone reduces the 2100 consumer food price index by 99 points (289 -> 190); diet alone by 82 points (289 -> 207); combined by 112 points. TC's share of the combined effect is 88%; diet's is 73%; synergy is -69 (substitutes). The transition constraints (biodiv + N + water on top of carbon price + 30by30) raise the cost of producing the same food enormously; TC's intensification relieves that cost pressure more efficiently than diet's demand reduction does.
+TC alone reduces the 2100 consumer food price index by 99 points (289 -> 190); diet alone by 82 points (289 -> 207); combined by 112 points. TC's share of the combined effect is 88%; diet's is 73%; synergy is +69 (substitutes). The transition constraints (biodiv + N + water on top of carbon price + 30by30) raise the cost of producing the same food enormously; TC's intensification relieves that cost pressure more efficiently than diet's demand reduction does.
 
 **3. `TransNoDiet TCbau` is the most-constrained feasible scenario.**
 Food price 289 (3.5x BAU's 83); cropland 1872 Mha (nearly BAU's 1923). Translation: imposing the full FST backdrop (1.5C carbon price + 30by30 + biodiv + max N MACCs + water EFP) WITHOUT TC headroom AND WITHOUT a diet shift is feasible -- the model still solves -- but food becomes ~3.5x more expensive than BAU. Both TC and diet are needed to bring the price back to ~177 (`TransDiet TCendo`).
@@ -114,14 +114,14 @@ BAU 1.85; `TransNoDiet TCendo` 2.82 (highest -- transition minus diet forces max
 
 - Branch: `experiment/tc-marginal-pb` on `mscrawford/magpie`
   - https://github.com/mscrawford/magpie/tree/experiment/tc-marginal-pb
-- Orchestrator: `scripts/start/projects/tc_vs_landuse.R`
-- Scenario definitions: `scripts/start/projects/tc_vs_landuse_config.R`
+- Orchestrator: `scripts/start/projects/yield_gap.R`
+- Scenario definitions: `scripts/start/projects/yield_gap_config.R`
 - Tau-pinning utility: `scripts/output/extra/pin_bau_tau.R` (replaces the older `blend_tau.R`; the blend formula is gone since only TCbau and TCendo states are needed)
-- Plotting: `scripts/output/projects/tc_vs_landuse_plot.R`
+- Plotting: `scripts/output/projects/yield_gap_plot.R`
 - Run outputs: `output/{BAU_TCendo, TransNoDiet_{TCbau,TCendo}, TransDiet_{TCbau,TCendo}}/`
-- Plots: `output/tc_vs_landuse_plots/0{1..8}_*.pdf`
+- Plots: `output/yield_gap_plots/0{1..8}_*.pdf`
   - `02_land_allocation_grid.pdf` is the headline land-use visual (scenario rows x TC-state columns)
   - `04_tau_trajectory.pdf` shows the per-scenario tau ranges
   - `07_food_price_index.pdf` shows the global food price index over time
   - `08_marginal_contributions.pdf` shows the TC vs Diet decomposition (2100)
-- Decomposition CSV: `output/tc_vs_landuse_plots/marginal_contributions.csv`
+- Decomposition CSV: `output/yield_gap_plots/marginal_contributions.csv`

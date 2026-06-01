@@ -5,12 +5,12 @@
 # |  MAgPIE License Exception, version 1.0 (see LICENSE file).
 # |  Contact: magpie@pik-potsdam.de
 
-# tc_vs_landuse_plot.R
+# yield_gap_plot.R
 #
-# Postprocessing + plotting for the "TC vs land-use change" experiment.
+# Postprocessing + plotting for the yield-gap experiment.
 # Reads the 5 TC_* run folders (BAU + 2 transition scenarios x 2 TC states)
 # and the summary RDS from the orchestrator, extracts a range of outcome
-# variables, and writes plots to output/tc_vs_landuse_plots/.
+# variables, and writes plots to output/yield_gap_plots/.
 
 suppressMessages({
   library(magpie4)
@@ -21,17 +21,17 @@ suppressMessages({
   library(tidyr)
 })
 
-source("scripts/start/projects/tc_vs_landuse_config.R")
+source("scripts/start/projects/yield_gap_config.R")
 
-OUT_DIR <- "output/tc_vs_landuse_plots"
+OUT_DIR <- "output/yield_gap_plots"
 dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 # ---- discover runs ----------------------------------------------------------
 
-summary_path <- "output/tc_vs_landuse_summary.rds"
+summary_path <- "output/yield_gap_summary.rds"
 if (!file.exists(summary_path)) {
   stop("Summary RDS not found at ", summary_path,
-       "; run scripts/start/projects/tc_vs_landuse.R first.")
+       "; run scripts/start/projects/yield_gap.R first.")
 }
 summary_df <- readRDS(summary_path)
 
@@ -437,7 +437,8 @@ if (!is.null(n_df)) {
 #   TCbau        | Y_ref                         | Y_Diet
 #   TCendo       | Y_TC                          | Y_Both
 #
-# Sign convention: positive delta = the lever REDUCES Y.
+# Sign convention: delta = Y_treatment - Y_ref, so positive delta = lever
+# INCREASES Y, negative delta = lever DECREASES Y (natural reading).
 
 # Recompute land stocks from magpie4::land() to support the marginal-bar
 # outcomes (we need stocks, not the change-from-1995 series above).
@@ -468,9 +469,9 @@ decomposeOutcome <- function(df, outcome_label, year) {
   Y_TC   <- pickCell(df, "TransNoDiet", "TCendo", year)
   Y_Diet <- pickCell(df, "TransDiet",   "TCbau",  year)
   Y_Both <- pickCell(df, "TransDiet",   "TCendo", year)
-  d_TC   <- Y_ref - Y_TC
-  d_Diet <- Y_ref - Y_Diet
-  d_Both <- Y_ref - Y_Both
+  d_TC   <- Y_TC   - Y_ref
+  d_Diet <- Y_Diet - Y_ref
+  d_Both <- Y_Both - Y_ref
   data.frame(
     outcome             = outcome_label,
     year                = year,
@@ -574,8 +575,8 @@ if (!is.null(mc_df)) {
                            "Treatment: Transition with Diet, TCendo.\n",
                            "Transition backdrop (always on): 1.5C carbon price + 30by30 + ",
                            "biodiv (BII 0.78) + N MACCs (max) + water EFP.\n",
-                           "Positive bar = lever REDUCES the outcome; negative = lever GROWS it."),
-         x = NULL, y = "Reduction from reference",
+                           "Positive bar = lever INCREASES the outcome; negative = lever DECREASES it."),
+         x = NULL, y = "Change from reference",
          fill = NULL) +
     my_theme +
     theme(legend.position = "none",
