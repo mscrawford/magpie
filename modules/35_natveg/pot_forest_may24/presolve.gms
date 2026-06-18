@@ -328,14 +328,22 @@ if(s35_edge_carbon = 1,
   p35_edge_carbon_loss(t,j) =
     (1 - p35_carbon_edge_factor(j))
     * (fm_carbon_density(t,j,"primforest","vegc") * pcm_land(j,"primforest")
-     + sum(ac, pm_carbon_density_secdforest_ac(t,j,ac,"vegc") * pc35_secdforest(j,ac))
+     + sum(ac, p35_carbon_density_secdforest(t,j,ac,"vegc") * pc35_secdforest(j,ac))
      + sum(ac, p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") * pc35_land_other(j,"youngsecdf",ac)));
 
 * Apply to primforest vegc
   fm_carbon_density(t,j,"primforest","vegc") =
     fm_carbon_density(t,j,"primforest","vegc") * p35_carbon_edge_factor(j);
 
-* Apply to secdforest vegc (all age classes)
+* Apply to secdforest vegc (all age classes). The secdforest carbon STOCK now uses
+* the blended density p35_carbon_density_secdforest (equations.gms q35_carbon), so the
+* edge factor must reduce the blend to reach the stock. Reducing the blend is
+* mathematically equivalent to reducing both the calibrated and uncalibrated input
+* curves, because the blend is a linear (convex) combination of them. The calibrated
+* pm_carbon_density_secdforest_ac is reduced as well, since it is still read by magpie4
+* (emisCO2, reportPBbiosphere) and was edge-reduced before the develop merge.
+  p35_carbon_density_secdforest(t,j,ac,"vegc") =
+    p35_carbon_density_secdforest(t,j,ac,"vegc") * p35_carbon_edge_factor(j);
   pm_carbon_density_secdforest_ac(t,j,ac,"vegc") =
     pm_carbon_density_secdforest_ac(t,j,ac,"vegc") * p35_carbon_edge_factor(j);
 
