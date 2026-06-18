@@ -27,4 +27,13 @@ sets
   / none, 002lin2030,004lin2030,008lin2030,016lin2030
    /
 
+* Regions where the tropical edge-degradation loss (s35_edge_degrad) applies.
+* The s35_edge_degrad fractional carbon loss is a tropical at-edge value
+* (Brinck 2017; Chaplin-Kramer 2015); temperate/boreal edges have the opposite
+* sign (a sink) and are not represented here. Assumes the h12 region resolution
+* (the project default). At other resolutions the element names differ and this
+* set must be adjusted.
+  trop_edge(i) Regions where the tropical edge-degradation loss applies
+  / LAM, SSA, OAS /
+
 ;

@@ -277,6 +277,13 @@ if(s35_edge_carbon = 1,
       * (1 - exp(-1 / (s35_edge_lambda * p35_edge_ratio(j))));
   );
 
+* Restrict edge degradation to tropical regions. Temperate/boreal forest edges are a
+* net carbon SINK (Reinmann and Hutyra 2017; Smith 2019), not a loss, and are not
+* represented here. Gated by MAgPIE region via trop_edge (assumes h12). Coarse:
+* LAM/SSA/OAS include some non-tropical land, and tropical IND / subtropical CHA are
+* excluded - see open item in the plan.
+  p35_edge_fraction(j)$(NOT sum(cell(i,j)$trop_edge(i), 1)) = 0;
+
 * Carbon edge factor: fraction of original carbon density retained
   p35_carbon_edge_factor(j) = 1 - p35_edge_fraction(j) * s35_edge_degrad;
 
