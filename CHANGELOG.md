@@ -11,14 +11,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **renv/activate.R** updated to version 1.2.2
 
 ### added
+- **calc_npi_ndc.R** New policy, AFFEXP, on defining afforestation targets based on the share of potential forest land and speed of afforestation.
 - **80_optimization/nlp_ipopt** New realization, using IPOPT instead of CONOPT4 (and the fallback CONOPT3) as the NLP solver for the MAgPIE model.
 - **scripts/start/extra/ipopt.R** Start script for solving MAgPIE with IPOPT.
+- **Dockerfile** Re-added a Dockerfile, which can be used to build a local docker image as well as a GH codespace
+- **.devcontainer/devcontainer.json** A new configuration for development containers, which allow for reproducible, prepared development environments
+- **scripts** added $RSCRIPT_SLURM_HOOK to run on slurm compute nodes via apptainer
 
 ### removed
--
+- **scripts/projects/fsec.R** Removed FSEC_nitrogenPollution (grid-level nitrogen pollution downscaling) from the FSEC run output pipeline.
 
 ### fixed
--
+- **21_trade** Bugfix and refinement of bilateral trade realization to avoid infeasibiliteis in SSP4 and SSP5.
 
 
 ## [4.14.0] - 2026-05-05

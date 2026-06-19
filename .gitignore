@@ -56,3 +56,4 @@ PREPROC_AGENT.md
 #  fixed in scripts/validate_consistency.sh as of 2026-05-25, but kept here defensively)
 validation_report_*.txt
 .cache/
+.positai
