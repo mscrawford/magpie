@@ -122,6 +122,9 @@ cells <- res[res$protection != "BAU", ]
 fail <- 0L
 flag <- function(cond, msg) { cat(if (isTRUE(cond)) "  PASS" else "  FAIL", "|", msg, "\n"); if (!isTRUE(cond)) fail <<- fail + 1L }
 
+cat("\n-- run coverage --\n")   # lens-audit round-1 C5: a missing gdx must FAIL, not silently skip
+flag(all(runs$exists), sprintf("all %d expected run gdx present (found %d)", nrow(runs), sum(runs$exists)))
+
 cat("\n-- bioenergy switch --\n")
 for (i in seq_len(nrow(cells))) {
   r <- cells[i, ]
@@ -157,3 +160,4 @@ if (length(npi) >= 2) {
 } else cat("  (insufficient data for NPI cross-check)\n")
 
 cat(sprintf("\n%s\n", if (fail == 0L) "ALL SWITCH CHECKS PASSED" else sprintf("%d SWITCH CHECK(S) FAILED", fail)))
+if (fail > 0L) quit(status = 1L)   # lens-audit round-1 C4: exit non-zero so this is safe to chain in automation

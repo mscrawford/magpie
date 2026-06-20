@@ -111,19 +111,29 @@ order_colors <- c("main" = "#0072B2", "two-way" = "#009E73",
 # from the 600 MB gdx. Recomputing reportNitrogenPollution (grid-level) x 13 runs
 # was ~45 min; this is seconds. Outcome label -> report variable name (the quitte
 # 'variable' column carries NO unit suffix; units are a separate column):
+# Boundary-led order: the RQ's four planetary boundaries first, then supporting indicators.
 OUTCOME_VARS <- c(
-  "Cropland (Mha)"             = "Resources|Land Cover|+|Cropland",
+  "N surplus (Mt Nr/yr)"       = "Resources|Nitrogen|Pollution|Surplus",              # Nitrogen boundary
+  "Total land CO2 (Mt CO2/yr)" = "Emissions|CO2|Land",                                # Climate boundary
+  "Cropland (Mha)"             = "Resources|Land Cover|+|Cropland",                    # Land boundary (system change)
+  "Total forest (Mha)"         = "Resources|Land Cover|Forest|+|Natural Forest",       # Land boundary (forest cover)
+  "BII"                        = "Biodiversity|BII",                                   # Biodiversity boundary
+  "LUCC CO2 (Mt CO2/yr)"       = "Emissions|CO2|Land|+|Land-use Change",               # -- supporting indicators --
   "Pasture (Mha)"              = "Resources|Land Cover|+|Pastures and Rangelands",
-  "Total forest (Mha)"         = "Resources|Land Cover|Forest|+|Natural Forest",     # primforest + secdforest
-  "Forestry area (Mha)"        = "Resources|Land Cover|Forest|+|Planted Forest",     # afforestation / plantations
-  "LUCC CO2 (Mt CO2/yr)"       = "Emissions|CO2|Land|+|Land-use Change",
-  "Total land CO2 (Mt CO2/yr)" = "Emissions|CO2|Land",
-  "N surplus (Mt Nr/yr)"       = "Resources|Nitrogen|Pollution|Surplus",
+  "Forestry area (Mha)"        = "Resources|Land Cover|Forest|+|Planted Forest",
   "Water withdrawal (km3/yr)"  = "Resources|Water|Withdrawal|Agriculture",
-  "BII"                        = "Biodiversity|BII",
   "Production (Mt DM/yr)"      = "Production",
-  "Food price index"           = "Prices|Food Expenditure Index",                    # consumer, index 2010=100
+  "Food price index"           = "Prices|Food Expenditure Index",                     # consumer, index 2010=100
   "Bioenergy area (Mha)"       = "Resources|Land Cover|Cropland|Croparea|+|Bioenergy crops")
+
+# Planetary-boundary grouping (the RQ's four boundaries; everything else = supporting).
+BOUNDARY <- c("N surplus (Mt Nr/yr)" = "Nitrogen", "Total land CO2 (Mt CO2/yr)" = "Climate",
+              "Cropland (Mha)" = "Land", "Total forest (Mha)" = "Land", "BII" = "Biodiversity")
+# One representative outcome per boundary, for the 4-panel "answer" figure.
+BOUNDARY_ANSWER <- c(Nitrogen = "N surplus (Mt Nr/yr)", Climate = "Total land CO2 (Mt CO2/yr)",
+                     Land = "Cropland (Mha)", Biodiversity = "BII")
+# Prefix the boundary in facet/axis labels for the 5 boundary outcomes; pass others through.
+ocLabel <- function(x) ifelse(x %in% names(BOUNDARY), paste0(BOUNDARY[x], ":  ", x), x)
 
 # read all GLO report rows for one run (once); returns variable/year_num/value
 readReportGLO <- function(title) {
@@ -224,7 +234,7 @@ eff_long <- effects_df |>
 p_dec <- ggplot(eff_long, aes(effect, value, fill = order)) +
   geom_hline(yintercept = 0, color = "grey60", linewidth = 0.3) +
   geom_col(width = 0.8, na.rm = TRUE) +
-  facet_wrap(~ outcome, scales = "free_y", ncol = 3) +
+  facet_wrap(~ outcome, scales = "free_y", ncol = 3, labeller = labeller(outcome = ocLabel)) +
   scale_fill_manual(values = order_colors, drop = FALSE) +
   labs(title = sprintf("2^4 reference-delta decomposition (%d)", DECOMP_YEAR),
        subtitle = paste0("Reference = NoProtect_BioOff_DietOff_TCbau. 4 main + 6 two-way + 4 three-way",
@@ -332,47 +342,91 @@ p_prim <- ggplot(prim_df, aes(bioenergy, protection, fill = delta)) +
 ggsave(file.path(OUT_DIR, "02_primary_protect_x_bio_by_diet.pdf"), p_prim, width = 7, height = 16)
 
 # ---- (3) isolation slices: dTC and dDiet ------------------------------------
+# dTC and dDiet are only DEFINED on cells where both arms of the differenced factor
+# are feasible. BioOn+TCbau is infeasible, so: dTC exists only at BioOff cells (its
+# TCbau arm); dDiet exists everywhere except BioOn+TCbau. We therefore enumerate ONLY
+# the defined cells, each with a UNIQUE label. (Round-1 lens audit C9/C10: the prior
+# substr()-truncated labels collapsed BioOff/BioOn and DietOff/DietOn, so geom_col
+# silently STACKED distinct contexts into one fabricated bar.)
 isoRows <- function(kind) {
   rows <- list()
   for (oc in OUTCOME_ORDER) {
     cv <- cubeValues(OUTCOMES[[oc]], DECOMP_YEAR)
     if (kind == "tc") {
-      for (p in protection_levels) for (b in bioenergy_levels) for (d in diet_levels) {
-        hi <- cv[[cellName(c(p == "Protect", b == "BioOn", d == "DietOn", 1))]]
-        lo <- cv[[cellName(c(p == "Protect", b == "BioOn", d == "DietOn", 0))]]
+      for (p in protection_levels) for (d in diet_levels) {       # BioOff only (BioOn+TCbau infeasible)
+        hi <- cv[[cellName(c(p == "Protect", FALSE, d == "DietOn", 1))]]   # TCendo
+        lo <- cv[[cellName(c(p == "Protect", FALSE, d == "DietOn", 0))]]   # TCbau
         rows[[length(rows) + 1]] <- data.frame(outcome = oc,
-          cell = sprintf("%s/%s/%s", substr(p, 1, 4), substr(b, 1, 4), substr(d, 1, 5)),
+          cell = sprintf("%s | %s", protection_labels[p], diet_labels[d]),
           delta = hi - lo, stringsAsFactors = FALSE)
       }
     } else {
       for (p in protection_levels) for (b in bioenergy_levels) for (tc in tc_levels) {
-        hi <- cv[[cellName(c(p == "Protect", b == "BioOn", 1, tc == "TCendo"))]]
-        lo <- cv[[cellName(c(p == "Protect", b == "BioOn", 0, tc == "TCendo"))]]
+        if (b == "BioOn" && tc == "TCbau") next                   # infeasible: dDiet undefined
+        hi <- cv[[cellName(c(p == "Protect", b == "BioOn", 1, tc == "TCendo"))]]   # DietOn
+        lo <- cv[[cellName(c(p == "Protect", b == "BioOn", 0, tc == "TCendo"))]]   # DietOff
         rows[[length(rows) + 1]] <- data.frame(outcome = oc,
-          cell = sprintf("%s/%s/%s", substr(p, 1, 4), substr(b, 1, 4), tc),
+          cell = sprintf("%s | %s | %s", protection_labels[p], bioenergy_labels[b], tc),
           delta = hi - lo, stringsAsFactors = FALSE)
       }
     }
   }
-  do.call(rbind, rows) |> mutate(outcome = factor(outcome, levels = OUTCOME_ORDER))
+  out <- do.call(rbind, rows) |> mutate(outcome = factor(outcome, levels = OUTCOME_ORDER))
+  # GUARD (lens-audit round-1 fix): the (outcome, cell) label MUST be 1:1, else geom_col stacks.
+  dup <- out |> dplyr::count(outcome, cell) |> dplyr::filter(.data$n > 1L)
+  if (nrow(dup) > 0L) stop("isoRows(", kind, "): non-unique cell labels would stack: ",
+                           paste(unique(dup$cell), collapse = ", "))
+  out
 }
 for (k in c("tc", "diet")) {
   d <- isoRows(k)
-  ttl <- if (k == "tc") "TC isolation: dTC = Y(TCendo) - Y(TCbau) per cell"
-         else           "Diet isolation: dDiet = Y(DietOn) - Y(DietOff) per cell"
-  sub <- if (k == "tc") "Does protection / bioenergy / diet change how much endogenous TC moves each outcome?"
-         else           "Does protection / bioenergy / TC change how much the diet shift moves each outcome?"
+  ttl <- if (k == "tc") "TC isolation: dTC = Y(TCendo) - Y(TCbau)"
+         else           "Diet isolation: dDiet = Y(DietOn) - Y(DietOff)"
+  sub <- if (k == "tc")
+    "dTC at the No-bioenergy cells, by protection x diet. BioOn dTC is undefined: 1.5C bioenergy is infeasible without endogenous TC."
+  else
+    "dDiet per cell (BioOn+TCbau dropped: infeasible). Compare TCbau vs TCendo: the diet lever's effect roughly holds, it does not double."
   p <- ggplot(d, aes(cell, delta, fill = delta > 0)) +
     geom_hline(yintercept = 0, color = "grey60", linewidth = 0.3) +
     geom_col(width = 0.7, show.legend = FALSE, na.rm = TRUE) +
     scale_fill_manual(values = c(`TRUE` = "#B2182B", `FALSE` = "#2166AC")) +
-    facet_wrap(~ outcome, scales = "free_y", ncol = 3) +
+    facet_wrap(~ outcome, scales = "free_y", ncol = 3, labeller = labeller(outcome = ocLabel)) +
     labs(title = sprintf("%s (%d)", ttl, DECOMP_YEAR), subtitle = sub, x = NULL,
          y = if (k == "tc") "dTC" else "dDiet") +
-    my_theme + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 6))
+    my_theme + theme(axis.text.x = element_text(angle = 35, hjust = 1, size = 6))
   ggsave(file.path(OUT_DIR, sprintf("03%s_%s_isolation.pdf", if (k == "tc") "a" else "b", k)),
          p, width = 12, height = 11)
 }
+
+# ---- (0) THE ANSWER: how important is endogenous TC across the four boundaries ----
+# One panel per planetary boundary; dTC at the feasible (No-bioenergy) cells. The
+# headline RQ figure: it leads the deck.
+ans <- do.call(rbind, lapply(names(BOUNDARY_ANSWER), function(bd) {
+  oc <- BOUNDARY_ANSWER[[bd]]
+  if (!oc %in% OUTCOME_ORDER) return(NULL)
+  cv <- cubeValues(OUTCOMES[[oc]], DECOMP_YEAR)
+  do.call(rbind, lapply(protection_levels, function(p) do.call(rbind, lapply(diet_levels, function(dd) {
+    hi <- cv[[cellName(c(p == "Protect", FALSE, dd == "DietOn", 1))]]   # BioOff, TCendo
+    lo <- cv[[cellName(c(p == "Protect", FALSE, dd == "DietOn", 0))]]   # BioOff, TCbau
+    data.frame(boundary = sprintf("%s  -  %s", bd, oc),
+               cell = sprintf("%s | %s", protection_labels[p], diet_labels[dd]),
+               delta = hi - lo, stringsAsFactors = FALSE)
+  }))))
+}))
+ans$boundary <- factor(ans$boundary, levels = unique(ans$boundary))
+p_ans <- ggplot(ans, aes(cell, delta, fill = delta > 0)) +
+  geom_hline(yintercept = 0, color = "grey60", linewidth = 0.3) +
+  geom_col(width = 0.68, show.legend = FALSE, na.rm = TRUE) +
+  geom_text(aes(label = signif(delta, 3), vjust = ifelse(delta > 0, -0.4, 1.3)), size = 2.9) +
+  scale_fill_manual(values = c(`TRUE` = "#B2182B", `FALSE` = "#2166AC")) +
+  facet_wrap(~ boundary, scales = "free_y", ncol = 2) +
+  labs(title = sprintf("How much does endogenous TC move each planetary boundary? (%d)", DECOMP_YEAR),
+       subtitle = paste0("dTC = Y(TCendo) - Y(TCbau) at the No-bioenergy cells, by protection x diet. ",
+                         "Blue = TC lowers the indicator, red = raises it.\n",
+                         "1.5C bioenergy (BioOn) is INFEASIBLE without endogenous TC: tau is a prerequisite, not just one lever among four."),
+       x = NULL, y = "dTC (TCendo - TCbau)") +
+  my_theme + theme(axis.text.x = element_text(angle = 20, hjust = 1, size = 8))
+ggsave(file.path(OUT_DIR, "00_tc_importance_boundaries.pdf"), p_ans, width = 10, height = 7.5)
 
 # ---- per-outcome time series faceted by the cube ----------------------------
 plotTS <- function(df, oc, file) {
@@ -400,7 +454,7 @@ plotTS <- function(df, oc, file) {
     p <- p + geom_line(data = bau_rep, aes(year_num, value), color = bau_color,
                        linetype = "dotted", linewidth = 0.7, inherit.aes = FALSE, na.rm = TRUE)
   p <- p + scale_color_manual(values = tc_colors) + facet_grid(protection ~ bioenergy) +
-    labs(title = oc, subtitle = "Solid/dashed = cube cells (color=TC, linetype=diet). Dotted grey = BAU.",
+    labs(title = ocLabel(oc), subtitle = "Solid/dashed = cube cells (color=TC, linetype=diet). Dotted grey = BAU.",
          x = "Year", y = oc, color = "TC state", linetype = "Diet") + my_theme
   ggsave(file.path(OUT_DIR, file), p, width = 9, height = 6.5)
 }

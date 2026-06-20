@@ -6,7 +6,7 @@
 # |  Contact: magpie@pik-potsdam.de
 
 # ----------------------------------------------------------
-# description: forest protection x bioenergy x TC under a food system transformation
+# description: forest protection x bioenergy x diet x TC under a food system transformation
 # position: 6
 # ----------------------------------------------------------
 #
@@ -19,7 +19,7 @@
 #              trajectory (<scen>_TCbau), via cfg$gms$tc = "exo" and the
 #              Module 13 exo input file populated from BAU's GDX.
 #
-# Final inventory: 1 BAU + 4 FST cells x 2 TC states = 9 runs.
+# Final inventory: 1 BAU + 8 FST cells x 2 TC states = 16 + BAU = 17 runs.
 #
 # Usage (local, from the magpie repo root):
 #   FST_LEVERS_PARALLEL=3 Rscript scripts/start/projects/fst_levers.R

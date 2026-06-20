@@ -87,10 +87,10 @@ def add_table_slide(title, csv_path):
 
 # 1. title
 s0 = prs.slides.add_slide(blank)
-add_title(s0, "fst_levers:  forest protection x bioenergy x diet x technological change",
-          "A 2^4 food-system-transformation lever experiment (RIKEN-PIK WP2). "
-          "MAgPIE, SSP2/NPI, coup2100. How do the four levers relax land / "
-          "food-price / nitrogen pressure, and do they substitute one another?")
+add_title(s0, "How necessary is endogenous technological change (tau) for the green transition?",
+          "fst_levers (RIKEN-PIK WP2): a 2^4 lever experiment in MAgPIE (SSP2/NPI, to 2100). "
+          "How important is endogenous TC across the nitrogen, climate, land, and biodiversity "
+          "boundaries - and how do dietary change and bioenergy demand shift the necessity of tau?")
 
 # 2. scenario design table
 add_table_slide("Scenario design  (8 cube cells x {TCendo,TCbau} + BAU = 17 runs; "
@@ -99,19 +99,30 @@ add_table_slide("Scenario design  (8 cube cells x {TCendo,TCbau} + BAU = 17 runs
 
 # 3+. curated figures
 figs = [
-    ("Feasibility (2^4 cube + BAU)", "01_feasibility_heatmap.pdf",
-     "Each cell solved or not. Reference corner = NoProtect / No bioenergy / Endog. diet / TCbau."),
+    # 1. the prerequisite result
+    ("Feasibility: 1.5C bioenergy is infeasible without endogenous TC", "01_feasibility_heatmap.pdf",
+     "All four BioOn + TCbau corners are infeasible; with endogenous TC all eight cells solve. "
+     "TC is a prerequisite, not just one lever among four."),
+    # 2. THE ANSWER to the primary RQ
+    ("How important is endogenous TC across the four planetary boundaries?", "00_tc_importance_boundaries.pdf",
+     "dTC = Y(TCendo) - Y(TCbau) at the feasible (No-bioenergy) cells. Nitrogen / Climate / Land / "
+     "Biodiversity. The effect is larger at endogenous diet - TC and diet substitute."),
+    # 3-4. detail: TC across all outcomes, then how the diet lever shifts (secondary RQ)
+    ("TC isolation across every outcome: dTC = Y(TCendo) - Y(TCbau)", "03a_tc_isolation.pdf",
+     "dTC at the No-bioenergy cells, by protection x diet (BioOn dTC is undefined: infeasible without TC). "
+     "The four boundaries lead."),
+    ("How the diet lever shifts with TC: dDiet = Y(DietOn) - Y(DietOff)", "03b_diet_isolation.pdf",
+     "The diet lever's marginal saving roughly holds across TC states - it does not double."),
+    # 5-7. supporting structure
     ("Main effect of each lever, per outcome", "05_main_effects.pdf",
-     "Reduction-positive: green = the lever REDUCES the outcome, purple = increases it."),
-    ("Are the levers substituting one another?", "06_substitution_matrix.pdf",
-     "Blue = substitutes (joint effect weaker than additive); red = complements; grey = additive."),
+     "Reduction-positive: green = the lever REDUCES the outcome, purple = increases it. The four boundaries lead the rows."),
+    ("Do the levers substitute one another?", "06_substitution_matrix.pdf",
+     "Blue = substitutes (joint < additive); red = complements; grey = additive; "
+     "orange = mixed (sign varies by context); dark grey = n/a (infeasible)."),
     ("Full 2^4 reference-delta decomposition", "04_decomposition_2x2x2x2.pdf",
-     "4 main + 6 two-way + 4 three-way + 1 four-way effect per outcome."),
+     "4 main + 6 two-way + 4 three-way + 1 four-way effect per outcome. "
+     "Gaps = NA (an interaction touching an infeasible corner)."),
     ("Protection x bioenergy at TCendo, split by diet", "02_primary_protect_x_bio_by_diet.pdf", None),
-    ("TC isolation: dTC = Y(TCendo) - Y(TCbau) per cell", "03a_tc_isolation.pdf",
-     "Does protection / bioenergy / diet change how much TC moves each outcome?"),
-    ("Diet isolation: dDiet = Y(DietOn) - Y(DietOff) per cell", "03b_diet_isolation.pdf",
-     "Does protection / bioenergy / TC change how much the diet shift moves each outcome?"),
 ]
 for title, fn, sub in figs:
     add_image_slide(title, os.path.join(OUT, fn), sub)
