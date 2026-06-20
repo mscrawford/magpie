@@ -1,70 +1,94 @@
-# Pure 2^3 factorial decomposition for the fst_levers cube.
+# Pure 2^k treatment-coded factorial decomposition for the fst_levers cube.
 #
-# No I/O, no gdx: this is the analytically risky core, so it is unit-tested
-# synthetically (8 known cell values) BEFORE being trusted on real run output.
-# See fst_levers_decompose_test.R.
+# Generalized from the original 2^3 version when diet was promoted to a 4th
+# factor (2026-06-20). No I/O, no gdx: this is the analytically risky core, so it
+# is unit-tested synthetically (known cell values, k = 2..4) BEFORE being trusted
+# on real run output. See fst_levers_decompose_test.R.
 #
-# Factors (reference = the all-OFF corner NoProtect_BioOff_TCbau):
-#   A = forest protection   (0 = NoProtect, 1 = Protect)
-#   B = 2nd-gen bioenergy    (0 = BioOff,    1 = BioOn)
-#   C = technological change (0 = TCbau,     1 = TCendo)
-#
-# Treatment (dummy) coding, so the 8 terms reconstruct all 8 cells EXACTLY:
-#   Y(a,b,c) = Yref + a*A + b*B + c*C + ab*AB + ac*AC + bc*BC + abc*ABC
-# This generalizes yield_gap's 2-factor synergy (= the AB interaction in a
-# single TC plane) to the full 3-factor cube.
+# Factors (reference corner = all-OFF), in canonical name + order. The cell name
+# is the underscore-join of the per-factor level labels, which equals the run
+# title (<protection>_<bioenergy>_<diet>_<TCstate>):
+FST_FACTORS <- list(
+  protection = c(off = "NoProtect", on = "Protect"),
+  bioenergy  = c(off = "BioOff",    on = "BioOn"),
+  diet       = c(off = "DietOff",   on = "DietOn"),
+  tc         = c(off = "TCbau",     on = "TCendo")
+)
+# Reference = NoProtect_BioOff_DietOff_TCbau. Treatment (dummy) coding, so the
+# 2^k effect terms reconstruct all 2^k cells EXACTLY:
+#   Y(x) = sum over factor-subsets S of  effect_S * prod_{i in S} x_i
+# with effect_S = sum_{T subseteq S} (-1)^(|S|-|T|) Y(indicator(T))   (incl-excl).
+# This generalizes yield_gap's 2-factor synergy to the full k-factor cube.
 
-# Canonical cube cell name from binary factor levels (matches the run titles
-# minus the TC suffix convention: <Protect|NoProtect>_<BioOn|BioOff>_<TCendo|TCbau>).
-cubeCellName <- function(a, b, c) {
-  paste(if (a) "Protect" else "NoProtect",
-        if (b) "BioOn"   else "BioOff",
-        if (c) "TCendo"  else "TCbau",
-        sep = "_")
+# canonical cell name from a 0/1 bit vector (one bit per factor, in factor order)
+cellName <- function(bits, factors = FST_FACTORS) {
+  bits <- as.integer(bits)
+  paste(mapply(function(b, f) if (isTRUE(b == 1L)) f[["on"]] else f[["off"]],
+               bits, factors), collapse = "_")
 }
 
-# Decompose a cube of 8 outcome values into reference + 3 main + 3 two-way + 1
-# three-way effect. `cells` is a named list/vector keyed by cubeCellName().
-# A missing or NA cell propagates NA into every effect that references it, so an
-# infeasible corner (the expected Protect_BioOn_TCbau) surfaces as NA rather
-# than being silently treated as zero.
-decomposeCube <- function(cells) {
-  g <- function(a, b, c) {
-    v <- cells[[cubeCellName(a, b, c)]]
+# all subsets of an integer vector (includes the empty set), via bitmasks
+# (robust; avoids combn(, 0) edge cases)
+.subsets <- function(v) {
+  n <- length(v)
+  if (n == 0) return(list(integer(0)))
+  lapply(0:(2^n - 1L), function(m) v[bitwAnd(m, bitwShiftL(1L, seq_len(n) - 1L)) > 0L])
+}
+
+.effectLabel <- function(S, factors) {
+  if (length(S) == 0) "reference" else paste(names(factors)[S], collapse = ":")
+}
+
+# canonical effect order: reference, then mains, then 2-way, ... k-way
+effectOrder <- function(factors = FST_FACTORS) {
+  idx  <- seq_along(factors)
+  subs <- .subsets(idx)
+  subs <- subs[order(lengths(subs))]
+  vapply(subs, .effectLabel, character(1), factors = factors)
+}
+
+# all 2^k cell names (reference first), handy for building cell-value vectors
+allFactorCells <- function(factors = FST_FACTORS) {
+  idx  <- seq_along(factors)
+  subs <- .subsets(idx)
+  subs <- subs[order(lengths(subs))]
+  vapply(subs, function(S) cellName(as.integer(idx %in% S), factors), character(1))
+}
+
+# Decompose a 2^k cube of outcome values into the reference + all 2^k - 1
+# treatment-coded effects (k main, choose(k,2) two-way, ... one k-way). `cells`
+# is a named list/vector keyed by cellName(). A missing or NA cell NA-propagates
+# into every effect whose inclusion-exclusion sum references it, so an infeasible
+# corner surfaces as NA rather than being silently treated as zero.
+decomposeFactorial <- function(cells, factors = FST_FACTORS) {
+  idx <- seq_along(factors)
+  getY <- function(Tset) {
+    v <- cells[[cellName(as.integer(idx %in% Tset), factors)]]
     if (is.null(v) || length(v) == 0) NA_real_ else as.numeric(v)
   }
-  Y000 <- g(0,0,0); Y100 <- g(1,0,0); Y010 <- g(0,1,0); Y001 <- g(0,0,1)
-  Y110 <- g(1,1,0); Y101 <- g(1,0,1); Y011 <- g(0,1,1); Y111 <- g(1,1,1)
-  list(
-    Y_ref            = Y000,
-    main_protect     = Y100 - Y000,
-    main_bioenergy   = Y010 - Y000,
-    main_tc          = Y001 - Y000,
-    two_protect_bio  = Y110 - Y100 - Y010 + Y000,
-    two_protect_tc   = Y101 - Y100 - Y001 + Y000,
-    two_bio_tc       = Y011 - Y010 - Y001 + Y000,
-    three_way        = Y111 - Y110 - Y101 - Y011 + Y100 + Y010 + Y001 - Y000
-  )
+  effects <- list()
+  for (S in .subsets(idx)) {
+    val <- 0
+    for (Tt in .subsets(S)) val <- val + (-1)^(length(S) - length(Tt)) * getY(Tt)
+    effects[[.effectLabel(S, factors)]] <- val
+  }
+  effects[effectOrder(factors)]
 }
 
-# Reconstruct all 8 cell values from a decomposition (inverse of decomposeCube).
-# Returns a named numeric vector keyed by cubeCellName().
-reconstructCube <- function(eff) {
-  rec <- function(a, b, c) {
-    eff$Y_ref + a*eff$main_protect + b*eff$main_bioenergy + c*eff$main_tc +
-      a*b*eff$two_protect_bio + a*c*eff$two_protect_tc + b*c*eff$two_bio_tc +
-      a*b*c*eff$three_way
+# Reconstruct all 2^k cell values from a decomposition (inverse of the above).
+# Returns a named numeric vector keyed by cellName().
+reconstructFactorial <- function(effects, factors = FST_FACTORS) {
+  idx  <- seq_along(factors)
+  grid <- expand.grid(rep(list(c(0L, 1L)), length(factors)))
+  out  <- numeric(0)
+  for (r in seq_len(nrow(grid))) {
+    bits <- as.integer(grid[r, ])
+    y <- effects[["reference"]]
+    for (S in .subsets(idx)) {
+      if (length(S) == 0) next
+      y <- y + effects[[.effectLabel(S, factors)]] * prod(bits[S])
+    }
+    out[cellName(bits, factors)] <- y
   }
-  out <- numeric(0)
-  for (a in 0:1) for (b in 0:1) for (c in 0:1) {
-    out[cubeCellName(a, b, c)] <- rec(a, b, c)
-  }
-  out
-}
-
-# Convenience: the 8 cube cell names (NoProtect_BioOff_TCbau is the reference).
-cubeCellNames <- function() {
-  out <- character(0)
-  for (a in 0:1) for (b in 0:1) for (c in 0:1) out <- c(out, cubeCellName(a, b, c))
   out
 }
