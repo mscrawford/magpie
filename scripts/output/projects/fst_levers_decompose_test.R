@@ -73,6 +73,32 @@ chk(!is.na(e4[["protection"]]),                   "missing corner: protection ma
 chk(!is.na(e4[["diet:tc"]]),                      "missing corner: diet:tc still defined")
 chk(!is.na(e4[["bioenergy"]]),                    "missing corner: bioenergy main still defined")
 
+# --- Test 6: pairwise substitution classification ----------------------------
+mk <- function(f) {
+  cl <- list()
+  for (a in 0:1) for (b in 0:1) for (c in 0:1) for (d in 0:1)
+    cl[[cellName(c(a, b, c, d))]] <- f(a, b, c, d)
+  cl
+}
+# additive (all levers reduce, no interaction) -> every pair additive
+pa <- pairwiseInteractions(mk(function(a, b, c, d) 100 - 10*a - 8*b - 6*c - 4*d))
+chk(all(pa$relation == "additive"), "pairwise: additive cube -> all additive")
+# +a*b on top of reducing mains -> protection:bioenergy substitute, rest additive
+ps <- pairwiseInteractions(mk(function(a, b, c, d) 100 - 10*a - 8*b + 5*a*b - 6*c - 4*d))
+pab <- ps$relation[ps$lever_i == "protection" & ps$lever_j == "bioenergy"]
+chk(identical(pab, "substitute"), "pairwise: +a*b, reducing mains -> substitute")
+chk(all(ps$relation[!(ps$lever_i == "protection" & ps$lever_j == "bioenergy")] == "additive"),
+    "pairwise: non-interacting pairs -> additive")
+# -a*b on top of reducing mains -> complement
+pc <- pairwiseInteractions(mk(function(a, b, c, d) 100 - 10*a - 8*b - 5*a*b - 6*c - 4*d))
+pcb <- pc$relation[pc$lever_i == "protection" & pc$lever_j == "bioenergy"]
+chk(identical(pcb, "complement"), "pairwise: -a*b, reducing mains -> complement")
+# missing corner does not crash; still classifies the unaffected pairs
+miss2 <- mk(function(a, b, c, d) 100 - 10*a - 8*b + 5*a*b - 6*c - 4*d)
+miss2[["Protect_BioOn_DietOff_TCbau"]] <- NULL
+pm <- pairwiseInteractions(miss2)
+chk(nrow(pm) == 6L && !any(is.na(pm$relation)), "pairwise: missing corner -> all 6 pairs still classified")
+
 cat("\n", if (fail == 0L) "ALL DECOMPOSITION TESTS PASSED" else
     sprintf("%d TEST(S) FAILED", fail), "\n", sep = "")
 if (fail > 0L) quit(status = 1L)

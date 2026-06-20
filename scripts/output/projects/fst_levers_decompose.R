@@ -92,3 +92,53 @@ reconstructFactorial <- function(effects, factors = FST_FACTORS) {
   }
   out
 }
+
+# Pairwise lever substitution analysis (averaged over the other factors).
+# For each unordered factor pair, returns the averaged treatment-direction main
+# effects (Y_on - Y_off), the mean 2x2 interaction over the other factors'
+# contexts, and a substitute / complement / additive / mixed classification:
+#   substitute : main effects agree in sign AND the interaction OPPOSES it
+#                (joint effect weaker than additive - diminishing returns; this is
+#                 yield_gap's "synergy < 0" generalized).
+#   complement : main effects agree in sign AND the interaction reinforces it.
+#   additive   : interaction negligible vs the mains (|frac| < tol).
+#   mixed      : main effects oppose / ~0 - the substitute frame does not apply;
+#                read the raw interaction instead.
+# `cells` keyed by cellName(); NA / missing cells are skipped (incomplete contexts
+# dropped from the interaction average, partial means for the main effects).
+pairwiseInteractions <- function(cells, factors = FST_FACTORS, tol = 0.02) {
+  k <- length(factors); idx <- seq_len(k)
+  Yof <- function(bits) {
+    v <- cells[[cellName(bits, factors)]]
+    if (is.null(v) || length(v) == 0) NA_real_ else as.numeric(v)
+  }
+  grid <- as.matrix(expand.grid(rep(list(c(0L, 1L)), k)))
+  Yvec <- apply(grid, 1L, Yof)
+  mainEff <- function(i) mean(Yvec[grid[, i] == 1L], na.rm = TRUE) -
+                         mean(Yvec[grid[, i] == 0L], na.rm = TRUE)
+  rows <- list()
+  for (p in utils::combn(idx, 2L, simplify = FALSE)) {
+    i <- p[1]; j <- p[2]; others <- setdiff(idx, p)
+    octx <- as.matrix(expand.grid(rep(list(c(0L, 1L)), length(others))))
+    ints <- vapply(seq_len(nrow(octx)), function(r) {
+      b <- integer(k); b[others] <- octx[r, ]
+      b00 <- b; b10 <- b; b01 <- b; b11 <- b
+      b10[i] <- 1L; b01[j] <- 1L; b11[i] <- 1L; b11[j] <- 1L
+      Yof(b11) - Yof(b10) - Yof(b01) + Yof(b00)
+    }, numeric(1))
+    interaction <- mean(ints, na.rm = TRUE)
+    mi <- mainEff(i); mj <- mainEff(j); denom <- abs(mi) + abs(mj)
+    same <- is.finite(mi) && is.finite(mj) && mi != 0 && mj != 0 && sign(mi) == sign(mj)
+    rel <- if (!is.finite(interaction)) NA_character_
+           else if (denom > 0 && abs(interaction) < tol * denom) "additive"
+           else if (!same) "mixed"
+           else if (sign(interaction) == sign(mi)) "complement"
+           else "substitute"
+    rows[[length(rows) + 1]] <- data.frame(
+      lever_i = names(factors)[i], lever_j = names(factors)[j],
+      main_i = mi, main_j = mj, interaction = interaction,
+      frac = if (denom > 0) interaction / denom else NA_real_,
+      relation = rel, n_contexts = sum(is.finite(ints)), stringsAsFactors = FALSE)
+  }
+  do.call(rbind, rows)
+}
