@@ -282,7 +282,8 @@ p_me <- ggplot(me_long, aes(lever, outcome, fill = fill_norm)) +
        subtitle = paste0("Cell label = absolute effect (reduction-positive). Colour = effect normalized ",
                          "within each outcome row (dominant lever = full shade), so rows are comparable.\n",
                          "Protection/bioenergy/diet at endogenous TC; TC = endo vs BAU-pinned (other levers off)."),
-       x = "Lever", y = NULL, fill = "within-row\neffect") + my_theme
+       x = "Lever", y = NULL, fill = "within-row\neffect") +
+  scale_y_discrete(limits = rev) + my_theme   # boundaries lead from the TOP
 ggsave(file.path(OUT_DIR, "05_main_effects.pdf"), p_me, width = 7.5, height = 6)
 
 # ---- (6) substitution matrix: are the levers substituting one another? ------
