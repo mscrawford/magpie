@@ -38,6 +38,12 @@ s35_edge_degrad         Fractional carbon loss in edge zone (1)                /
 * n = saturation exponent (edge vanishes as p->1)
 s35_edge_beta           Closure exponent on log10 forest area (1)              / 0.8286 /
 s35_edge_n              Closure saturation exponent on log10 of 1 minus p (1)  / 0.7984 /
+* Weight on the forestry (plantation) term in the closure GEOMETRY forest area
+* p35_forest_area only (presolve.gms). 1 = shipped (plantations fully buffer
+* natural-forest edges); 0 = forestry excluded from the geometry. Does NOT touch
+* the edge-affected carbon stock (still natural forest only). Second audit #2
+* sensitivity lever; default 1 reproduces shipped behaviour bit-identically.
+s35_edge_forestry_buffer Weight on forestry in closure geometry forest area (1) / 1 /
 ;
 
 table f35_forest_lost_share(i,driver_source) Share of area damaged by forest fires (1)

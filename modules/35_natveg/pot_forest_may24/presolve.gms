@@ -270,9 +270,14 @@ p35_carbon_density_secdforest(t,j,ac,ag_pools)$(pc35_secdforest(j,ac) > 1e-10) =
 
 if(s35_edge_carbon = 1,
 
-* Total forest area (Mha)
+* Total forest area (Mha) entering the closure GEOMETRY (fraction + closure area).
+* s35_edge_forestry_buffer weights how much plantation counts as edge-buffering for
+* adjacent natural forest in the geometry ONLY (default 1 = shipped, bit-identical;
+* 0 = forestry excluded). The edge-affected carbon stock below (p35_edge_carbon_loss)
+* is unchanged - still NATURAL forest only - so this lever isolates the geometry
+* assumption. Second audit #2 sensitivity (see input.gms).
   p35_forest_area(j) = pcm_land(j,"primforest") + pcm_land(j,"secdforest")
-                      + pcm_land(j,"forestry");
+                      + s35_edge_forestry_buffer * pcm_land(j,"forestry");
 
 * Forest fraction (dimensionless: forest Mha / total land Mha)
   p35_forest_fraction(j) = 0;
@@ -323,8 +328,16 @@ if(s35_edge_carbon = 1,
 * Loss = (1 - factor) * sum over forest types of (density_vegc * area)
 * Includes primforest, secdforest, and youngsecdf (young secondary forest < 20 tC/ha)
 * NOTE: forestry (managed plantations) is included in p35_forest_area for the closure
-*       but its carbon density is NOT edge-reduced (module 32 runs before module 35).
-*       This is a known limitation; managed plantation edges may warrant separate treatment.
+*       geometry but its carbon density is NOT edge-reduced (module 32 runs before
+*       module 35). This is intentional, not merely a module-ordering artifact: the
+*       Brinck (2017) edge factor (s35_edge_degrad = 0.5) is a tropical NATURAL-forest
+*       mechanism (large-tree mortality + microclimate). primforest/secdforest/youngsecdf
+*       (all natural) are edge-reduced; managed/planted stands respond differently and
+*       context-dependently (Dong et al. 2026 Nat Commun: afforestation edges reduce the
+*       sink via wind/drought/pest/fire, not the natural-forest collapse, and can even be
+*       carbon-positive via growth release). Applying THIS factor to forestry would be a
+*       category error; a managed-plantation edge effect, if ever added, needs a SEPARATE
+*       parameterization. See docs/edge_calibration/EDGE_AREA_ACCOUNTING.md Section 7.
   p35_edge_carbon_loss(t,j) =
     (1 - p35_carbon_edge_factor(j))
     * (fm_carbon_density(t,j,"primforest","vegc") * pcm_land(j,"primforest")
