@@ -337,7 +337,7 @@ if(s35_edge_carbon = 1,
 *       sink via wind/drought/pest/fire, not the natural-forest collapse, and can even be
 *       carbon-positive via growth release). Applying THIS factor to forestry would be a
 *       category error; a managed-plantation edge effect, if ever added, needs a SEPARATE
-*       parameterization. See docs/edge_calibration/EDGE_AREA_ACCOUNTING.md Section 7.
+*       parameterization. See 05-temporal-accounting/documents/EDGE_AREA_ACCOUNTING.md Section 7.
   p35_edge_carbon_loss(t,j) =
     (1 - p35_carbon_edge_factor(j))
     * (fm_carbon_density(t,j,"primforest","vegc") * pcm_land(j,"primforest")
@@ -369,7 +369,7 @@ if(s35_edge_carbon = 1,
 * exponential time constant tau) is now computed in magpie4::reportEmissions
 * rather than GAMS. This keeps the optimizer instant while allowing
 * post-hoc temporal spreading without re-running GAMS.
-* See docs/edge_calibration/OPTION_B_DESIGN.md for the design rationale.
+* See 05-temporal-accounting/documents/OPTION_B_DESIGN.md for the design rationale.
 * The key output for magpie4 is p35_edge_carbon_loss(t,j) computed above.
 
 );
