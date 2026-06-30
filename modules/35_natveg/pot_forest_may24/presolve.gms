@@ -321,6 +321,14 @@ if(s35_edge_carbon = 1,
 * excluded - see open item in the plan.
   p35_edge_fraction(j)$(NOT sum(cell(i,j)$trop_edge(i), 1)) = 0;
 
+* Aggregation-scale correction (TENTATIVE / EXPLORATORY). The closure is fit at 0.5deg
+* but evaluated once per ~200-cluster aggregate; because edge is sub-additive in area this
+* under-applies the closure. f35_edge_scale(j) (preprocessed, per-cluster, static) scales
+* the edge fraction up to the per-0.5deg-cell sum. min(,1) guards physicality (the true
+* factor keeps the scaled fraction <=1; verified offline, max ~0.80). Non-tropical j are 0
+* here already and have f35_edge_scale=1, so they stay 0.
+  p35_edge_fraction(j) = min(p35_edge_fraction(j) * f35_edge_scale(j), 1);
+
 * Carbon edge factor: fraction of original carbon density retained
   p35_carbon_edge_factor(j) = 1 - p35_edge_fraction(j) * s35_edge_degrad;
 
