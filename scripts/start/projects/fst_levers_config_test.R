@@ -80,14 +80,14 @@ cat("MACC block: price-driven in all FST cells, untouched in BAU\n\n")
 # --- 5. equal-ambition timing: 6 cells x 5 levers (30 checks) ---------------
 for (s in setdiff(scen, "BAU")) {
   v <- FST_LEVERS_SCENARIOS[[s]]
-  chk(identical(v$s44_start_year, 2025),           paste0(s, ": BII start 2025"))
+  chk(identical(v$s44_start_year, 2026),           paste0(s, ": BII start 2026 (model requires >sm_fix_SSP2)"))
   chk(identical(v$s44_target_year, 2050),          paste0(s, ": BII target 2050"))
   chk(identical(v$s22_conservation_target, 2050),  paste0(s, ": conservation target 2050"))
   chk(identical(v$s15_exo_foodscen_target, 2050),  paste0(s, ": diet target 2050"))
   chk(identical(v$s42_efp_targetyear, 2050),       paste0(s, ": water EFP target 2050"))
   chk(identical(v$s29_snv_scenario_target, 2050),  paste0(s, ": SNV target 2050"))
 }
-cat("Timing: every lever transitions 2025 -> 2050 in all 6 cells\n\n")
+cat("Timing: levers transition 2025 -> 2050; BII start forced to 2026 (>sm_fix_SSP2)\n\n")
 
 # --- 6. protection factor really toggles Half-Earth (9 checks) --------------
 on_cells  <- FST_LEVERS_DESIGN$scenario[FST_LEVERS_DESIGN$prot == "on"]

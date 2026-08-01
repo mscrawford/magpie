@@ -64,32 +64,29 @@ if (is.null(x)) {
        paste("could not parse with read.magpie; header check only. Header:",
              paste(utils::head(hdr, 2), collapse = " | ")))
 } else {
-  dims  <- lapply(dimnames(x), identity)
-  found <- vapply(dims, function(d) PROT_LEVEL %in% d, logical(1))
-  in_file <- any(found)
-  pass(in_file, paste0("'", PROT_LEVEL, "' is a dimension label in consv_prio_areas.cs3"))
-
-  if (in_file) {
-    sub <- try(x[, , PROT_LEVEL], silent = TRUE)
-    tot <- if (inherits(sub, "try-error")) NA_real_ else sum(sub, na.rm = TRUE)
-    nz  <- if (inherits(sub, "try-error")) NA_integer_ else sum(sub != 0, na.rm = TRUE)
-    pass(!is.na(tot) && tot > 0,
-         paste0("'", PROT_LEVEL, "' carries NON-ZERO area data"),
-         sprintf("total = %s over %s non-zero cells", format(tot), format(nz)))
-  }
+  # scenario labels are a SUBDIMENSION here ("GSN_HalfEarth.crop"): match on the
+  # split subdim tokens and the extracted value, never the raw dotted dimnames
+  # (that bug flagged present-with-data scenarios as absent).
+  scen_tokens <- unique(unlist(strsplit(magclass::getNames(x), ".", fixed = TRUE)))
+  sub <- try(x[, , PROT_LEVEL], silent = TRUE)
+  okr <- !inherits(sub, "try-error") && length(sub) > 0
+  tot <- if (okr) sum(sub, na.rm = TRUE) else NA_real_
+  nz  <- if (okr) sum(sub != 0, na.rm = TRUE) else NA_integer_
+  pass((PROT_LEVEL %in% scen_tokens) && !is.na(tot) && tot > 0,
+       paste0("'", PROT_LEVEL, "' carries NON-ZERO area data"),
+       if (!(PROT_LEVEL %in% scen_tokens)) "scenario token absent from consv_prio_areas.cs3"
+       else if (is.na(tot)) "scenario present but not summable"
+       else sprintf("total = %s over %s non-zero cells", format(tot), format(nz)))
 
   # what IS available, so a fallback can be chosen on evidence
-  avail <- unique(unlist(dims))
-  cand  <- intersect(c(PROT_LEVEL, FALLBACKS), avail)
-  cat("\n  scenarios present in this file (", length(avail), "): ",
-      paste(utils::head(avail, 30), collapse = ", "), "\n", sep = "")
-  cat("  of our candidates, present: ", paste(cand, collapse = ", "), "\n\n", sep = "")
+  cand <- intersect(c(PROT_LEVEL, FALLBACKS), scen_tokens)
+  cat("\n  of our candidate scenarios, present in this file: ",
+      if (length(cand)) paste(cand, collapse = ", ") else "(none)", "\n\n", sep = "")
 
   if (fails > 0L) {
     ok_fb <- Filter(function(s) {
-      if (!s %in% avail) return(FALSE)
-      v <- try(sum(x[, , s], na.rm = TRUE), silent = TRUE)
-      !inherits(v, "try-error") && v > 0
+      v <- try(x[, , s], silent = TRUE)
+      !inherits(v, "try-error") && length(v) > 0 && sum(v, na.rm = TRUE) > 0
     }, FALLBACKS)
     cat("  RECOMMENDATION: switch .prot_on$c22_protect_scenario (+ _noselect) in\n",
         "  scripts/start/projects/fst_levers_config.R to the first of: ",
@@ -107,7 +104,7 @@ checkTag <- function(path, tags, label) {
     ok <- all(vapply(tags, function(t) any(grepl(t, hdr, fixed = TRUE)), logical(1)))
     return(pass(ok, paste0(label, ": tags found in header"), "header check only"))
   }
-  avail <- unique(unlist(dimnames(y)))
+  avail <- unique(unlist(strsplit(magclass::getNames(y), ".", fixed = TRUE)))
   miss  <- setdiff(tags, avail)
   pass(length(miss) == 0, paste0(label, ": both R34M410 tags present"),
        if (length(miss)) paste("missing:", paste(miss, collapse = ", ")) else "")
