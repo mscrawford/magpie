@@ -151,14 +151,21 @@ FST_BACKDROP <- c(.diet_block, .macc_block, .water_block, .ghgframe_block)
   c60_2ndgen_biodem_noselect    = "R34M410-SSP2-NPi2025"
 )
 
-# ---- Factor C: ambitious land protection (Modules 22 + 44, BUNDLED) ---------
+# ---- Factor C: ambitious land protection (Modules 22 + 44 + 29, BUNDLED) ----
 
-# The area-based target and the biodiversity target are ONE factor, not two.
-# Rationale: s44_bii_target is itself a land-protection instrument acting on the
-# same vm_land pools as Module 22, so leaving it in the backdrop would have made
-# the area-based "main effect" a residual on top of an already-binding
-# biodiversity floor. Bundling them makes "ambitious land protection" a single
-# coherent lever.
+# Three instruments, ONE factor. This mirrors the current-generation precedent in
+# scripts/start/projects/paper_healthyLscps.R, whose "ecosystem stewardship"
+# bundle is exactly area conservation + a biodiversity constraint + semi-natural
+# vegetation on cropland.
+#
+# Rationale for bundling rather than three separate factors:
+#   * s44_bii_target is itself a land-protection instrument, acting on the same
+#     vm_land pools as Module 22. Left in the backdrop it would have made the
+#     area-based "main effect" a residual on top of an already-binding floor.
+#   * SNV (Module 29) is already coupled to Module 22 in the model: q29_land_snv
+#     adds the conserved area on top of the SNV requirement, so the two enter one
+#     constraint. Splitting them would be a distinction the model does not make.
+# Together they are one coherent "ambitious land protection" lever.
 #
 # Still active in BOTH arms and NOT part of this factor (they are the floor the
 # contrast sits on top of, and must be named as such in the methods):
@@ -167,13 +174,30 @@ FST_BACKDROP <- c(.diet_block, .macc_block, .water_block, .ghgframe_block)
 #     = npi, inherited from setScenario; note c35_aolc_policy is inert in GAMS,
 #     c35_ad_policy drives both floors)
 #
-# The timing scalars are set IDENTICALLY in both arms so the two blocks differ in
-# exactly three keys: c22_protect_scenario, its _noselect twin, and s44_bii_target.
+# The timing scalars are set IDENTICALLY in both arms, so the two blocks differ in
+# exactly FIVE keys: c22_protect_scenario (+ _noselect), s44_bii_target, and
+# s29_snv_shr (+ _noselect). Everything else is held.
 #
-# c44_bii_decrease stays 1 in BOTH arms. Do NOT set it to 0 globally: that branch
-# has no `s44_bii_target > 0` guard (44_biodiversity/bii_target/presolve.gms), so
-# it would impose a no-BII-decline constraint even in the OFF arm where the target
-# is 0, silently contaminating the control.
+# PROTECTION LEVEL. GSN_HalfEarth (~50% of global land) is the ambition tier that
+# matches a 1.5C carbon price, but NO pre-existing start script in this repo uses
+# it, and f22_consv_prio is a GAMS table: a set element with no matching column in
+# consv_prio_areas.cs3 stays silently at 0 and behaves exactly like "none". So it
+# is GATED on a data check -- see fst_levers_preflight.R, which must pass before
+# launching. Documented fallback, in order: BH_IFL (precedented, and structurally
+# unable to no-op because 22_land_conservation/.../presolve_ini.gms hard-codes
+# protection of all remaining primary forest for IFL and BH_IFL), then
+# IrrC_95pc_30by30, then 30by30.
+#
+# c44_bii_decrease stays 1 in BOTH arms. It is a legitimate instrument in its own
+# right ("no net nature loss", as used in paper_healthyLscps.R), but setting it to
+# 0 HERE would contaminate the control: that branch has no `s44_bii_target > 0`
+# guard (44_biodiversity/bii_target/presolve.gms), so it would impose a
+# no-BII-decline constraint on the OFF arm too.
+#
+# _noselect twins are set for c22 and s29 for the same reason as c60: they apply
+# to countries outside policy_countries22 / policy_countries29. At the default
+# (all countries selected) they carry zero weight, but they become load-bearing
+# the moment anyone narrows the country set.
 .prot_on <- list(
   c22_protect_scenario          = "GSN_HalfEarth",
   c22_protect_scenario_noselect = "GSN_HalfEarth",
@@ -183,7 +207,11 @@ FST_BACKDROP <- c(.diet_block, .macc_block, .water_block, .ghgframe_block)
   s44_bii_target                = 0.78,
   s44_start_year                = 2025,
   s44_target_year               = 2050,
-  c44_bii_decrease              = 1
+  c44_bii_decrease              = 1,
+  s29_snv_shr                   = 0.2,
+  s29_snv_shr_noselect          = 0.2,
+  s29_snv_scenario_start        = 2025,
+  s29_snv_scenario_target       = 2050
 )
 .prot_off <- list(
   c22_protect_scenario          = "none",
@@ -194,7 +222,11 @@ FST_BACKDROP <- c(.diet_block, .macc_block, .water_block, .ghgframe_block)
   s44_bii_target                = 0,
   s44_start_year                = 2025,
   s44_target_year               = 2050,
-  c44_bii_decrease              = 1
+  c44_bii_decrease              = 1,
+  s29_snv_shr                   = 0,
+  s29_snv_shr_noselect          = 0,
+  s29_snv_scenario_start        = 2025,
+  s29_snv_scenario_target       = 2050
 )
 
 # ---- composed scenario list: BAU + 6 FST cells (TC state set by orchestrator)

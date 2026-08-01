@@ -8,7 +8,7 @@
 
 source("scripts/start/projects/fst_levers_config.R")
 
-EXPECTED_CHECKS <- 64L
+EXPECTED_CHECKS <- 76L
 n_checks <- 0L
 n_fail   <- 0L
 
@@ -61,8 +61,9 @@ expect("CPon_BioOff_Prot", "CPoff_BioOff_Prot",
        "Factor A alone (climate policy)")
 
 expect("CPon_BioOn_Prot", "CPon_BioOn_NoProt",
-       c("c22_protect_scenario", "c22_protect_scenario_noselect", "s44_bii_target"),
-       "Factor C alone (land protection, BII bundled)")
+       c("c22_protect_scenario", "c22_protect_scenario_noselect", "s44_bii_target",
+         "s29_snv_shr", "s29_snv_shr_noselect"),
+       "Factor C alone (land protection: area + BII + SNV bundled)")
 
 # --- 4. MACCs price-driven in all 6 cells, absent in BAU (7 checks) ----------
 macc <- c("s57_maxmac_n_soil", "s57_maxmac_n_awms", "s57_maxmac_ch4_rice",
@@ -84,23 +85,31 @@ for (s in setdiff(scen, "BAU")) {
   chk(identical(v$s22_conservation_target, 2050),  paste0(s, ": conservation target 2050"))
   chk(identical(v$s15_exo_foodscen_target, 2050),  paste0(s, ": diet target 2050"))
   chk(identical(v$s42_efp_targetyear, 2050),       paste0(s, ": water EFP target 2050"))
+  chk(identical(v$s29_snv_scenario_target, 2050),  paste0(s, ": SNV target 2050"))
 }
 cat("Timing: every lever transitions 2025 -> 2050 in all 6 cells\n\n")
 
 # --- 6. protection factor really toggles Half-Earth (9 checks) --------------
 on_cells  <- FST_LEVERS_DESIGN$scenario[FST_LEVERS_DESIGN$prot == "on"]
 off_cells <- FST_LEVERS_DESIGN$scenario[FST_LEVERS_DESIGN$prot == "off"]
+PROT_LEVEL <- "GSN_HalfEarth"   # gated on fst_levers_preflight.R; fallback BH_IFL
 for (s in on_cells) {
-  chk(identical(FST_LEVERS_SCENARIOS[[s]]$c22_protect_scenario, "GSN_HalfEarth"),
-      paste0(s, ": protection ON = GSN_HalfEarth"))
+  chk(identical(FST_LEVERS_SCENARIOS[[s]]$c22_protect_scenario, PROT_LEVEL),
+      paste0(s, ": protection ON area target = ", PROT_LEVEL))
+  chk(identical(FST_LEVERS_SCENARIOS[[s]]$s29_snv_shr, 0.2) &&
+      identical(FST_LEVERS_SCENARIOS[[s]]$s29_snv_shr_noselect, 0.2),
+      paste0(s, ": protection ON carries SNV 0.2 (both select and noselect)"))
 }
 for (s in off_cells) {
   chk(identical(FST_LEVERS_SCENARIOS[[s]]$c22_protect_scenario, "none"),
       paste0(s, ": protection OFF = none"))
   chk(identical(FST_LEVERS_SCENARIOS[[s]]$s44_bii_target, 0),
       paste0(s, ": protection OFF carries no BII target"))
+  chk(identical(FST_LEVERS_SCENARIOS[[s]]$s29_snv_shr, 0) &&
+      identical(FST_LEVERS_SCENARIOS[[s]]$s29_snv_shr_noselect, 0),
+      paste0(s, ": protection OFF carries no SNV requirement"))
 }
-cat("Protection: ON = GSN_HalfEarth + BII 0.78, OFF = none + BII 0\n\n")
+cat("Protection bundle: ON = ", PROT_LEVEL, " + BII 0.78 + SNV 0.2; OFF = none + 0 + 0\n\n", sep = "")
 
 # --- 7. the real code path: applyTCScenario / applyExoTCFlags (9 checks) ----
 # Uses a stub cfg pre-seeded with the values setScenario(SSP2, NPI) would set,

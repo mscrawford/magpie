@@ -25,12 +25,20 @@ and TC's role is isolated by re-running each cell with tau pinned to BAU.
 |---|---|---|
 | **A. climate policy** (Module 56) | `c56_pollutant_prices` (+ `_noselect`) = `R34M410-SSP2-PkBudg650` | `= R34M410-SSP2-NPi2025` |
 | **B. bioenergy demand** (Module 60) | `c60_2ndgen_biodem` (+ `_noselect`) = `R34M410-SSP2-PkBudg650` | `= R34M410-SSP2-NPi2025` |
-| **C. land protection** (Modules 22 + 44) | `c22_protect_scenario` (+ `_noselect`) = `GSN_HalfEarth`, 2025->2050, `s22_restore_land = 1`, **plus** `s44_bii_target = 0.78` (2025->2050) | `c22_protect_scenario` = `none`; `s44_bii_target = 0` |
+| **C. land protection** (Modules 22 + 44 + 29) | `c22_protect_scenario` (+ `_noselect`) = `GSN_HalfEarth`, `s22_restore_land = 1`; `s44_bii_target = 0.78`; `s29_snv_shr` (+ `_noselect`) = 0.2. All 2025->2050 | `c22_protect_scenario` = `none`; `s44_bii_target = 0`; `s29_snv_shr = 0` |
 | **D. TC state** (Module 13) | `tc = endo` | `tc = exo`, tau pinned to BAU |
 
 **Constant across all 12 FST cells**: EAT-Lancet FLX 2500 kcal diet (2025->2050);
 environmental flow protection (2025->2050); `c56_emis_policy = all_nosoil` and
-`c56_mute_ghgprices_until = y2025`; all five non-CO2 MACC switches price-driven.
+`c56_mute_ghgprices_until = y2025`; all five non-CO2 MACC switches price-driven;
+`c44_bii_decrease = 1`. Always on and never toggled: the WDPA baseline and NPI
+avoided deforestation.
+
+**Every lever transitions on the same 2025->2050 schedule** - diet, water,
+conservation, BII, SNV, and the carbon price's approach to ~$300/tC. This is the
+operational meaning of "equally ambitious" here; there is no common metric across
+a $/tC price, an area target, a BII index level and a cropland share, so timing
+plus same-source-scenario is what can actually be held equal.
 
 The **(CP off, Bio on)** combination is deliberately excluded: 1.5C-level
 bioenergy demand without a carbon price is not a coherent scenario, since both
@@ -73,13 +81,38 @@ marginal effect over the whole design.
 These are the non-obvious calls. Several correct problems in the earlier
 3-factor version of this experiment.
 
-**1. Land protection is a BUNDLE (Modules 22 + 44), not just the area target.**
-`s44_bii_target` is itself a land-protection instrument: it constrains BII, which
-is a linear function of the same `vm_land` pools Module 22 bounds, so a binding
-BII floor forces natural-land retention even with `c22_protect_scenario = none`.
-Leaving it in the backdrop would have made the area-based "main effect" a
-residual on top of an already-binding biodiversity floor. Bundling them makes
-"ambitious land protection" one coherent lever.
+**1. Land protection is a BUNDLE of three instruments (Modules 22 + 44 + 29),
+not just the area target.** This mirrors the current-generation precedent in
+`paper_healthyLscps.R`, whose "ecosystem stewardship" bundle is exactly area
+conservation + a biodiversity constraint + semi-natural vegetation on cropland.
+
+- `s44_bii_target` is itself a land-protection instrument: BII is a linear
+  function of the same `vm_land` pools Module 22 bounds, so a binding floor
+  forces natural-land retention even with `c22_protect_scenario = none`. Left in
+  the backdrop it would have made the area-based "main effect" a residual on top
+  of an already-binding floor.
+- SNV (`s29_snv_shr`) is already coupled to Module 22 inside the model:
+  `q29_land_snv` adds the conserved area on top of the SNV requirement, so the
+  two enter one constraint. Splitting them would be a distinction the model does
+  not make.
+
+**1b. Protection level: `GSN_HalfEarth`, GATED ON A DATA CHECK.** No pre-existing
+start script in this repo uses it (the only current-generation uses of
+`c22_protect_scenario` are `30by30` in `paper_healthyLscps.R` and `KBA` in
+`paper_MitiConsv.R`; `paper_ClimNat.R` uses `BH_IFL` but is written against the
+retired `c35_protect_scenario` and cannot be copied). Since `f22_consv_prio` is a
+GAMS table, an element with no column in `consv_prio_areas.cs3` silently stays at
+0 and behaves like `none`. Run `fst_levers_preflight.R` before launching.
+Fallback order: `BH_IFL` (precedented, and structurally unable to no-op because
+`presolve_ini.gms:17-18` hard-codes protection of all remaining primary forest
+for `IFL`/`BH_IFL`), then `IrrC_95pc_30by30`, then `30by30`.
+
+**1c. "30by30 by 2050" was never internally consistent.** The year is in the name.
+The only current-generation script using `30by30` sets
+`s22_conservation_start = 2020`, `s22_conservation_target = 2030`. `yield_gap`
+and the earlier `fst_levers` both ran it to 2050. This experiment sidesteps the
+problem by using a target whose name carries no year, on the common 2025->2050
+schedule; if the fallback chain lands on `30by30`, the timing must be revisited.
 
 **2. Two protection instruments remain ON in BOTH arms** and are the floor this
 contrast sits on top of, not part of the factor:
@@ -138,10 +171,12 @@ reports `ov44_bii_missing` (the per-biome shortfall, penalised at 1e6 USD/unit)
 so "was the target met, and at what cost" is visible. The BII target is **soft**:
 a run can solve feasibly while missing it.
 
-**9. Trap: do not set `c44_bii_decrease = 0` globally.** That branch has no
-`s44_bii_target > 0` guard, so it would impose a no-BII-decline constraint even
-in the OFF arm where the target is 0, silently contaminating the control. It is
-1 in both arms.
+**9. `c44_bii_decrease = 0` is a legitimate instrument, but not usable here.**
+`paper_healthyLscps.R` uses it deliberately as "no net nature loss", with no BII
+target - that is the intended use of the unguarded branch. In *this* design it
+would contaminate the control: it has no `s44_bii_target > 0` guard, so setting
+it would impose a no-BII-decline constraint on the OFF arm too. It stays at 1 in
+both arms.
 
 ## Usage
 
@@ -173,14 +208,26 @@ re-launch while jobs are in flight - `cfg$results_folder` has no `:date:` and
 
 ### Pre-flight gates (cluster, before launching)
 
-1. **`GSN_HalfEarth` must have data.** `f22_consv_prio` is a GAMS table read from
-   `consv_prio_areas.cs3`; a set element with no matching column stays silently
-   at 0 and behaves exactly like `none`. If that column is missing, every
-   Prot-ON run is a Prot-OFF run and the whole batch is void. Fall back to
-   `PBL_HalfEarth`, then `IrrC_95pc_30by30`, then `30by30`.
-2. `R34M410-SSP2-NPi2025` and `R34M410-SSP2-PkBudg650` must have data in both
+One command, exits non-zero if any gate fails:
+
+```bash
+Rscript scripts/start/projects/fst_levers_preflight.R
+```
+
+It checks:
+
+1. **The protection scenario must carry non-zero data.** `f22_consv_prio` is a
+   GAMS table read from `consv_prio_areas.cs3`; a set element with no matching
+   column stays silently at 0 and behaves exactly like `none`. If that happens,
+   every Prot-ON run is really a Prot-OFF run, the protection factor is
+   identically zero, and the batch is void while looking completely healthy - no
+   error, no warning, no infeasibility. On failure the script prints which
+   fallback scenarios do have data.
+2. `R34M410-SSP2-NPi2025` and `R34M410-SSP2-PkBudg650` have data in both
    `f56_pollutant_prices.cs3` and `f60_bioenergy_dem.cs3`.
-3. Input archives already downloaded (`config/default.cfg` `cfg$input`).
+3. The Module 29 cropland-availability input the SNV lever needs is present.
+
+Exit 3 means "no input data in this checkout" - the gates are cluster-only.
 
 ## Orchestration notes
 
