@@ -6,7 +6,7 @@
 # |  Contact: magpie@pik-potsdam.de
 
 # ----------------------------------------------------------
-# description: climate policy x bioenergy x land protection x TC under a food system transformation
+# description: climate x bioenergy x land+water protection x diet x TC under a food system transformation
 # position: 6
 # ----------------------------------------------------------
 #
@@ -14,12 +14,16 @@
 # scripts/start/projects/fst_levers_README.md for the methods writeup and
 # scripts/start/projects/fst_levers_config.R for the scenario definitions.
 #
-#   Phase 1: one endogenous-TC run per scenario (<scen>_TCendo), 7 runs
+#   Phase 1: one endogenous-TC run per scenario (<scen>_TCendo), 13 runs
 #   Phase 2: for each FST cell, a run with tau pinned to BAU's trajectory
 #            (<scen>_TCbau) via cfg$gms$tc = "exo" and the Module 13 exo input
-#            file populated from BAU's GDX, 6 runs
+#            file populated from BAU's GDX, 12 runs
 #
-# Final inventory: 1 BAU + 6 FST cells x 2 TC states = 13 runs.
+# Final inventory: 1 BAU + 12 FST cells x 2 TC states = 25 runs.
+#
+# Run counts are DERIVED from the config (names(FST_LEVERS_SCENARIOS) and
+# FST_LEVERS_TCBAU_SCENARIOS); nothing here is hard-coded to the factor design,
+# so a change in the number of factors or cells needs no edit to this file.
 #
 # Usage:
 #   FST_LEVERS_QOS=short Rscript scripts/start/projects/fst_levers.R

@@ -113,10 +113,19 @@ TAGS <- c("R34M410-SSP2-NPi2025", "R34M410-SSP2-PkBudg650")
 checkTag("modules/56_ghg_policy/input/f56_pollutant_prices.cs3", TAGS, "carbon price (c56)")
 checkTag("modules/60_bioenergy/input/f60_bioenergy_dem.cs3",     TAGS, "bioenergy demand (c60)")
 
-# ---- gate 3: SNV input present (new in the protection bundle) --------------
+# ---- gate 3: SNV input present (in the protection bundle) ------------------
 snv <- "modules/29_cropland/input/avl_cropland_0.5.mz"
 pass(file.exists(snv), "module 29 cropland availability input present",
      if (!file.exists(snv)) paste(snv, "absent -- SNV lever needs it") else "")
+
+# ---- gate 4: env-flow water input present (M42, now in the bundle) ---------
+# The env-flow limb of the protection factor needs f42_env_flows, loaded from
+# lpj_envflow_grper.cs2 (42_water_demand/all_sectors_aug13/input.gms). Without it
+# the ecosystem water demand vm_watdem.fx("ecosystem",..) has no data and the
+# water lever is meaningless. Analogous to the M29 SNV gate above.
+envflow <- "modules/42_water_demand/input/lpj_envflow_grper.cs2"
+pass(file.exists(envflow), "module 42 environmental-flow water input present",
+     if (!file.exists(envflow)) paste(envflow, "absent -- env-flow water lever needs it") else "")
 
 # ---- verdict ---------------------------------------------------------------
 cat("\n", if (fails == 0L) "PRE-FLIGHT PASSED - safe to launch\n"

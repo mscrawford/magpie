@@ -22,7 +22,7 @@ here <- dirname(sub("^--file=", "", grep("^--file=", commandArgs(), value = TRUE
 if (is.na(here) || !nzchar(here)) here <- "scripts/output/projects"
 source(file.path(here, "fst_levers_decompose.R"))
 
-EXPECTED_CHECKS <- 24L
+EXPECTED_CHECKS <- 30L
 n_checks <- 0L; n_fail <- 0L
 chk <- function(cond, label) {
   n_checks <<- n_checks + 1L
@@ -73,6 +73,8 @@ keysOf <- function(df, fac = FACTORS) {
   vapply(seq_len(nrow(df)), function(i) keyOf(df, i, fac), character(1))
 }
 dropCell <- function(df, k) df[keysOf(df) != k, , drop = FALSE]
+# same, but for an arbitrary factor set (used by the 2^4 block below)
+dropCell4 <- function(df, k, fac) df[keysOf(df, fac) != k, , drop = FALSE]
 
 cat("full 2^3 cube -- effects must be recovered exactly:\n")
 d <- decomposeFactorial(cells, FACTORS)
@@ -144,6 +146,54 @@ chk(pw_full$n_contexts == 2 && pw_full$n_missing_contexts == 0,
 pw_gap <- pairwiseInteractions(dropCell(cells, "a:b:c"), FACTORS, "a", "b")
 chk(pw_gap$n_contexts == 1 && pw_gap$n_missing_contexts == 1,
     "one corner gone -> 1 context used, 1 reported missing")
+
+# --- 2^4 cube: the design produces two of these (Prot x Diet x TC x one of ----
+# {Bio, Climate}), so exercise a 4-factor decomposition end to end. Cells are
+# built INDEPENDENTLY of the code under test (a plain subset-sum over known
+# effects), so recovery is a real check, not a round-trip against the same code.
+cat("\n2^4 cube -- 4-factor decomposition recovered exactly:\n")
+FACTORS4 <- c("w", "x", "y", "z")
+
+# subsets of a factor vector, as ":"-joined keys ("(reference)" for the empty set)
+subsetKeys4 <- function(fac) {
+  ks <- "(reference)"
+  for (k in seq_along(fac)) {
+    ks <- c(ks, apply(utils::combn(fac, k), 2, paste, collapse = ":"))
+  }
+  ks
+}
+# known effects: 4 mains, a few interactions, rest zero
+EFF4 <- c(`(reference)` = 50, w = 4, x = 8, y = 16, z = 32,
+          `w:x` = 2, `y:z` = 3, `w:x:y` = 1)
+# Y(S) = sum over T subset of S of EFF4[T]; missing effect keys are 0
+allKeys4 <- subsetKeys4(FACTORS4)
+Y4 <- vapply(allKeys4, function(k) {
+  on   <- onOf(k)                                   # ON factors of this cell
+  subs <- subsetKeys4(if (length(on) == 0) character(0) else on)
+  sum(vapply(subs, function(t) {
+    e <- EFF4[t]; if (is.na(e)) 0 else unname(e)
+  }, numeric(1)))
+}, numeric(1))
+names(Y4) <- allKeys4
+cells4 <- mkCellsFor(Y4, FACTORS4)
+
+d4  <- decomposeFactorial(cells4, FACTORS4)
+g4  <- function(term) d4$effect[d4$term == term]
+chk(eq(g4("w"), 4) && eq(g4("x"), 8) && eq(g4("y"), 16) && eq(g4("z"), 32),
+    "2^4: all four main effects recovered")
+chk(eq(g4("w:x"), 2) && eq(g4("y:z"), 3),
+    "2^4: the two-way interactions w:x and y:z recovered")
+chk(eq(g4("w:x:y"), 1), "2^4: the three-way interaction w:x:y recovered")
+chk(eq(g4("x:y"), 0) && eq(g4("w:x:y:z"), 0),
+    "2^4: unset interactions come back as 0, not spurious")
+rec4   <- reconstructFactorial(d4, FACTORS4)
+rec4_y <- stats::setNames(rec4$value, keysOf(rec4, FACTORS4))
+chk(all(vapply(allKeys4, function(k) eq(rec4_y[[k]], unname(Y4[k])), logical(1))),
+    "2^4: reconstructFactorial rebuilds all 16 cells exactly")
+d4_gap <- decomposeFactorial(dropCell4(cells4, "w:x:y:z", FACTORS4), FACTORS4)
+chk(is.na(d4_gap$effect[d4_gap$term == "w:x:y:z"]) &&
+    eq(d4_gap$effect[d4_gap$term == "w:x"], 2),
+    "2^4: dropping the 4-way corner -> only the 4-way is NA, lower terms exact")
 
 cat("\ninput validation:\n")
 dup <- rbind(cells, cells[1, ])
