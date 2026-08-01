@@ -6,36 +6,49 @@
 # |  Contact: magpie@pik-potsdam.de
 
 # ----------------------------------------------------------
-# description: forest protection x bioenergy x TC under a food system transformation
+# description: climate policy x bioenergy x land protection x TC under a food system transformation
 # position: 6
 # ----------------------------------------------------------
 #
 # Orchestrator for the fst_levers experiment. See
-# scripts/start/projects/fst_levers_README.md for the methods writeup.
+# scripts/start/projects/fst_levers_README.md for the methods writeup and
+# scripts/start/projects/fst_levers_config.R for the scenario definitions.
 #
-# Scenarios are defined in fst_levers_config.R. The experiment runs:
-#   - Phase 1: one endogenous-TC run per scenario (<scen>_TCendo)
-#   - Phase 2: for each FST cell, a run with tau pinned to BAU's
-#              trajectory (<scen>_TCbau), via cfg$gms$tc = "exo" and the
-#              Module 13 exo input file populated from BAU's GDX.
+#   Phase 1: one endogenous-TC run per scenario (<scen>_TCendo), 7 runs
+#   Phase 2: for each FST cell, a run with tau pinned to BAU's trajectory
+#            (<scen>_TCbau) via cfg$gms$tc = "exo" and the Module 13 exo input
+#            file populated from BAU's GDX, 6 runs
 #
-# Final inventory: 1 BAU + 4 FST cells x 2 TC states = 9 runs.
+# Final inventory: 1 BAU + 6 FST cells x 2 TC states = 13 runs.
 #
-# Usage (local, from the magpie repo root):
-#   FST_LEVERS_PARALLEL=3 Rscript scripts/start/projects/fst_levers.R
+# Usage:
+#   FST_LEVERS_QOS=short Rscript scripts/start/projects/fst_levers.R
+#   FST_LEVERS_DRYRUN=1  Rscript scripts/start/projects/fst_levers.R   # show, do not submit
+#
+# ON THE CLUSTER, run this script itself as a batch job (or under tmux/nohup):
+# it polls for hours, and a foreground R process on a login node is reaped on
+# logout. Submit it to a qos with no 24 h wall limit (e.g. "SLURM medium").
 #
 # Idempotent: runs that already have a runstatistics.rda with `modelstat`
 # set are skipped. To force a re-run, delete the output/<title>/ folder.
+# Do NOT re-launch while jobs are in flight: cfg$results_folder has no :date:
+# and cfg$force_replace is TRUE, so a relaunch deletes a live job's folder.
 #
-# Local execution mechanics:
-#   cfg$sequential <- FALSE   -> Rscript submit.R launches GAMS in background;
-#                                start_run() returns once prep is done.
-#   start_run() prep is serialised via gms::model_lock (one prep at a time).
-#   gms::singleGAMSfile() embeds the contents of f13_tau_scenario.csv into
-#     the run's own full.gms, so subsequent runs can safely overwrite the CSV.
-#
-# Up to MAX_PARALLEL GAMS jobs run concurrently, polled for completion via
-# runstatistics.rda (canonical "GAMS exited" signal -- see runCompleted()).
+# Execution mechanics:
+#   * start_run() takes the sbatch branch whenever srun exists and
+#     cfg$sequential is FALSE (scripts/start_functions.R), and returns as soon
+#     as the job is QUEUED. It runs GAMS in a local background process only on a
+#     machine without SLURM.
+#   * Concurrency is therefore SLURM's job, not ours. We submit a whole phase at
+#     once (with a small stagger) instead of throttling submissions: a
+#     submission cap would turn one wave into several sequential waves of
+#     (queue wait + solve) for no benefit. A cap still applies when running
+#     locally without SLURM, where processes really do compete for the machine.
+#   * start_run() prep is serialised via gms::model_lock (one prep at a time),
+#     which is why the stagger exists.
+#   * gms::singleGAMSfile() embeds the contents of f13_tau_scenario.csv into the
+#     run's own full.gms during prep, BEFORE sbatch, so overwriting the shared
+#     CSV between launches is safe under SLURM too.
 
 suppressMessages({
   library(lucode2)
@@ -51,13 +64,26 @@ source("scripts/output/extra/pin_bau_tau.R")
 
 # ---- knobs ------------------------------------------------------------------
 
-MAX_PARALLEL <- as.integer(Sys.getenv("FST_LEVERS_PARALLEL", "4"))
+SLURM  <- lucode2::SystemCommandAvailable("srun")
+DRYRUN <- nzchar(Sys.getenv("FST_LEVERS_DRYRUN"))
 
-# Default "coup2100" matches the MAgPIE default (17 timesteps to 2100).
+# Concurrency cap. Unlimited under SLURM (the scheduler is the throttle);
+# a real cap only when GAMS processes share this machine.
+MAX_PARALLEL <- if (SLURM) Inf else as.integer(Sys.getenv("FST_LEVERS_PARALLEL", "3"))
+
+# Seconds between submissions. Prep is serialised by the model lock anyway;
+# the stagger just keeps the lock queue orderly.
+STAGGER_SECONDS <- as.integer(Sys.getenv("FST_LEVERS_STAGGER", "10"))
+
+# "coup2100" = 18 timesteps to 2100 (core/sets.gms), the MAgPIE default.
 TIMESTEPS <- Sys.getenv("FST_LEVERS_TIMESTEPS", "coup2100")
 
-POLL_SECONDS    <- 60L
-MAX_WAIT_HOURS  <- 24L
+POLL_SECONDS   <- 60L
+# Per-run deadline. A job killed by wall time, preemption or OOM never writes
+# modelstat (submit.R stops before that), so without a deadline the poll loop
+# would spin forever. Must exceed the submit script's own 24 h wall limit plus
+# realistic queue time.
+MAX_WAIT_HOURS <- as.numeric(Sys.getenv("FST_LEVERS_MAX_WAIT_HOURS", "30"))
 
 # ---- base cfg ---------------------------------------------------------------
 
@@ -67,37 +93,53 @@ cfg$info$flag         <- "FSTL"
 cfg$results_folder    <- "output/:title:"
 cfg$force_replace     <- TRUE
 cfg$force_download    <- FALSE
-cfg$sequential        <- FALSE  # background GAMS execution; start_run returns after prep
+cfg$sequential        <- FALSE
 
 cfg$gms$c_timesteps   <- TIMESTEPS
 
+# Explicit qos. Left NULL, start_run's auto-selector falls back to "standby",
+# which is PREEMPTIBLE - wrong for a batch with a deadline. It also never picks
+# a _highMem variant. Override with FST_LEVERS_QOS if memory or slots bite.
+if (SLURM) cfg$qos <- Sys.getenv("FST_LEVERS_QOS", "short")
+
+# Drop extra/disaggregation. It runs INSIDE the SLURM job, after GAMS, against
+# the same wall-time and memory budget, and produces gridded output this
+# experiment does not use (every outcome is a global or regional aggregate).
+# Keeping it is the main OOM path, and an OOM kill triggers the no-modelstat
+# hang the deadline above guards against.
+cfg$output <- c("output_check", "rds_report")
+
+# Scenario columns FIRST, experiment switches AFTER: applyTCScenario must win.
+# (SSP2 sets c56_emis_policy and c60_res_2ndgenBE_dem; the config deliberately
+# overrides the former and inherits the latter.) Do not reorder.
 cfg <- gms::setScenario(cfg, c("SSP2", "NPI"))
 
 # ---- helpers ----------------------------------------------------------------
 
-#' Has a run finished GAMS solving? Uses runstatistics.rda's `modelstat`
-#' field, which submit.R populates immediately after GAMS returns, BEFORE
-#' postprocessing starts. Using modelstat (not timeGAMSEnd) lets us free a
-#' parallel slot as soon as the GAMS solve is done.
+#' Has a run finished GAMS solving? Uses runstatistics.rda's `modelstat`, which
+#' submit.R populates immediately after GAMS returns and BEFORE postprocessing,
+#' so a slot frees as soon as the solve is done.
 runCompleted <- function(title) {
   rs <- file.path("output", title, "runstatistics.rda")
   if (!file.exists(rs)) return(FALSE)
   e <- new.env()
-  res <- try(load(rs, envir = e), silent = TRUE)
-  if (inherits(res, "try-error")) return(FALSE)
+  if (inherits(try(load(rs, envir = e), silent = TRUE), "try-error")) return(FALSE)
   !is.null(e$stats$modelstat)
 }
 
-#' Did all timesteps of a completed run solve feasibly?
-#' Returns TRUE / FALSE / NA (NA if no readable signal).
+#' Did ALL timesteps of a run solve feasibly? TRUE / FALSE / NA.
+#'
+#' Zeros are NOT filtered out. fulldata.gdx is written inside the timestep loop
+#' (core/calculations.gms), so a killed run leaves a partial gdx whose unsolved
+#' timesteps read as modelstat 0. Dropping them would report a truncated run as
+#' FEASIBLE - and this function gates pinTauToBAU, so a truncated BAU would
+#' silently become the pin target for all six TCbau runs.
 runFeasible <- function(title) {
   rs <- file.path("output", title, "runstatistics.rda")
   ms <- NULL
   if (file.exists(rs)) {
     e <- new.env()
-    if (!inherits(try(load(rs, envir = e), silent = TRUE), "try-error")) {
-      ms <- e$stats$modelstat
-    }
+    if (!inherits(try(load(rs, envir = e), silent = TRUE), "try-error")) ms <- e$stats$modelstat
   }
   if (is.null(ms)) {
     gdx <- file.path("output", title, "fulldata.gdx")
@@ -106,75 +148,130 @@ runFeasible <- function(title) {
     if (!is.magpie(ms)) return(NA)
   }
   ms_num <- as.numeric(ms)
-  ms_num <- ms_num[ms_num != 0]
   if (length(ms_num) == 0) return(NA)
   all(ms_num %in% c(2, 7))
 }
 
-waitForSlot <- function(in_flight, cap, started_at) {
-  if (length(in_flight) < cap) return(in_flight)
-  repeat {
-    done <- vapply(in_flight, runCompleted, logical(1))
-    if (any(done)) {
-      for (t in in_flight[done]) {
-        feas <- runFeasible(t)
-        feas_str <- if (is.na(feas)) "UNKNOWN" else if (feas) "FEASIBLE" else "INFEASIBLE"
-        message(sprintf("[%s] DONE: %s -> %s", format(Sys.time()), t, feas_str))
-      }
-      in_flight <- in_flight[!done]
-      if (length(in_flight) < cap) return(in_flight)
+feasLabel <- function(title) {
+  f <- runFeasible(title)
+  if (is.na(f)) "UNKNOWN" else if (f) "FEASIBLE" else "INFEASIBLE"
+}
+
+launchRun <- function(run_cfg, title) {
+  run_cfg$title <- title
+  if (DRYRUN) {
+    message(sprintf("[DRYRUN] would launch: %s", title))
+    return(title)
+  }
+  message(sprintf("[%s] LAUNCH: %s", format(Sys.time()), title))
+  start_run(run_cfg, codeCheck = FALSE, lock_timeout = 1)  # lock_timeout is HOURS
+  title
+}
+
+#' Submit a whole phase. `prelaunch` runs immediately before each start_run,
+#' used by Phase 2 to stage BAU's tau into the Module 13 input CSV.
+launchPhase <- function(scenarios, tc_state, exo = FALSE, prelaunch = NULL) {
+  launched <- character(0)
+  started  <- list()
+  for (scen in scenarios) {
+    title <- tcRunName(scen, tc_state)
+    if (runCompleted(title)) {
+      message(sprintf("[%s] SKIP (already completed): %s", format(Sys.time()), title))
+      next
     }
-    for (t in names(started_at)) {
-      if (t %in% in_flight && difftime(Sys.time(), started_at[[t]], units = "hours") > MAX_WAIT_HOURS) {
-        warning("Run ", t, " has been in-flight for >",
-                MAX_WAIT_HOURS, "h; manual inspection recommended")
+    # Only relevant without SLURM; Inf under SLURM makes this a no-op.
+    if (length(launched) >= MAX_PARALLEL) {
+      w <- waitForAny(launched, started)
+      launched <- w$pending; started <- w$started
+    }
+    if (is.function(prelaunch)) prelaunch()
+    run_cfg <- applyTCScenario(cfg, scen)
+    if (exo) run_cfg <- applyExoTCFlags(run_cfg)
+    launchRun(run_cfg, title)
+    launched        <- c(launched, title)
+    started[[title]] <- Sys.time()
+    if (!DRYRUN && STAGGER_SECONDS > 0) Sys.sleep(STAGGER_SECONDS)
+  }
+  list(pending = launched, started = started)
+}
+
+#' Poll until at least one pending run completes or passes its deadline.
+#' Returns the still-pending set. A run past MAX_WAIT_HOURS is DROPPED from the
+#' pending set (and reported), so the batch continues instead of hanging.
+waitForAny <- function(pending, started) {
+  if (length(pending) == 0) return(list(pending = pending, started = started))
+  repeat {
+    done <- vapply(pending, runCompleted, logical(1))
+    if (any(done)) {
+      for (t in pending[done]) {
+        message(sprintf("[%s] DONE: %s -> %s", format(Sys.time()), t, feasLabel(t)))
       }
+      return(list(pending = pending[!done], started = started))
+    }
+    overdue <- vapply(pending, function(t) {
+      !is.null(started[[t]]) &&
+        difftime(Sys.time(), started[[t]], units = "hours") > MAX_WAIT_HOURS
+    }, logical(1))
+    if (any(overdue)) {
+      for (t in pending[overdue]) {
+        warning("Run ", t, " exceeded ", MAX_WAIT_HOURS,
+                "h with no modelstat (killed, preempted or OOM?); giving up on it.",
+                call. = FALSE)
+        message(sprintf("[%s] ABANDONED: %s", format(Sys.time()), t))
+      }
+      return(list(pending = pending[!overdue], started = started))
     }
     Sys.sleep(POLL_SECONDS)
   }
 }
 
-waitForAll <- function(in_flight, started_at) {
-  while (length(in_flight) > 0) {
-    in_flight <- waitForSlot(in_flight, cap = 1, started_at = started_at)
+waitForAll <- function(pending, started) {
+  while (length(pending) > 0) {
+    w <- waitForAny(pending, started)
+    pending <- w$pending; started <- w$started
   }
+  invisible(TRUE)
 }
 
-launchRun <- function(cfg, title) {
-  cfg$title <- title
-  message(sprintf("[%s] LAUNCH: %s", format(Sys.time()), title))
-  start_run(cfg, codeCheck = FALSE, lock_timeout = 60)
-  title
+#' Block until ONE specific run finishes (or its deadline passes).
+waitForRun <- function(title, started) {
+  pending <- title
+  while (length(pending) > 0) {
+    w <- waitForAny(pending, started)
+    pending <- w$pending; started <- w$started
+  }
+  invisible(TRUE)
 }
 
 # ---- Phase 1: endogenous-TC runs (TCendo) -----------------------------------
 
-message("\n========== Phase 1: endogenous-TC runs (TCendo) ==========")
-scen_names <- names(FST_LEVERS_SCENARIOS)
+message(sprintf("\n========== Phase 1: endogenous-TC runs (TCendo) ==========\n%s | qos=%s | cap=%s",
+                if (SLURM) "SLURM detected: submitting whole phase" else "no SLURM: local background",
+                if (SLURM) cfg$qos else "n/a",
+                if (is.finite(MAX_PARALLEL)) MAX_PARALLEL else "unlimited"))
 
-in_flight  <- character(0)
-started_at <- list()
+p1 <- launchPhase(names(FST_LEVERS_SCENARIOS), "TCendo")
 
-for (scen in scen_names) {
-  title <- tcRunName(scen, "TCendo")
-  if (runCompleted(title)) {
-    message(sprintf("[%s] SKIP (already completed): %s", format(Sys.time()), title))
-    next
-  }
-  in_flight <- waitForSlot(in_flight, MAX_PARALLEL, started_at)
-  run_cfg <- applyTCScenario(cfg, scen)
-  launchRun(run_cfg, title)
-  in_flight        <- c(in_flight, title)
-  started_at[[title]] <- Sys.time()
+bau_title <- tcRunName("BAU", "TCendo")
+
+if (DRYRUN) {
+  message("\n[DRYRUN] Phase 2 would launch: ",
+          paste(vapply(FST_LEVERS_TCBAU_SCENARIOS, tcRunName, character(1), "TCbau"),
+                collapse = ", "))
+  quit(save = "no")
 }
 
-waitForAll(in_flight, started_at)
+# Phase 2's ONLY dependency is BAU's gdx, so wait for BAU alone rather than for
+# the whole phase. The other Phase-1 runs keep solving in parallel.
+if (bau_title %in% p1$pending) {
+  message(sprintf("\n[%s] Waiting for %s (Phase 2 pin target) ...", format(Sys.time()), bau_title))
+  waitForRun(bau_title, p1$started)
+  p1$pending <- setdiff(p1$pending, bau_title)
+}
 
-# Sanity check that BAU produced a usable tau (needed for Phase 2)
-bau_title <- tcRunName("BAU", "TCendo")
 if (!isTRUE(runFeasible(bau_title))) {
-  stop("Phase 1 BAU run ", bau_title, " did not solve feasibly; ",
-       "cannot continue to Phase 2 (BAU tau is the pin target).")
+  stop("Phase 1 BAU run ", bau_title, " did not solve feasibly (", feasLabel(bau_title),
+       "); cannot continue to Phase 2 (BAU tau is the pin target).")
 }
 bau_gdx <- file.path("output", bau_title, "fulldata.gdx")
 
@@ -182,52 +279,29 @@ bau_gdx <- file.path("output", bau_title, "fulldata.gdx")
 
 message("\n========== Phase 2: BAU-pinned TC runs (TCbau) ==========")
 
-# Phase 2 launches one TCbau run per transition scenario. We stage BAU's
-# tau into modules/13_tc/input/f13_tau_scenario.csv just before each
-# launch; start_run() then embeds the CSV into that run's full.gms during
-# prep, so subsequent iterations can safely overwrite the CSV.
+p2 <- launchPhase(FST_LEVERS_TCBAU_SCENARIOS, "TCbau", exo = TRUE,
+                  prelaunch = function() pinTauToBAU(bau_gdx))
 
-in_flight  <- character(0)
-started_at <- list()
+# ---- wait for everything still in flight ------------------------------------
 
-for (scen in FST_LEVERS_TCBAU_SCENARIOS) {
-  title <- tcRunName(scen, "TCbau")
-
-  if (runCompleted(title)) {
-    message(sprintf("[%s] SKIP (already completed): %s", format(Sys.time()), title))
-    next
-  }
-
-  in_flight <- waitForSlot(in_flight, MAX_PARALLEL, started_at)
-
-  pinTauToBAU(bau_gdx)
-
-  run_cfg <- applyTCScenario(cfg, scen)
-  run_cfg <- applyExoTCFlags(run_cfg)
-  launchRun(run_cfg, title)
-
-  in_flight        <- c(in_flight, title)
-  started_at[[title]] <- Sys.time()
-}
-
-waitForAll(in_flight, started_at)
+waitForAll(c(p1$pending, p2$pending), c(p1$started, p2$started))
 
 # ---- Summary ----------------------------------------------------------------
 
 message("\n========== Summary ==========")
 summary_rows <- list()
 
+addRow <- function(scen, tc_state) {
+  title <- tcRunName(scen, tc_state)
+  data.frame(scenario = scen, tc_state = tc_state, title = title,
+             completed = runCompleted(title), feasible = runFeasible(title),
+             stringsAsFactors = FALSE)
+}
 for (scen in names(FST_LEVERS_SCENARIOS)) {
-  title <- tcRunName(scen, "TCendo")
-  summary_rows[[length(summary_rows) + 1]] <- data.frame(
-    scenario = scen, tc_state = "TCendo", title = title,
-    feasible = runFeasible(title), stringsAsFactors = FALSE)
+  summary_rows[[length(summary_rows) + 1]] <- addRow(scen, "TCendo")
 }
 for (scen in FST_LEVERS_TCBAU_SCENARIOS) {
-  title <- tcRunName(scen, "TCbau")
-  summary_rows[[length(summary_rows) + 1]] <- data.frame(
-    scenario = scen, tc_state = "TCbau", title = title,
-    feasible = runFeasible(title), stringsAsFactors = FALSE)
+  summary_rows[[length(summary_rows) + 1]] <- addRow(scen, "TCbau")
 }
 
 summary_df <- do.call(rbind, summary_rows)
@@ -235,4 +309,11 @@ print(summary_df, row.names = FALSE)
 
 saveRDS(summary_df, "output/fst_levers_summary.rds")
 
+n_ok <- sum(summary_df$feasible %in% TRUE)  # %in% treats NA as no-match
+message(sprintf("\n%d/%d runs feasible.", n_ok, nrow(summary_df)))
+if (n_ok < nrow(summary_df)) {
+  message("Missing or infeasible corners are EXPECTED to be surfaced, not dropped: ",
+          "fst_levers_plot.R refuses to interpret any effect whose inclusion-exclusion ",
+          "sum touches a missing cell.")
+}
 message("\nDone. Run scripts/output/projects/fst_levers_plot.R to generate plots.")
