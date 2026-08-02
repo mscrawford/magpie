@@ -368,6 +368,42 @@ gs("11_substitution_matrix.pdf",
           x = NULL, y = "cube") + th +
      theme(axis.text.x = element_text(angle = 30, hjust = 1)), 11, 9)
 
+# ---- F12 WHERE each lever moves land (explains the biodiversity result) ------
+# The biodiversity index is a naturalness-weighted land composition, so the size
+# of a lever's index effect depends on WHICH pools it moves between, not only on
+# how many hectares it moves.
+POOL_VARS <- c(Cropland = "Resources|Land Cover|+|Cropland",
+               Pasture  = "Resources|Land Cover|+|Pastures and Rangelands",
+               `Natural forest` = "Resources|Land Cover|Forest|+|Natural Forest",
+               `Other natural land` = "Resources|Land Cover|+|Other Land")
+poolAt <- function(t, v) {
+  rd <- reps[[t]]; if (is.null(rd)) return(NA_real_)
+  x <- rd[rd$variable == v & rd$year == YEAR, ]
+  if (!nrow(x)) NA_real_ else sum(x$value, na.rm = TRUE)
+}
+pe <- do.call(rbind, lapply(names(POOL_VARS), function(pn) {
+  d <- pool[pool$is_policy & pool$tc == "on", ]
+  d$val <- vapply(d$title, poolAt, numeric(1), POOL_VARS[[pn]])
+  ef <- function(lever) { s2 <- d; if (lever == "cp") s2 <- s2[s2$bio == "off", ]
+    mean(s2$val[s2[[lever]] == "on"], na.rm = TRUE) - mean(s2$val[s2[[lever]] == "off"], na.rm = TRUE) }
+  data.frame(pool = pn, lever = c("Climate policy (1.5C)", "Protection bundle", "Dietary shift"),
+             effect = c(ef("cp"), ef("prot"), ef("diet")), stringsAsFactors = FALSE)
+}))
+pe$pool <- factor(pe$pool, levels = c("Cropland", "Pasture", "Other natural land", "Natural forest"))
+assertOneRowPerBar(pe, c("pool", "lever"), "F12 land pools")
+gs("12_where_levers_move_land.pdf",
+   ggplot(pe, aes(pool, effect, fill = lever)) +
+     geom_col(position = position_dodge(width = 0.75), width = 0.7) +
+     geom_hline(yintercept = 0, linewidth = 0.3) +
+     scale_fill_manual(values = c("Climate policy (1.5C)" = "#0072B2",
+                                  "Protection bundle" = "#4C9F70",
+                                  "Dietary shift" = "#E69F00"), name = NULL) +
+     labs(title = "Where each lever moves land (2100, endogenous TC)",
+          subtitle = paste("Comparable hectares, different destinations. Climate policy's signature move is cropland -> forest;",
+                           "\nthe protection bundle's is pasture -> other (non-forest) natural land, a smaller step up the naturalness gradient."),
+          x = NULL, y = "change vs the lever's off state (Mha)") + th, 11, 6)
+write.csv(pe, file.path(OUT, "land_pool_effects.csv"), row.names = FALSE)
+
 # ---- CSVs behind every figure ----------------------------------------------
 sd <- design[, c("title","cell","cp","bio","prot","diet","tc_state","is_policy","feasible")]
 write.csv(sd,                                            file.path(OUT, "scenario_design.csv"), row.names = FALSE)
