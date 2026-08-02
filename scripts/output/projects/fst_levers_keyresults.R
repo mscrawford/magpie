@@ -140,8 +140,13 @@ pol  <- term[term$is_policy, ]
 # ---- styling ----------------------------------------------------------------
 ARM_COL <- c("1.5C + bioenergy" = "#C1442E", "1.5C, baseline bio" = "#0072B2",
              "current policy" = "#999999")
+# House standard: every panel carries a frame. theme_minimal drops panel.border,
+# so it is added back here rather than per-figure - that way the unfaceted
+# figures (F01, F12) get the same frame and the deck reads as one set. Matches
+# the sibling yield_gap plotter (grey75 / 0.4).
 th <- theme_minimal(base_size = 11) +
-  theme(panel.grid.minor = element_blank(), strip.text = element_text(face = "bold"),
+  theme(panel.border = element_rect(fill = NA, colour = "grey75", linewidth = 0.4),
+        panel.grid.minor = element_blank(), strip.text = element_text(face = "bold"),
         plot.title = element_text(face = "bold"), legend.position = "top")
 gs <- function(f, p, w = 11, h = 6.5) ggsave(file.path(OUT, f), p, width = w, height = h)
 # Outcome names are long. Rotated left-hand strips clip them, so facet strips stay
