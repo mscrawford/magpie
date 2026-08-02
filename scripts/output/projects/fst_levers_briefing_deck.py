@@ -81,8 +81,38 @@ def bullets(prs, title, items, foot=None, size=17):
     tf.word_wrap = True
     for i, b in enumerate(items):
         p = tf.paragraphs[0] if i==0 else tf.add_paragraph(); p.space_after = Pt(13)
-        r = p.add_run(); r.text = "•  " + b; sf(r, size)
+        r = p.add_run(); r.text = "\u2022  "; sf(r, size)
+        # **bold** spans -> real bold runs; python-pptx has no markdown support,
+        # so leaving the asterisks in would print them literally on the slide.
+        for k, seg in enumerate(b.split("**")):
+            if not seg: continue
+            r = p.add_run(); r.text = seg; sf(r, size, bold=(k % 2 == 1))
     if foot: tbox(s, foot, Inches(0.55), Inches(6.62), Inches(12.2), Inches(0.7), 12, color=SUBTLE)
+
+def table(prs, title, headers, data, colw, *, foot=None, fs=10.5):
+    """Definition table. Fonts are set per RUN - python-pptx will not inherit
+    them from the table style, and the default banding is unreadable at 10pt."""
+    sl = prs.slides.add_slide(prs.slide_layouts[6])
+    tbox(sl, title, Inches(0.55), Inches(0.35), Inches(12.2), Inches(0.8), 26, bold=True, color=TITLE_C)
+    rows, cols = len(data) + 1, len(headers)
+    g = sl.shapes.add_table(rows, cols, Inches(0.55), Inches(1.30),
+                            Inches(sum(colw)), Inches(0.5 + 0.85 * len(data))).table
+    g.first_row, g.horz_banding = True, False
+    for j, w in enumerate(colw): g.columns[j].width = Inches(w)
+    for j, h in enumerate(headers):
+        c = g.cell(0, j); c.text = ""
+        r = c.text_frame.paragraphs[0].add_run(); r.text = h
+        sf(r, fs + 1.5, bold=True, color=RGBColor(0xFF,0xFF,0xFF))
+        c.fill.solid(); c.fill.fore_color.rgb = ACCENT
+    for i, row in enumerate(data, start=1):
+        for j, val in enumerate(row):
+            c = g.cell(i, j); c.text = ""; c.text_frame.word_wrap = True
+            for k, line in enumerate(val.split("\n")):
+                para = c.text_frame.paragraphs[0] if k == 0 else c.text_frame.add_paragraph()
+                r = para.add_run(); r.text = line
+                sf(r, fs, bold=(j == 0), color=BODY_C)
+            c.fill.solid(); c.fill.fore_color.rgb = RGBColor(0xF7,0xF7,0xF7) if i % 2 else RGBColor(0xFF,0xFF,0xFF)
+    if foot: tbox(sl, foot, Inches(0.55), Inches(6.72), Inches(12.2), Inches(0.6), 11.5, color=SUBTLE)
 
 # ---- deck -------------------------------------------------------------------
 prs = Presentation(); prs.slide_width, prs.slide_height = SLIDE_W, SLIDE_H
@@ -104,6 +134,43 @@ bullets(prs, "The question",
    "We score every combination against four planetary boundaries: climate, land, biodiversity and nitrogen.",
    "Two questions drove it: how much does technological change really matter, and does protecting land "
    "collide with growing bioenergy on it?"])
+
+table(prs, "The five levers, precisely",
+  ["Lever", "ON means", "OFF means"],
+  [["Climate policy\n(Module 56)",
+    "1.5C carbon price: the REMIND PkBudg650 pathway,\nreaching roughly $300/tC by 2050. Prices above-ground\nland carbon, so it also pays for afforestation.",
+    "Current policies: the NPi2025 pathway.\nThis is the actually-legislated price path,\nNOT a zero price."],
+   ["2nd-gen bioenergy\ndemand (Module 60)",
+    "The 2nd-generation bioenergy demand that the 1.5C\nenergy-system run implies - i.e. policy-driven\nBECCS expansion.",
+    "The 2nd-generation demand implied by the\ncurrent-policy run. A BASELINE trajectory,\nnot zero bioenergy."],
+   ["Land + water\nprotection\n(Modules 22, 44,\n29, 42)",
+    "Four instruments together: Half-Earth area conservation\n(~50% of land), a biodiversity floor (BII 0.78),\n20% semi-natural vegetation required on cropland,\nand environmental-flow protection for rivers.",
+    "None of the four. The always-on floor\n(below) still applies."],
+   ["Dietary shift\n(Module 15)",
+    "EAT-Lancet flexitarian diet at 2,500 kcal/capita/day,\nimposed exogenously and converging linearly.",
+    "The endogenous diet MAgPIE derives from\nincome and prices."],
+   ["Technological\nchange (Module 13)",
+    "Endogenous: the model invests in yield growth\nwherever that is the cheapest way to meet demand.",
+    "Yields frozen on the business-as-usual\ntrajectory. NOT zero progress - BAU already\ncontains yield growth."]],
+  [2.5, 5.5, 4.2],
+  foot="Every lever transitions on the same 2025 to 2050 schedule, so no lever is quietly more gradual than another.")
+
+bullets(prs, "Three definitions worth being precise about",
+  ["**OFF is never zero.** Climate policy off is the legislated NPi path (with a small minimum carbon price), "
+   "bioenergy off is the baseline demand trajectory, water protection off still reserves the base 5% environmental "
+   "flow. Every contrast in this deck is policy-vs-baseline, never policy-vs-nothing. Effects would look larger "
+   "against a true zero.",
+   "**Protection is a bundle, and it is an INCREMENT.** Four instruments move together, on top of a floor that is "
+   "active in all 25 runs: existing protected areas (WDPA, about 14% of land), avoided deforestation under current "
+   "national policies, and the base environmental-flow reservation. So 'protection off' is not an unprotected world - "
+   "it is today's protection without the additional ambition.",
+   "**'Technological change off' means frozen, not absent.** Yields follow the business-as-usual path, which already "
+   "improves. The counterfactual asks what the ADDITIONAL yield growth is worth, not what a world without agronomy "
+   "would look like.",
+   "The bundling is deliberate rather than convenient: the biodiversity floor acts on the same land pools as area "
+   "conservation, and semi-natural vegetation enters the same model constraint as conserved area, so separating them "
+   "would draw a distinction the model does not make."],
+  size=15)
 
 bullets(prs, "How it was set up",
   [f"{n_all} model runs. Not every combination: bioenergy demand at 1.5C levels WITHOUT a carbon price is not a "
