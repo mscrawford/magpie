@@ -109,7 +109,11 @@ checkTag <- function(path, tags, label) {
   pass(length(miss) == 0, paste0(label, ": both R34M410 tags present"),
        if (length(miss)) paste("missing:", paste(miss, collapse = ", ")) else "")
 }
-TAGS <- c("R34M410-SSP2-NPi2025", "R34M410-SSP2-PkBudg650")
+# All THREE climate levels the design now uses. PkBudg1000 (2.0C) was added
+# 2026-08-03; it must be checked in BOTH files, because the price and the demand
+# are one coupled pair and a tag present in only one of them would silently give
+# a 2.0C price against a 1.5C or NPi bioenergy demand.
+TAGS <- c("R34M410-SSP2-NPi2025", "R34M410-SSP2-PkBudg650", "R34M410-SSP2-PkBudg1000")
 checkTag("modules/56_ghg_policy/input/f56_pollutant_prices.cs3", TAGS, "carbon price (c56)")
 checkTag("modules/60_bioenergy/input/f60_bioenergy_dem.cs3",     TAGS, "bioenergy demand (c60)")
 

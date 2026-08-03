@@ -8,12 +8,22 @@
 #
 # Design under test (5 factors): TC, climate(56), bioenergy(60),
 # land+water protection(22+44+29+42), diet(15). The hole is (climate off, bio
-# on); the KEPT counterfactual is (climate on, bio off). 12 policy cells + BAU =
-# 13 scenarios, 12 of them with a TCbau twin -> 25 runs.
+# on); the KEPT counterfactuals are (climate on, bio off) and (climate 2.0C, bio
+# off). Climate is THREE-level since 2026-08-03 (NPi2025 / PkBudg1000 /
+# PkBudg650), so 20 policy cells + BAU = 21 scenarios, 20 of them with a TCbau
+# twin -> 41 runs.
+#
+# EXPECTED_CHECKS derivation (nCells = 20, dietOn = protOn = 10):
+#   inventory 3 + design 2 + factor arms 5 + MACC (nCells+1) 21
+#   + timing (4*nCells + dietOn + protOn) 100
+#   + protection (3*protOn + 4*protOff) 70 + diet (3*dietOn + dietOff) 40
+#   + applyTCScenario 11 + c56/c60 coupling (2*nCells + 3) 43            = 295
+# Keep this a LITERAL, not a formula over the object under test: the point of the
+# guard is to catch a loop that silently iterated over nothing.
 
 source("scripts/start/projects/fst_levers_config.R")
 
-EXPECTED_CHECKS <- 160L
+EXPECTED_CHECKS <- 295L
 n_checks <- 0L
 n_fail   <- 0L
 
@@ -29,9 +39,9 @@ chk <- function(cond, label) {
 # --- 1. inventory (3 checks) -------------------------------------------------
 scen <- names(FST_LEVERS_SCENARIOS)
 cat("Scenarios (", length(scen), "):\n  ", paste(scen, collapse = "\n  "), "\n\n", sep = "")
-chk(length(scen) == 13, "13 scenarios (BAU + 12 cells)")
-chk(length(FST_LEVERS_TCBAU_SCENARIOS) == 12, "12 TCbau scenarios")
-chk(1 + 12 * 2 == 25, "25 runs total")
+chk(length(scen) == 21, "21 scenarios (BAU + 20 cells)")
+chk(length(FST_LEVERS_TCBAU_SCENARIOS) == 20, "20 TCbau scenarios")
+chk(1 + 20 * 2 == 41, "41 runs total")
 
 # --- 2. design table matches the scenario list (2 checks) --------------------
 chk(setequal(FST_LEVERS_DESIGN$scenario, setdiff(scen, "BAU")),
@@ -196,6 +206,60 @@ chk(identical(e$tc, "exo") &&
     identical(e$c13_croparea_consv, 0) &&
     identical(e$s13_ignore_tau_historical, 1),     "exo flags: tc = exo, c13/s13 set")
 cat("Code path: applyTCScenario + applyExoTCFlags behave as intended\n\n")
+
+# --- 9. the c56/c60 coupling invariant (2*20 + 3 = 43 checks) ----------------
+# The carbon price and the 2nd-gen bioenergy demand are the price-side and
+# land-side images of ONE energy-system solution. Every cell must therefore carry
+# ONE REMIND tag across both switch families -- except the two DECLARED
+# counterfactuals, which pair a policy price with baseline bioenergy on purpose
+# and are the only cells allowed to be inconsistent.
+#
+# This is the check that would have caught the yield_gap defect: it set a
+# PkBudg650 price and left c60 at its NPi default, and nothing anywhere noticed.
+COUPLED <- c(CPon_BioOn   = "R34M410-SSP2-PkBudg650",
+             CP20_BioOn   = "R34M410-SSP2-PkBudg1000",
+             CPoff_BioOff = "R34M410-SSP2-NPi2025")
+COUNTERFACTUAL <- c(CPon_BioOff = "R34M410-SSP2-PkBudg650",
+                    CP20_BioOff = "R34M410-SSP2-PkBudg1000")
+BASELINE_BIO <- "R34M410-SSP2-NPi2025"
+
+unclassified <- character(0)
+for (s in cells) {
+  v   <- FST_LEVERS_SCENARIOS[[s]]
+  arm <- paste(strsplit(s, "_", fixed = TRUE)[[1]][1:2], collapse = "_")
+  if (arm %in% names(COUPLED)) {
+    want <- COUPLED[[arm]]
+    chk(identical(v$c56_pollutant_prices, want) &&
+        identical(v$c56_pollutant_prices_noselect, want),
+        paste0(s, ": c56 pair = ", want))
+    chk(identical(v$c60_2ndgen_biodem, want) &&
+        identical(v$c60_2ndgen_biodem_noselect, want),
+        paste0(s, ": c60 pair = ", want, " (coupled to the price)"))
+  } else if (arm %in% names(COUNTERFACTUAL)) {
+    want <- COUNTERFACTUAL[[arm]]
+    chk(identical(v$c56_pollutant_prices, want) &&
+        identical(v$c56_pollutant_prices_noselect, want),
+        paste0(s, ": c56 pair = ", want))
+    chk(identical(v$c60_2ndgen_biodem, BASELINE_BIO) &&
+        identical(v$c60_2ndgen_biodem_noselect, BASELINE_BIO),
+        paste0(s, ": c60 pair = ", BASELINE_BIO, " (DECLARED counterfactual)"))
+  } else {
+    unclassified <- c(unclassified, arm)
+  }
+}
+chk(length(unclassified) == 0,
+    paste0("every (climate,bio) arm is classified as coupled or counterfactual",
+           if (length(unclassified)) paste0(" -- unclassified: ",
+                                            paste(unique(unclassified), collapse = ", ")) else ""))
+
+# The three-level climate factor must not leak into the binary 2^k machinery.
+chk(identical(FST_LEVERS_CUBES$B$levels$cp, c("off", "on")),
+    "Cube B pins cp to the two binary levels (excludes the 2.0C arm)")
+chk(identical(unname(FST_LEVERS_CUBES$A$fixed), "on") &&
+    identical(names(FST_LEVERS_CUBES$A$fixed), "cp"),
+    "Cube A fixes cp = on, which already excludes the 2.0C arm")
+cat("Coupling: c56 and c60 carry one REMIND tag per cell; the 2 declared\n",
+    "counterfactuals (CPon_BioOff, CP20_BioOff) are the only exceptions\n\n", sep = "")
 
 # --- run titles --------------------------------------------------------------
 cat("Run titles (", 1 + 2 * length(FST_LEVERS_TCBAU_SCENARIOS), "):\n", sep = "")

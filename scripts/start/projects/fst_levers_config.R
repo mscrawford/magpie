@@ -56,6 +56,36 @@
 # main effect is therefore conditional on climate policy being on, and must never
 # be reported as a marginal effect over the whole design.
 #
+# ---- 2026-08-03 EXTENSION: a THIRD climate level, CP20 (2.0C) ---------------
+#
+# WHY: all four `CPon_BioOn_*_TCbau` runs are infeasible -- they solve to 2040 and
+# fail at 2045, identically, whether protection and diet are on or off. The
+# binding driver is the PkBudg650 2nd-gen bioenergy ramp (1932 -> 3336 -> 5181
+# Mt DM/yr across 2035-2045) against frozen tau. PkBudg1000 (~2.0C) relieves BOTH
+# sides at once: a lower carbon price AND a lower BECCS demand. Precedent for the
+# pairing: scripts/start/test_runs.R:64-65 and project_WetHorizons.R:62-63 both
+# set c56 and c60 to the same PkBudg1000 tag, and test_runs.R:51 records the same
+# remedy ("SSP3-PkBudg650 is not feasible, therefore only PkBudg1000 is used").
+#
+# 16 new runs: CP20_{BioOn,BioOff} x {Prot,NoProt} x {DietOn,DietOff} x
+# {TCendo,TCbau}. They pin to the SAME BAU tau as every other TCbau run, so they
+# need no new Phase-1 dependency and launch in one wave.
+#
+# CP20_BioOn is the COHERENT 2.0C corner (PkBudg1000 price + PkBudg1000 demand).
+# CP20_BioOff is the same labelled counterfactual device as CPon_BioOff
+# (PkBudg1000 price + NPi bioenergy) -- it is what makes the bioenergy effect and
+# the protection erosion readable at 2.0C, and it supplies the middle point of the
+# climate gradient (current policy -> 2.0C -> 1.5C) at baseline bioenergy.
+#
+# IDENTIFICATION: the climate factor is now THREE-LEVEL, which the binary 2^k
+# machinery cannot consume. CP20 therefore sits OUTSIDE both cubes: Cube A stays
+# (cp == "on"), Cube B must be filtered to cp %in% c("off","on") EXPLICITLY, not
+# just to bio == "off" -- otherwise it silently collects 24 cells for a 16-cell
+# decomposition. FST_LEVERS_CUBES$B$levels below carries that restriction so the
+# analysis cannot forget it. The 2.0C runs are read as a third arm in the
+# regime-wise views (isolation slices, the tau-by-regime figure), not as cube
+# corners.
+#
 # "Equal ambition" decisions (see README section on methodology):
 #   * Every policy lever transitions on the SAME 2025->2050 schedule. This
 #     required moving the BII target off its defaults (s44_start_year 2030,
@@ -143,6 +173,14 @@ FST_BACKDROP <- c(.macc_block, .ghgframe_block)
   c56_pollutant_prices          = "R34M410-SSP2-NPi2025",
   c56_pollutant_prices_noselect = "R34M410-SSP2-NPi2025"
 )
+# 2.0C: the PkBudg1000 pathway, the middle rung between NPi2025 and PkBudg650.
+# Added 2026-08-03 (see the header extension note). MUST be used together with
+# .bio_20 - a PkBudg1000 price against a PkBudg650 or NPi bioenergy demand is the
+# same two-halves-of-two-energy-systems defect the hole exists to avoid.
+.cp_20 <- list(
+  c56_pollutant_prices          = "R34M410-SSP2-PkBudg1000",
+  c56_pollutant_prices_noselect = "R34M410-SSP2-PkBudg1000"
+)
 
 # ---- Factor 3: 2nd-generation bioenergy demand (Module 60) ------------------
 
@@ -159,6 +197,16 @@ FST_BACKDROP <- c(.macc_block, .ghgframe_block)
 .bio_off <- list(
   c60_2ndgen_biodem             = "R34M410-SSP2-NPi2025",
   c60_2ndgen_biodem_noselect    = "R34M410-SSP2-NPi2025"
+)
+# The 2.0C-consistent bioenergy demand, the partner of .cp_20. Pairing these two
+# is not a style preference: c56 and c60 are the price-side and land-side images
+# of ONE energy-system solution, and scenario_config.csv only ever sets them
+# together (columns coupling / emulator / input). Both default to the NPi tag, so
+# changing only the price is silently inconsistent with nothing in the config to
+# show for it - which is exactly what the yield_gap experiment did.
+.bio_20 <- list(
+  c60_2ndgen_biodem             = "R34M410-SSP2-PkBudg1000",
+  c60_2ndgen_biodem_noselect    = "R34M410-SSP2-PkBudg1000"
 )
 
 # ---- Factor 4: land+water protection (Modules 22 + 44 + 29 + 42, BUNDLED) ---
@@ -323,7 +371,24 @@ FST_LEVERS_SCENARIOS <- list(
   CPoff_BioOff_Prot_DietOn    = c(FST_BACKDROP, .cp_off, .bio_off, .prot_on,  .diet_on),
   CPoff_BioOff_Prot_DietOff   = c(FST_BACKDROP, .cp_off, .bio_off, .prot_on,  .diet_off),
   CPoff_BioOff_NoProt_DietOn  = c(FST_BACKDROP, .cp_off, .bio_off, .prot_off, .diet_on),
-  CPoff_BioOff_NoProt_DietOff = c(FST_BACKDROP, .cp_off, .bio_off, .prot_off, .diet_off)
+  CPoff_BioOff_NoProt_DietOff = c(FST_BACKDROP, .cp_off, .bio_off, .prot_off, .diet_off),
+
+  # ---- 2026-08-03: the third climate level, 2.0C (PkBudg1000) ---------------
+  # (climate 2.0C, bio 2.0C) : coherent 2.0C corner. The reason the arm exists -
+  # the 1.5C version of this corner has no frozen-tau solution (fails at 2045).
+  CP20_BioOn_Prot_DietOn    = c(FST_BACKDROP, .cp_20, .bio_20,  .prot_on,  .diet_on),
+  CP20_BioOn_Prot_DietOff   = c(FST_BACKDROP, .cp_20, .bio_20,  .prot_on,  .diet_off),
+  CP20_BioOn_NoProt_DietOn  = c(FST_BACKDROP, .cp_20, .bio_20,  .prot_off, .diet_on),
+  CP20_BioOn_NoProt_DietOff = c(FST_BACKDROP, .cp_20, .bio_20,  .prot_off, .diet_off),
+
+  # (climate 2.0C, bio off) : the same labelled counterfactual device as
+  # CPon_BioOff (PkBudg1000 price + NPi bioenergy). Not a believed scenario; it is
+  # what makes the bioenergy effect and the protection erosion readable at 2.0C,
+  # and it is the middle rung of the baseline-bioenergy climate gradient.
+  CP20_BioOff_Prot_DietOn    = c(FST_BACKDROP, .cp_20, .bio_off, .prot_on,  .diet_on),
+  CP20_BioOff_Prot_DietOff   = c(FST_BACKDROP, .cp_20, .bio_off, .prot_on,  .diet_off),
+  CP20_BioOff_NoProt_DietOn  = c(FST_BACKDROP, .cp_20, .bio_off, .prot_off, .diet_on),
+  CP20_BioOff_NoProt_DietOff = c(FST_BACKDROP, .cp_20, .bio_off, .prot_off, .diet_off)
 )
 
 # The 12 FST cells each get a TCbau companion (tau pinned at BAU level). BAU
@@ -336,26 +401,49 @@ FST_LEVERS_TCBAU_SCENARIOS <- c(
   "CPon_BioOff_Prot_DietOn",   "CPon_BioOff_Prot_DietOff",
   "CPon_BioOff_NoProt_DietOn", "CPon_BioOff_NoProt_DietOff",
   "CPoff_BioOff_Prot_DietOn",  "CPoff_BioOff_Prot_DietOff",
-  "CPoff_BioOff_NoProt_DietOn","CPoff_BioOff_NoProt_DietOff"
+  "CPoff_BioOff_NoProt_DietOn","CPoff_BioOff_NoProt_DietOff",
+  "CP20_BioOn_Prot_DietOn",    "CP20_BioOn_Prot_DietOff",
+  "CP20_BioOn_NoProt_DietOn",  "CP20_BioOn_NoProt_DietOff",
+  "CP20_BioOff_Prot_DietOn",   "CP20_BioOff_Prot_DietOff",
+  "CP20_BioOff_NoProt_DietOn", "CP20_BioOff_NoProt_DietOff"
 )
 
 # Factor levels per FST cell. Consumed by the analysis to assemble the two cubes,
 # so it never has to parse run-name strings. Columns: the four policy factors
 # (cp, bio, prot, diet); the TC factor is added by the analysis from the run
 # suffix (_TCendo / _TCbau).
-FST_LEVERS_DESIGN <- data.frame(
-  scenario = c("CPon_BioOn_Prot_DietOn",    "CPon_BioOn_Prot_DietOff",
-               "CPon_BioOn_NoProt_DietOn",  "CPon_BioOn_NoProt_DietOff",
-               "CPon_BioOff_Prot_DietOn",   "CPon_BioOff_Prot_DietOff",
-               "CPon_BioOff_NoProt_DietOn", "CPon_BioOff_NoProt_DietOff",
-               "CPoff_BioOff_Prot_DietOn",  "CPoff_BioOff_Prot_DietOff",
-               "CPoff_BioOff_NoProt_DietOn","CPoff_BioOff_NoProt_DietOff"),
-  cp   = c("on",  "on",  "on",  "on",  "on",  "on",  "on",  "on",  "off", "off", "off", "off"),
-  bio  = c("on",  "on",  "on",  "on",  "off", "off", "off", "off", "off", "off", "off", "off"),
-  prot = c("on",  "on",  "off", "off", "on",  "on",  "off", "off", "on",  "on",  "off", "off"),
-  diet = c("on",  "off", "on",  "off", "on",  "off", "on",  "off", "on",  "off", "on",  "off"),
-  stringsAsFactors = FALSE
+# DERIVED from the scenario names through an explicit token map, not maintained
+# as hand-aligned parallel vectors. With the 2.0C level the vectors would be five
+# columns x 20 rows of positional bookkeeping in which one misaligned entry
+# mislabels a cell silently. The map also STOPS on an unrecognised token, which is
+# the property that matters: the binary idiom this replaces,
+# `ifelse(tk == "CPon", "on", "off")`, would have quietly filed every CP20 run
+# under current policy.
+FST_LEVERS_TOKENS <- list(
+  cp   = c(CPoff  = "off", CP20 = "20", CPon  = "on"),
+  bio  = c(BioOff = "off", BioOn = "on"),
+  prot = c(NoProt = "off", Prot  = "on"),
+  diet = c(DietOff = "off", DietOn = "on")
 )
+
+parseCellName <- function(scen) {
+  tk <- strsplit(scen, "_", fixed = TRUE)[[1]]
+  if (length(tk) != length(FST_LEVERS_TOKENS))
+    stop("FST cell name '", scen, "' has ", length(tk), " tokens; expected ",
+         length(FST_LEVERS_TOKENS), " (climate_bio_protection_diet).")
+  lv <- Map(function(field, token) {
+    x <- unname(FST_LEVERS_TOKENS[[field]][token])
+    if (is.na(x))
+      stop("unknown ", field, " token '", token, "' in scenario '", scen,
+           "'. Add it to FST_LEVERS_TOKENS -- and check every consumer that ",
+           "assumes this factor is binary, the 2^k cubes above all.")
+    x
+  }, names(FST_LEVERS_TOKENS), tk)
+  data.frame(c(list(scenario = scen), lv), stringsAsFactors = FALSE)
+}
+
+FST_LEVERS_DESIGN <- do.call(rbind, lapply(
+  setdiff(names(FST_LEVERS_SCENARIOS), "BAU"), parseCellName))
 
 # Cube membership. Two 2^4 cubes (each Prot x Diet x TC x one of {Bio, Climate})
 # sharing the 2^3 face (climate on, bio off) x Prot x Diet x TC.
@@ -364,17 +452,25 @@ FST_LEVERS_DESIGN <- data.frame(
 # TC is added by the analysis as the fourth varying factor of each cube (from the
 # run suffix). The `varying` lists below name the three factors that vary WITHIN
 # the design table; the analysis crosses each with TC.
+#
+# `levels` pins the admissible level set of a VARYING factor. It exists because
+# the climate factor is no longer binary: Cube B selects on bio == "off", and
+# with the 2.0C arm present that selection returns 24 cells for what must be a
+# 16-cell 2^4 decomposition. Cube A needs no such pin - fixing cp == "on" already
+# excludes CP20. Any consumer building a cube MUST apply `levels`.
 FST_LEVERS_CUBES <- list(
   A = list(
     label      = "Cube A: bioenergy x protection x diet (under 1.5C policy)",
     fixed      = c(cp = "on"),
     varying    = c("bio", "prot", "diet"),
+    levels     = list(),
     reference  = "CPon_BioOff_NoProt_DietOff"
   ),
   B = list(
     label      = "Cube B: climate policy x protection x diet (at baseline bioenergy)",
     fixed      = c(bio = "off"),
     varying    = c("cp", "prot", "diet"),
+    levels     = list(cp = c("off", "on")),   # EXCLUDES the 2.0C arm by design
     reference  = "CPoff_BioOff_NoProt_DietOff"
   )
 )
