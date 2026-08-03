@@ -80,6 +80,20 @@ rp = repl()
 
 me  = {(r["outcome"], r["lever"]): float(r["effect"]) for r in rows("main_effects.csv")}
 
+# F14: the failure year and its drivers, read from the timeline / driver CSVs so
+# the caption cannot drift from the figure.
+_tl    = rows("infeasibility_timeline.csv")
+failYr = min(int(r["year"]) for r in _tl if r["status"] == "NO FEASIBLE SOLUTION")
+lastOK = max(int(r["year"]) for r in _tl if r["status"] == "solved" and int(r["year"]) < failYr)
+nFail  = len({r["title"] for r in _tl if r["status"] == "NO FEASIBLE SOLUTION"})
+_dv = {(r["panel"], r["arm"], r["tcLab"], int(float(r["year"]))): float(r["value"])
+       for r in rows("infeasibility_drivers.csv")}
+_BIO, _CROP = "2nd-gen bioenergy demand (Mt DM/yr)", "Cropland (Mha)"
+_ON, _ENDO, _FROZ = "1.5C + bioenergy", "tau endogenous", "tau frozen at BAU"
+bioRamp = " -> ".join(f"{_dv[(_BIO, _ON, _ENDO, y)]:,.0f}" for y in (2035, 2040, failYr)) \
+          + f" Mt DM/yr across {2035}-{failYr}"
+cropGap = _dv[(_CROP, _ON, _FROZ, lastOK)] - _dv[(_CROP, _ON, _ENDO, lastOK)]
+
 CROP = "Cropland (Mha)"; CO2 = "Land-use change CO2 (Mt CO2/yr)"
 BIO  = "Terrestrial biodiversity (index)"; NSU = "Cropland+pasture N surplus (Mt Nr/yr)"
 
@@ -161,6 +175,13 @@ fig_slide(prs, "01_feasibility.pdf",
     "Four runs have no solution, and they are all the same corner",
     "Every failure is 1.5C carbon price + bioenergy demand with tau frozen at BAU. It fails with protection on AND off, "
     "with the dietary shift on AND off. Neither freeing land nor cutting food demand rescues it - only tau does.")
+
+fig_slide(prs, "14_infeasibility_anatomy.pdf",
+    "When they fail, and why: 2045, on the bioenergy ramp",
+    f"All {nFail} fail at the SAME timestep - solved through {lastOK}, no feasible solution at {failYr} - five years before the lever "
+    f"ramps even finish in 2050. The driver is the bioenergy ramp ({bioRamp}); with tau frozen the only answer is area, and by {lastOK} "
+    f"the frozen runs already carry {cropGap:+,.0f} Mha more cropland than their endogenous twins (mean over the four cells), into a "
+    "Half-Earth constraint and a carbon price on land conversion.")
 
 fig_slide(prs, "02_timeseries_boundaries.pdf",
     "The four planetary boundaries, 1995 to 2100",

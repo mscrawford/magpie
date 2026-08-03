@@ -33,7 +33,7 @@
 #    inherited from the 2^4 plotter are absent from these report.rds and produced
 #    silent NaN bars before this guard existed.
 
-suppressMessages({ library(ggplot2); library(dplyr); library(tidyr) })
+suppressMessages({ library(ggplot2); library(dplyr); library(tidyr); library(patchwork) })
 source("scripts/output/projects/fst_levers_decompose.R")
 
 YEAR <- 2100
@@ -72,6 +72,22 @@ feasOf <- function(title) {
   all(ms %in% c(2, 7))
 }
 design$feasible <- vapply(design$title, feasOf, logical(1))
+
+# The modelstat vector itself, not just its all()-reduction. A run that dies
+# part-way has a SHAPE - solved up to year X, the failing solve at X, zeros after
+# where GAMS never got to - and that shape is the evidence for WHEN and WHY it
+# failed. feasOf throws it away; F14 needs it.
+modelstatOf <- function(title) {
+  f <- file.path("output", title, "runstatistics.rda")
+  if (!file.exists(f)) return(NULL)
+  e <- new.env(); if (inherits(try(load(f, envir = e), silent = TRUE), "try-error")) return(NULL)
+  ms <- e$stats$modelstat
+  if (is.null(ms)) return(NULL)
+  yr <- dimnames(ms)[[2]]
+  if (is.null(yr)) yr <- names(ms)
+  if (is.null(yr)) return(NULL)
+  setNames(as.numeric(ms), sub("^y", "", yr))
+}
 message(sprintf("runs: %d | feasible: %d | infeasible: %d", nrow(design),
                 sum(design$feasible %in% TRUE), sum(design$feasible %in% FALSE)))
 if (any(design$feasible %in% FALSE))
@@ -577,6 +593,105 @@ gs("13_tc_vs_diet_replacement.pdf",
      th + theme(strip.text.y.right = element_text(angle = 0)), 12.5, 8.5)
 write.csv(mc[, c("outcome", "cp", "prot", "tc_only", "diet_only", "both", "sum_parts", "synergy", "tc_share")],
           file.path(OUT, "replacement.csv"), row.names = FALSE)
+
+# ---- F14 anatomy of the infeasible corner: when it dies, and why ------------
+# WHAT THIS FIGURE IS ALLOWED TO READ. Everywhere else in this script the four
+# infeasible runs are treated as missing, because their report.rds is a LAST
+# ITERATE and their 2100 outcome does not exist. That rule is about the TERMINAL
+# year. MAgPIE solves recursive-dynamically, one timestep at a time, so the
+# timesteps BEFORE the failure returned modelstat 2 - they are genuine per-period
+# optima, and they are the only evidence there is for how the run approached the
+# wall. readSolvedYears() therefore gates each run on ITS OWN per-year modelstat
+# and drops every year that did not solve. Nothing here reads a failed timestep.
+FAIL_YEAR_STATS <- c(2, 7)
+readSolvedYears <- function(title, vars) {
+  ms <- modelstatOf(title); if (is.null(ms)) return(NULL)
+  okYears <- as.numeric(names(ms))[ms %in% FAIL_YEAR_STATS]
+  f <- file.path("output", title, "report.rds"); if (!file.exists(f)) return(NULL)
+  d <- as.data.frame(readRDS(f))
+  d <- d[as.character(d$region) %in% c("World", "GLO") &
+           as.character(d$variable) %in% vars, , drop = FALSE]
+  if (!nrow(d)) return(NULL)
+  y <- suppressWarnings(as.numeric(as.character(d$period)))
+  k <- !is.na(y) & y %in% okYears
+  data.frame(title = title, variable = as.character(d$variable)[k], year = y[k],
+             value = suppressWarnings(as.numeric(d$value))[k], stringsAsFactors = FALSE)
+}
+
+# --- panel A: the solve-status timeline over every policy run ---------------
+msAll <- do.call(rbind, lapply(design$title[design$is_policy], function(t) {
+  ms <- modelstatOf(t); if (is.null(ms)) return(NULL)
+  data.frame(title = t, year = as.numeric(names(ms)), stat = unname(ms),
+             stringsAsFactors = FALSE)
+}))
+msAll <- merge(msAll, design[, c("title", "cp", "bio", "prot", "diet", "tc_state")], by = "title")
+msAll$status <- ifelse(msAll$stat %in% FAIL_YEAR_STATS, "solved",
+                ifelse(msAll$stat == 0, "never attempted", "NO FEASIBLE SOLUTION"))
+msAll$status <- factor(msAll$status,
+                       levels = c("solved", "NO FEASIBLE SOLUTION", "never attempted"))
+msAll$rowLab <- paste0(ifelse(msAll$cp == "on", "1.5C", "NPi"), " ",
+                       ifelse(msAll$bio == "on", "Bio+", "Bio-"), " ",
+                       ifelse(msAll$prot == "on", "Prot+", "Prot-"), " ",
+                       ifelse(msAll$diet == "on", "Diet+", "Diet-"), "  | ",
+                       ifelse(msAll$tc_state == "TCendo", "tau endo", "tau FROZEN"))
+ordA <- msAll %>% distinct(.data$rowLab, .data$cp, .data$bio, .data$tc_state,
+                           .data$prot, .data$diet) %>%
+  arrange(desc(.data$cp), desc(.data$bio), .data$tc_state, .data$prot, .data$diet)
+msAll$rowLab <- factor(msAll$rowLab, levels = rev(ordA$rowLab))
+
+failYear <- sort(unique(msAll$year[msAll$status == "NO FEASIBLE SOLUTION"]))
+lastOK   <- max(msAll$year[msAll$status == "solved" & msAll$year < min(failYear)])
+
+pA <- ggplot(msAll, aes(factor(.data$year), .data$rowLab, fill = .data$status)) +
+  geom_tile(colour = "white", linewidth = 0.55) +
+  scale_fill_manual(values = c("solved" = "#4C9F70",
+                               "NO FEASIBLE SOLUTION" = "#C1442E",
+                               "never attempted" = "#E4E4E4"), name = NULL) +
+  labs(title = sprintf("Every failure is the same timestep: solved through %d, no feasible solution at %d",
+                       lastOK, min(failYear)),
+       subtitle = paste("Per-timestep GAMS modelstat for all 24 policy runs. The four failures are one contiguous block -",
+                        "1.5C carbon price + bioenergy demand with tau frozen -\nand they fail at the SAME year with protection on and off and the dietary shift on and off.",
+                        "Grey = GAMS never reached that timestep."),
+       x = NULL, y = NULL) +
+  th + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 7),
+             axis.text.y = element_text(size = 6.4, family = "mono"))
+
+# --- panels B-D: the drivers, on solved timesteps only ----------------------
+DRIVERS <- c("Demand|+|Bioenergy"                        = "2nd-gen bioenergy demand (Mt DM/yr)",
+             "Resources|Land Cover|+|Cropland"           = "Cropland (Mha)",
+             "Productivity|Yield (including tau)|+|Crops" = "Crop yield incl. tau (t DM/ha)")
+drv <- do.call(rbind, lapply(design$title[design$is_policy & design$cp == "on"],
+                             readSolvedYears, names(DRIVERS)))
+drv <- merge(drv, design[, c("title", "bio", "tc_state")], by = "title")
+drv$panel <- factor(DRIVERS[drv$variable], levels = unname(DRIVERS))
+drv$arm   <- ifelse(drv$bio == "on", "1.5C + bioenergy", "1.5C, baseline bio")
+drv$tcLab <- factor(ifelse(drv$tc_state == "TCendo", "tau endogenous", "tau frozen at BAU"),
+                    levels = c("tau endogenous", "tau frozen at BAU"))
+# Mean over the protection x diet cells: all four behave identically here, which
+# is itself the finding, so the spread would be four overplotted lines.
+drvM <- drv %>% group_by(.data$panel, .data$arm, .data$tcLab, .data$year) %>%
+  summarise(value = mean(.data$value), .groups = "drop")
+
+pBD <- ggplot(drvM[drvM$year >= 2020, ],
+              aes(.data$year, .data$value, colour = .data$arm, linetype = .data$tcLab)) +
+  geom_vline(xintercept = min(failYear), colour = "#C1442E", linetype = "22", linewidth = 0.4) +
+  geom_line(linewidth = 0.75) +
+  geom_point(data = drvM %>% filter(.data$tcLab == "tau frozen at BAU", .data$arm == "1.5C + bioenergy") %>%
+               group_by(.data$panel) %>% filter(.data$year == max(.data$year)) %>% ungroup(),
+             shape = 4, size = 2.6, stroke = 0.9, colour = "#C1442E", show.legend = FALSE) +
+  facet_wrap(~panel, scales = "free_y", nrow = 1, labeller = label_wrap_gen(width = 30)) +
+  scale_colour_manual(values = ARM_COL, name = NULL) +
+  scale_linetype_manual(values = c("tau endogenous" = "solid", "tau frozen at BAU" = "42"), name = NULL) +
+  labs(title = sprintf("Why %d: the bioenergy ramp arrives faster than frozen yields can absorb it", min(failYear)),
+       subtitle = paste("Mean over the protection x diet cells, on SOLVED timesteps only (each run gated on its own per-year modelstat).",
+                        "The x marks the last\nsolved timestep of the frozen-tau bioenergy runs. Demand is exogenous, so it does not care that tau is frozen - the land system has to."),
+       x = NULL, y = NULL) + th
+gs("14_infeasibility_anatomy.pdf", pA / pBD + patchwork::plot_layout(heights = c(1.35, 1)), 13, 10.5)
+write.csv(msAll[, c("title", "cp", "bio", "prot", "diet", "tc_state", "year", "stat", "status")],
+          file.path(OUT, "infeasibility_timeline.csv"), row.names = FALSE)
+write.csv(drvM, file.path(OUT, "infeasibility_drivers.csv"), row.names = FALSE)
+message(sprintf("F14: last solved timestep %d, failing timestep %d, in %d runs",
+                lastOK, min(failYear), length(unique(msAll$title[msAll$status == "NO FEASIBLE SOLUTION"]))))
 
 # ---- CSVs behind every figure ----------------------------------------------
 sd <- design[, c("title","cell","cp","bio","prot","diet","tc_state","is_policy","feasible")]
