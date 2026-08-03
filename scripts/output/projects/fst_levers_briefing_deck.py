@@ -45,10 +45,26 @@ def mdelta(f):
         a.setdefault((r["outcome"],arm),[]).append(float(r["delta"]))
     return {k: sum(v)/len(v) for k,v in a.items()}
 tc, diet = mdelta("tc_effect.csv"), mdelta("diet_effect.csv")
+# dTC also split by the dietary arm: the pooled mean above averages across a
+# 5-8x spread that IS the replacement story, so it must not be the only number.
+def tcd_():
+    a = {}
+    for r in rows("tc_effect.csv"):
+        if r["delta"] in ("", "NA") or r["bio"] == "on": continue
+        a.setdefault((r["outcome"], r["cp"], r["diet"]), []).append(float(r["delta"]))
+    return {k: sum(v)/len(v) for k, v in a.items()}
+tcd = tcd_()
+def repl_():
+    a = {}
+    for r in rows("replacement.csv"):
+        for k in ("tc_only", "diet_only", "both", "sum_parts"):
+            a.setdefault((r["outcome"], r["cp"], k), []).append(float(r[k]))
+    return {k: sum(v)/len(v) for k, v in a.items()}
+rp = repl_()
 me = {(r["outcome"], r["lever"]): float(r["effect"]) for r in rows("main_effects.csv")}
 lp = {(r["pool"], r["lever"]): float(r["effect"]) for r in rows("land_pool_effects.csv")}
 
-CROP="Cropland (Mha)"; CO2="Total land CO2 (Mt CO2/yr)"
+CROP="Cropland (Mha)"; CO2="Land-use change CO2 (Mt CO2/yr)"
 BIO="Terrestrial biodiversity (index)"; NSU="Cropland+pasture N surplus (Mt Nr/yr)"
 CP="Climate policy (1.5C)"; PR="Protection bundle"; DI="Dietary shift"; BE="Bioenergy demand"
 
@@ -196,16 +212,23 @@ bullets(prs, "Why that matters more than it looks",
    "on the same land base."])
 
 fig(prs, "04_tc_isolation.pdf", "Result 2: what technological change buys depends entirely on ambition",
-    f"Under 1.5C it saves {fmt(abs(tc[(CROP,'1.5C/Bio-')]))} Mha of cropland and "
-    f"{fmt(abs(tc[(CO2,'1.5C/Bio-')]))} Mt CO2/yr. Under current policy it does essentially nothing "
-    f"({fmt(tc[(CROP,'NPi/Bio-')])} Mha). Yield growth is worth little in a world that is not asking much of land.")
+    f"With no dietary shift it saves {fmt(abs(tcd[(CROP,'on','off')]))} Mha of cropland and "
+    f"{fmt(abs(tcd[(CO2,'on','off')]))} Mt CO2/yr under 1.5C, but only {fmt(abs(tcd[(CROP,'off','off')]))} Mha under "
+    "current policy. Yield growth is worth little in a world that is not asking much of land - and little again where "
+    "a dietary shift has already asked less of it (the paler bars).")
 
-fig(prs, "07_protection_vs_bioenergy.pdf", "Result 3: bioenergy eats into what land protection delivers",
+fig(prs, "13_tc_vs_diet_replacement.pdf", "Result 3: yield growth and the dietary shift replace one another",
+    f"Under 1.5C, cropland: yield growth alone {fmt(rp[(CROP,'on','tc_only')])} Mha, the dietary shift alone "
+    f"{fmt(rp[(CROP,'on','diet_only')])} Mha, together only {fmt(rp[(CROP,'on','both')])} Mha instead of "
+    f"{fmt(rp[(CROP,'on','sum_parts')])} - {100*rp[(CROP,'on','both')]/rp[(CROP,'on','sum_parts')]:.0f}% of the sum of the parts. "
+    "Supply-side and demand-side relief buy the same slack, so whichever comes first takes most of the other's value.")
+
+fig(prs, "07_protection_vs_bioenergy.pdf", "Result 4: bioenergy eats into what land protection delivers",
     f"With bioenergy demand present, protection's carbon benefit falls {ero[CO2]:.0f}%, its biodiversity benefit "
     f"{ero[BIO]:.0f}%, its cropland benefit {ero[CROP]:.0f}% - but its nitrogen benefit only {ero[NSU]:.0f}%. "
     "The collision is specifically about land carbon, not about pollution.")
 
-fig(prs, "08_main_effects.pdf", "Result 4: climate policy is the biggest lever on every boundary",
+fig(prs, "08_main_effects.pdf", "Result 5: climate policy is the biggest lever on every boundary",
     f"Cropland: climate policy {fmt(me[(CROP,CP)])} Mha, dietary shift {fmt(me[(CROP,DI)])}, protection "
     f"{fmt(me[(CROP,PR)])}. Bioenergy is the only lever that moves every boundary the wrong way "
     f"({fmt(me[(CROP,BE)])} Mha of cropland). Green = helps, red = hurts.")
@@ -216,11 +239,14 @@ fig(prs, "12_where_levers_move_land.pdf",
     f"{fmt(lp[('Pasture',CP)])} Mha). It moves land somewhere better: climate policy converts cropland to forest, "
     f"protection converts pasture to non-forest natural land, a smaller step up the naturalness gradient.")
 
-bullets(prs, "The storyline in four sentences",
+bullets(prs, "The storyline in five sentences",
   ["Yield-raising technological change is the enabling condition for a 1.5C food system: without it, climate "
    "policy plus bioenergy has no feasible solution at all.",
    "Its value is entirely contingent on ambition - large under 1.5C, negligible under current policy - so it is "
    "a complement to climate policy, not a substitute for it.",
+   f"But it IS a substitute for the dietary shift: together they deliver "
+   f"{100*rp[(CROP,'on','both')]/rp[(CROP,'on','sum_parts')]:.0f}% of the sum of their separate cropland savings. Raising yields and "
+   "cutting demand both buy the same slack in the land budget, so the second one is worth much less than the first.",
    "Ambitious land protection and bioenergy genuinely compete, and they compete over land carbon specifically: "
    f"protection's carbon benefit drops {ero[CO2]:.0f}% when bioenergy is in play, its nitrogen benefit barely at all.",
    "Carbon pricing is the largest lever on all four boundaries, including biodiversity - because it drives the "

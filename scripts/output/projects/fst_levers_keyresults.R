@@ -84,11 +84,21 @@ if (any(design$feasible %in% FALSE))
 #                                               budget Nutrient Surplus terms
 # The nitrogen indicator is therefore NARROWER in scope than the retired one
 # (no AWM / non-agricultural / end-of-life terms). Not interchangeable with June.
+#
+# CO2: LAND-USE CHANGE, not the total land flux. "Emissions|CO2|Land" =
+# "...|+|Land-use Change" + "...|+|Indirect", and the indirect term is EXOGENOUS
+# here - it is bit-identical in all 21 feasible runs at all 18 years (asserted
+# below), a constant -5860 Mt CO2/yr at 2100. It therefore adds nothing to any
+# contrast (it cancels in every delta) while dominating every LEVEL plot: it is
+# 60-140% of the bar height and it flips the reported sign, so the total reads as
+# a 4-10 Gt/yr sink in every scenario and the policy signal becomes a sliver on
+# top of a constant. Land-use change CO2 is the anthropogenic flux the levers
+# actually move, and it is what the sibling yield_gap plotter already reported.
 OUTCOME_VARS <- list(
   "Cropland+pasture N surplus (Mt Nr/yr)" =
     c("Resources|Nitrogen|Cropland Budget|Balance|+|Nutrient Surplus",
       "Resources|Nitrogen|Pasture Budget|Balance|+|Nutrient Surplus"),
-  "Total land CO2 (Mt CO2/yr)"       = "Emissions|CO2|Land",
+  "Land-use change CO2 (Mt CO2/yr)"  = "Emissions|CO2|Land|+|Land-use Change",
   "Cropland (Mha)"                   = "Resources|Land Cover|+|Cropland",
   "Terrestrial biodiversity (index)" = "SDG|SDG15|Terrestrial biodiversity",
   "Total forest (Mha)"               = "Resources|Land Cover|Forest|+|Natural Forest",
@@ -97,7 +107,7 @@ OUTCOME_VARS <- list(
   "Bioenergy area (Mha)"             = "Resources|Land Cover|Cropland|Croparea|+|Bioenergy crops")
 
 BOUNDARY <- c("Cropland+pasture N surplus (Mt Nr/yr)" = "Nitrogen",
-              "Total land CO2 (Mt CO2/yr)"            = "Climate",
+              "Land-use change CO2 (Mt CO2/yr)"       = "Climate",
               "Cropland (Mha)"                        = "Land",
               "Terrestrial biodiversity (index)"      = "Biodiversity")
 SUPPORTING <- setdiff(names(OUTCOME_VARS), names(BOUNDARY))
@@ -116,6 +126,28 @@ readGLO <- function(title) {
 }
 pool <- design[design$feasible %in% TRUE, ]
 reps <- lapply(pool$title, readGLO); names(reps) <- pool$title
+
+# Guard behind the CO2 choice above. Reporting land-use-change CO2 rather than the
+# total land flux is a pure re-baselining ONLY while the indirect term is the same
+# in every run. That holds here by construction (all runs share one climate input,
+# so the climate-driven carbon-density flux is exogenous), but "by construction"
+# is exactly the kind of claim that quietly stops being true after a merge.
+indCO2 <- lapply(reps, function(rd) {
+  x <- rd[rd$variable == "Emissions|CO2|Land|+|Indirect", c("year", "value")]
+  setNames(x$value, as.character(x$year))
+})
+indCO2 <- indCO2[lengths(indCO2) > 0]
+if (length(indCO2) > 1) {
+  yy  <- Reduce(intersect, lapply(indCO2, names))
+  mm  <- vapply(indCO2, function(x) x[yy], numeric(length(yy)))
+  spr <- max(apply(mm, 1, function(x) diff(range(x))))
+  message(sprintf("indirect CO2 flux: %d runs x %d years, max within-year spread %.3g Mt CO2/yr (2100 offset %.0f)",
+                  ncol(mm), nrow(mm), spr, mm[nrow(mm), 1]))
+  if (spr > 1e-6)
+    stop("the indirect CO2 flux is NOT scenario-invariant (spread ", signif(spr, 4),
+         " Mt CO2/yr). Reporting land CO2 as land-use change only is then no longer ",
+         "a constant re-baselining - revisit the OUTCOME_VARS comment before plotting.")
+}
 
 allv <- do.call(rbind, lapply(names(OUTCOME_VARS), function(oc) {
   vs <- OUTCOME_VARS[[oc]]
@@ -212,26 +244,76 @@ isoSlice <- function(lever) {
   w$delta <- w$on - w$off
   w
 }
-isoFig <- function(lever, file, title, sub) {
-  w <- isoSlice(lever); w <- w[w$outcome %in% names(BOUNDARY) & !is.na(w$delta), ]
-  w$arm <- armOf(w$cp, w$bio); w$facet <- lab(w$outcome)
-  m <- w %>% group_by(.data$facet, .data$arm) %>% summarise(delta = mean(.data$delta), .groups = "drop")
-  assertOneRowPerBar(m, c("facet","arm"), paste0("isolation slice: ", lever))
-  gs(file, ggplot(m, aes(arm, delta, fill = arm)) + geom_col(width = 0.65) +
-       geom_point(data = w, aes(arm, delta), inherit.aes = FALSE, size = 1.4,
-                  colour = "#333333", alpha = 0.8) +
-       geom_hline(yintercept = 0, linewidth = 0.3) +
-       facet_wrap(~facet, scales = "free_y", labeller = WRAP) +
-       scale_fill_manual(values = ARM_COL, guide = "none") +
-       labs(title = title, subtitle = sub, x = NULL, y = "difference at 2100 (outcome units)") + th)
-  w
-}
-tc_w   <- isoFig("tc",   "04_tc_isolation.pdf",
-                 "What endogenous TC buys, by planetary boundary (2100)",
-                 "Bar = mean of Y(TCendo) - Y(TCbau) over the other levers; points = the individual cells.\nThe 1.5C + bioenergy arm is absent: it has no TCbau solution at all.")
-diet_w <- isoFig("diet", "05_diet_isolation.pdf",
-                 "What the dietary shift buys, by planetary boundary (2100)",
-                 "Bar = mean of Y(DietOn) - Y(DietOff) over the other levers; points = the individual cells.")
+REGIMES <- c("current policy", "1.5C, baseline bio", "1.5C + bioenergy")
+DIETLAB <- c("no dietary shift", "with dietary shift")
+
+# ---- F04 what tau buys, BY REGIME -------------------------------------------
+# The x-axis is the POLICY REGIME because that is what tau's value is contingent
+# on, and the fill is the dietary shift because averaging over it hides a 5-8x
+# spread rather than a bit of noise (that spread IS figure 13). The earlier
+# version of this figure averaged over both and drew one bar per regime, which
+# left the individual cells scattered 2x either side of their own mean with no
+# visible reason. Bars = mean over the protection arm; points = its two cells.
+tc_w <- isoSlice("tc")
+tc_w$arm     <- armOf(tc_w$cp, tc_w$bio)
+tc_w$facet   <- lab(tc_w$outcome)
+tc_w$regime  <- factor(tc_w$arm, levels = REGIMES)
+tc_w$dietLab <- factor(ifelse(tc_w$diet == "on", DIETLAB[2], DIETLAB[1]), levels = DIETLAB)
+
+t4  <- tc_w[tc_w$outcome %in% names(BOUNDARY), ]
+t4m <- t4 %>% filter(!is.na(.data$delta)) %>%
+  group_by(.data$facet, .data$regime, .data$dietLab) %>%
+  summarise(delta = mean(.data$delta), .groups = "drop") %>% as.data.frame()
+assertOneRowPerBar(t4m, c("facet", "regime", "dietLab"), "F04 tau by regime")
+# A regime with no TCbau counterpart anywhere is LABELLED, not silently dropped:
+# an empty x-position reads as "zero effect", which is the opposite of the truth.
+t4gap <- t4 %>% group_by(.data$facet, .data$regime) %>%
+  summarise(gone = all(is.na(.data$delta)), .groups = "drop") %>%
+  filter(.data$gone) %>% mutate(delta = 0) %>% as.data.frame()
+
+gs("04_tc_isolation.pdf",
+   ggplot(t4m, aes(.data$regime, .data$delta, fill = .data$dietLab)) +
+     geom_col(position = position_dodge(width = 0.7), width = 0.62) +
+     geom_point(data = t4[!is.na(t4$delta), ],
+                aes(.data$regime, .data$delta, group = .data$dietLab),
+                position = position_dodge(width = 0.7), inherit.aes = FALSE,
+                size = 1.3, colour = "#333333", alpha = 0.85) +
+     geom_hline(yintercept = 0, linewidth = 0.3) +
+     geom_text(data = t4gap, aes(.data$regime, .data$delta),
+               label = "no solution\nat frozen tau", inherit.aes = FALSE,
+               size = 2.9, lineheight = 0.95, vjust = -0.3, colour = "#C1442E") +
+     facet_wrap(~facet, scales = "free_y", labeller = WRAP) +
+     scale_fill_manual(values = c("#0072B2", "#8FCBEA") %>% setNames(DIETLAB), name = NULL) +
+     labs(title = "What endogenous tau buys, by policy regime (2100)",
+          subtitle = paste("dTC = Y(TCendo) - Y(TCbau). Tau is worth almost nothing under current policy and a great deal under 1.5C;",
+                           "\nunder 1.5C WITH bioenergy the frozen-tau run has no solution at all. The dietary shift takes most of tau's value away."),
+          x = NULL, y = "difference at 2100 (outcome units)") + th, 12, 7)
+
+# ---- F05 what the dietary shift buys, same construction ---------------------
+diet_w <- isoSlice("diet")
+diet_w$arm   <- armOf(diet_w$cp, diet_w$bio)
+diet_w$facet <- lab(diet_w$outcome)
+d5  <- diet_w[diet_w$outcome %in% names(BOUNDARY) & !is.na(diet_w$delta), ]
+d5$regime <- factor(d5$arm, levels = REGIMES)
+d5$tcLab  <- factor(ifelse(d5$tc == "on", "endogenous tau", "tau frozen at BAU"),
+                    levels = c("tau frozen at BAU", "endogenous tau"))
+d5m <- d5 %>% group_by(.data$facet, .data$regime, .data$tcLab) %>%
+  summarise(delta = mean(.data$delta), .groups = "drop") %>% as.data.frame()
+assertOneRowPerBar(d5m, c("facet", "regime", "tcLab"), "F05 diet by regime")
+gs("05_diet_isolation.pdf",
+   ggplot(d5m, aes(.data$regime, .data$delta, fill = .data$tcLab)) +
+     geom_col(position = position_dodge(width = 0.7), width = 0.62) +
+     geom_point(data = d5, aes(.data$regime, .data$delta, group = .data$tcLab),
+                position = position_dodge(width = 0.7), inherit.aes = FALSE,
+                size = 1.3, colour = "#333333", alpha = 0.85) +
+     geom_hline(yintercept = 0, linewidth = 0.3) +
+     facet_wrap(~facet, scales = "free_y", labeller = WRAP) +
+     scale_fill_manual(values = c("tau frozen at BAU" = "#E69F00",
+                                  "endogenous tau" = "#009E73"), name = NULL) +
+     labs(title = "What the dietary shift buys, by policy regime (2100)",
+          subtitle = paste("dDiet = Y(DietOn) - Y(DietOff), split by TC state. The mirror image of figure 04: the dietary shift delivers under",
+                           "\nboth climate regimes, and it delivers most where tau is frozen - the same replacement effect seen from the other side."),
+          x = NULL, y = "difference at 2100 (outcome units)") + th, 12, 7)
 
 # ---- F06 primary: protection x bioenergy 2x2 at 1.5C, by diet --------------
 p2 <- pol[pol$cp == "on" & pol$tc == "on" & pol$outcome %in% names(BOUNDARY), ]
@@ -242,13 +324,21 @@ p2$bioLab  <- factor(ifelse(p2$bio == "on", "with bioenergy", "baseline bioenerg
 p2$dietLab <- ifelse(p2$diet == "on", "with dietary shift", "no dietary shift")
 p2$facet   <- lab(p2$outcome)
 assertOneRowPerBar(p2, c("facet","dietLab","bioLab","protLab"), "F06 protection x bioenergy")
+# An INTERACTION plot, not dodged bars. These four cells differ by a few percent
+# of their own level, so bars from a zero baseline spend ~95% of their ink on the
+# part that is identical in every cell and the 2x2 reads as four equal blocks -
+# on the biodiversity panel (0.81 everywhere) it is unreadable outright. Lines on
+# a free, non-zero-anchored axis put the ink on the differences instead, and the
+# interaction is then the thing the eye actually picks up: parallel lines = the
+# two levers are independent, converging lines = bioenergy eats protection's gain.
 gs("06_protection_x_bioenergy.pdf",
-   ggplot(p2, aes(bioLab, value, fill = protLab)) +
-     geom_col(position = position_dodge(width = 0.72), width = 0.66) +
+   ggplot(p2, aes(.data$bioLab, .data$value, colour = .data$protLab, group = .data$protLab)) +
+     geom_line(linewidth = 0.7) + geom_point(size = 2.2) +
      facet_grid(facet ~ dietLab, scales = "free_y", labeller = WRAP) +
-     scale_fill_manual(values = c("protection off" = "#E69F00", "protection on" = "#0072B2"), name = NULL) +
+     scale_colour_manual(values = c("protection off" = "#E69F00", "protection on" = "#0072B2"), name = NULL) +
      labs(title = "Protection x bioenergy at 1.5C and endogenous TC (2100 levels)",
-          subtitle = "The primary 2x2, split by whether the dietary shift is also applied",
+          subtitle = paste("The primary 2x2, split by whether the dietary shift is also applied. The vertical gap between the lines IS the protection effect;",
+                           "\nit narrows to the right in every panel. Note the y axes do not start at zero - these are levels, shown on a scale that resolves the differences."),
           x = NULL, y = NULL) + th, 12, 8)
 
 # ---- F07 protection effect eroded by bioenergy ------------------------------
@@ -296,7 +386,10 @@ gs("08_main_effects.pdf",
                        labels = c("TRUE" = "moves boundary the desired way", "FALSE" = "moves it the wrong way"),
                        name = NULL) +
      labs(title = "Main effect of each lever on each boundary (2100, endogenous TC)",
-          subtitle = "Desired direction is lower for cropland / land CO2 / N surplus, HIGHER for the biodiversity index.\nBioenergy is identified only at 1.5C, climate only at baseline bioenergy (the design has a deliberate hole).",
+          subtitle = paste("Desired direction is lower for cropland / land CO2 / N surplus, HIGHER for the biodiversity index.",
+                           "Bioenergy is identified only at 1.5C,",
+                           "\nclimate only at baseline bioenergy (the design has a deliberate hole). Tau is deliberately ABSENT: a single main effect would average its",
+                           "\nlarge 1.5C value against its near-zero current-policy value and report the mean as if it were the effect. See figures 04 and 13."),
           x = NULL, y = "mean effect at 2100 (outcome units)") + th)
 
 # ---- F09/F10 the two 2^4 cubes: full decomposition --------------------------
@@ -418,6 +511,72 @@ gs("12_where_levers_move_land.pdf",
                            "\nthe protection bundle's is pasture -> other (non-forest) natural land, a smaller step up the naturalness gradient."),
           x = NULL, y = "change vs the lever's off state (Mha)") + th, 11, 6)
 write.csv(pe, file.path(OUT, "land_pool_effects.csv"), row.names = FALSE)
+
+# ---- F13 tau vs the dietary shift: the replacement effect -------------------
+# yield_gap's marginal-contribution view, recomputed on this design and split by
+# climate regime. Within each (climate, protection) context the reference is the
+# most constrained cell - no dietary shift, tau frozen at BAU - and the three
+# treatments are tau alone, diet alone, both. Bioenergy is held at BASELINE: it
+# is the only arm with a complete TCbau set at BOTH climate regimes, since the
+# 1.5C + bioenergy corner has no frozen-tau solution to difference against.
+#
+# The dashed rule on the third bar is "tau alone + diet alone" - what the pair
+# would deliver if the two levers were independent. The bar falling short of it
+# IS the replacement effect, read straight off the figure instead of inferred
+# from an interaction coefficient in a 15-term decomposition.
+mc <- pol %>% filter(.data$bio == "off") %>%
+  select("outcome", "cp", "prot", "diet", "tc", "value") %>%
+  mutate(cellkey = paste0("d", .data$diet, "_t", .data$tc)) %>%
+  select(-"diet", -"tc") %>%
+  pivot_wider(names_from = "cellkey", values_from = "value")
+MCCELLS <- c("doff_toff", "doff_ton", "don_toff", "don_ton")
+stopifnot(all(MCCELLS %in% names(mc)), !anyNA(mc[, MCCELLS]))
+mc <- mc %>% mutate(
+  tc_only   = .data$doff_ton - .data$doff_toff,
+  diet_only = .data$don_toff - .data$doff_toff,
+  both      = .data$don_ton  - .data$doff_toff,
+  sum_parts = .data$tc_only + .data$diet_only,
+  synergy   = .data$both - .data$sum_parts,
+  tc_share  = ifelse(.data$both == 0, NA_real_, .data$tc_only / .data$both),
+  regime    = factor(ifelse(.data$cp == "on", "1.5C carbon price", "current policy"),
+                     levels = c("current policy", "1.5C carbon price")),
+  facet     = lab(.data$outcome))
+
+MCLEV <- c("tau only", "diet only", "tau + diet")
+mcl <- mc %>% select("outcome", "facet", "regime", "prot", "tc_only", "diet_only", "both") %>%
+  pivot_longer(c("tc_only", "diet_only", "both"), names_to = "lever", values_to = "delta") %>%
+  mutate(lever = factor(setNames(MCLEV, c("tc_only", "diet_only", "both"))[.data$lever],
+                        levels = MCLEV)) %>% as.data.frame()
+mclB <- mcl[mcl$outcome %in% names(BOUNDARY), ]
+m13  <- mclB %>% group_by(.data$facet, .data$regime, .data$lever) %>%
+  summarise(delta = mean(.data$delta), .groups = "drop") %>% as.data.frame()
+assertOneRowPerBar(m13, c("facet", "regime", "lever"), "F13 replacement")
+sp13 <- mc %>% filter(.data$outcome %in% names(BOUNDARY)) %>%
+  group_by(.data$facet, .data$regime) %>%
+  summarise(sum_parts = mean(.data$sum_parts), .groups = "drop") %>%
+  mutate(x = which(MCLEV == "tau + diet")) %>% as.data.frame()
+
+gs("13_tc_vs_diet_replacement.pdf",
+   ggplot(m13, aes(.data$lever, .data$delta, fill = .data$lever)) +
+     geom_col(width = 0.62) +
+     geom_point(data = mclB, aes(.data$lever, .data$delta), inherit.aes = FALSE,
+                size = 1.3, colour = "#333333", alpha = 0.85) +
+     geom_segment(data = sp13, aes(x = .data$x - 0.36, xend = .data$x + 0.36,
+                                   y = .data$sum_parts, yend = .data$sum_parts),
+                  inherit.aes = FALSE, linetype = "22", linewidth = 0.55, colour = "#1F1F1F") +
+     geom_hline(yintercept = 0, linewidth = 0.3) +
+     facet_grid(facet ~ regime, scales = "free_y", labeller = WRAP) +
+     scale_fill_manual(values = setNames(c("#0072B2", "#009E73", "#CC79A7"), MCLEV), guide = "none") +
+     labs(title = "Tau and the dietary shift replace one another",
+          subtitle = paste("Change from the most constrained cell (no dietary shift, tau frozen at BAU), at baseline bioenergy.",
+                           "Bar = mean over the protection arm, points = its two cells.",
+                           "\nDashed rule = tau alone + diet alone, i.e. what the pair would deliver if independent.",
+                           "Where the bar stops short of it, the second lever is",
+                           "\nbuying back ground the first already took."),
+          x = NULL, y = "change from reference at 2100 (outcome units)") +
+     th + theme(strip.text.y.right = element_text(angle = 0)), 12.5, 8.5)
+write.csv(mc[, c("outcome", "cp", "prot", "tc_only", "diet_only", "both", "sum_parts", "synergy", "tc_share")],
+          file.path(OUT, "replacement.csv"), row.names = FALSE)
 
 # ---- CSVs behind every figure ----------------------------------------------
 sd <- design[, c("title","cell","cp","bio","prot","diet","tc_state","is_policy","feasible")]
