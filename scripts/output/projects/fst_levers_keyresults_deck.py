@@ -61,7 +61,13 @@ diet = mean_delta("diet_effect.csv")
 
 me  = {(r["outcome"], r["lever"]): float(r["effect"]) for r in rows("main_effects.csv")}
 dec = rows("decomposition.csv")
-na_A = sorted({r["termNice"] for r in dec if r["cube"] == "A" and r["effect"] in ("", "NA")})
+# order > 0 drops the (reference) row, so nterm_A is the term count the figure
+# actually draws. Both are counted over DISTINCT terms, matching the figure
+# subtitle - counting term x outcome rows instead gives 32, which reads as wrong
+# next to a figure showing 15 term labels.
+decA    = [r for r in dec if r["cube"] == "A" and int(r["order"]) > 0]
+na_A    = sorted({r["termNice"] for r in decA if r["effect"] in ("", "NA")})
+nterm_A = len({r["termNice"] for r in decA})
 sub  = rows("substitution.csv")
 n_subst = sum(1 for r in sub if r["cls"] == "substitute")
 n_compl = sum(1 for r in sub if r["cls"] == "complement")
@@ -185,7 +191,7 @@ fig_slide(prs, "08_main_effects.pdf",
 
 fig_slide(prs, "09_decomposition_cubeA.pdf",
     "Cube A - full decomposition under 1.5C climate policy",
-    f"Treatment-coded against the all-OFF corner. {len(na_A)} of 15 terms are NOT identifiable (red x): every term "
+    f"Treatment-coded against the all-OFF corner. {len(na_A)} of {nterm_A} terms are NOT identifiable (red x): every term "
     "containing bioenergy, because its inclusion-exclusion sum passes through the infeasible frozen-tau cells. "
     "Bioenergy effects can only be read at endogenous TC.")
 

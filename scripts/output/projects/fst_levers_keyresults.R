@@ -328,7 +328,14 @@ for (nm in names(CUBES)) {
   d <- decomp[decomp$cube == nm & decomp$order > 0, ]
   d$missing <- is.na(d$effect)
   d$plotval <- ifelse(d$missing, 0, d$effect)
-  n_na <- sum(d$missing)
+  # d spans term x outcome, so sum(d$missing) counts red-x MARKS, not terms. The
+  # subtitle used to print that count and call them terms - "32 terms" on a figure
+  # showing 15 term labels, contradicting the deck caption's "8 of 15". Count
+  # DISTINCT terms, and claim panel-invariance only when the pattern really is.
+  naTerms  <- unique(d$termNice[d$missing])
+  nTerms   <- length(unique(d$termNice))
+  sameEach <- length(naTerms) > 0 &&
+              all(tapply(d$missing, d$facet, sum) == length(naTerms))
   gs(sprintf("%02d_decomposition_cube%s.pdf", if (nm == "A") 9 else 10, nm),
      ggplot(d, aes(reorder(termNice, .data$order), plotval, fill = factor(.data$order))) +
        geom_col(width = 0.7) + coord_flip() + geom_hline(yintercept = 0, linewidth = 0.3) +
@@ -338,9 +345,12 @@ for (nm in names(CUBES)) {
        scale_fill_brewer(palette = "Blues", name = "interaction order") +
        labs(title = paste0("Full 2^4 decomposition - ", CUBES[[nm]]$lab),
             subtitle = paste0("Treatment-coded against the all-OFF corner. ",
-                              if (n_na) paste0("Red x = not identifiable (", n_na,
-                                               " terms touch an infeasible cell).") else
-                                "All 16 cells feasible, every term identified."),
+                              if (length(naTerms))
+                                paste0("Red x = not identifiable (", length(naTerms), " of ",
+                                       nTerms, " terms touch an infeasible cell",
+                                       if (sameEach) ", the same terms in every panel" else "",
+                                       ").")
+                              else "All 16 cells feasible, every term identified."),
             x = NULL, y = "effect at 2100 (outcome units)") + th, 11, 7)
 }
 
