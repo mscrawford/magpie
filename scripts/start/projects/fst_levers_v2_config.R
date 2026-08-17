@@ -174,12 +174,34 @@ FST_LEVERS_SCENARIOS <- list(
   FSTL2_CPon_BioOn_Prot_DietEL    = c(FST_BACKDROP, .cp_on, .bio_on, .prot_on,  .diet_el),
   FSTL2_CPon_BioOn_Prot_DietOff   = c(FST_BACKDROP, .cp_on, .bio_on, .prot_on,  .diet_off),
   FSTL2_CPon_BioOn_NoProt_DietEL  = c(FST_BACKDROP, .cp_on, .bio_on, .prot_off, .diet_el),
-  FSTL2_CPon_BioOn_NoProt_DietOff = c(FST_BACKDROP, .cp_on, .bio_on, .prot_off, .diet_off)
+  FSTL2_CPon_BioOn_NoProt_DietOff = c(FST_BACKDROP, .cp_on, .bio_on, .prot_off, .diet_off),
+
+  # ---- 2026-08-17 ESCALATION: the same 4 cells at 2.0C ----------------------
+  # The 1.5C round above ran and ALL FOUR TCbau corners are infeasible, every one
+  # at 2045 (last optimal 2040), every one on a JAPAN constraint - but no longer
+  # the residue one, which is now clear:
+  #   Prot_DietEL    q35_min_forest   JPN_51   short 0.0022 Mha
+  #   Prot_DietOff   q60_bioenergy_reg JPN     short 11.3 mio GJ/yr
+  #   NoProt_DietEL  q21_trade_reg    JPN.livst_rum  short 0.0004
+  #   NoProt_DietOff q35_min_forest   JPN_51   short 0.0298 Mha
+  # So the residue switch-off worked and Japan is simply out of land at 1.5C
+  # bioenergy under frozen tau: the binding constraint walks along instead of
+  # disappearing. Mike's instructed ladder is 1.5C -> 2.0C -> stop and discuss.
+  # PkBudg1000 relieves the carbon price AND the bioenergy demand together, and
+  # .cp_20 MUST be paired with .bio_20 (the coherence rule the hole enforces).
+  # The 1.5C cells stay in this list so the orchestrator SKIPS them rather than
+  # re-running them.
+  FSTL2_CP20_BioOn_Prot_DietEL    = c(FST_BACKDROP, .cp_20, .bio_20, .prot_on,  .diet_el),
+  FSTL2_CP20_BioOn_Prot_DietOff   = c(FST_BACKDROP, .cp_20, .bio_20, .prot_on,  .diet_off),
+  FSTL2_CP20_BioOn_NoProt_DietEL  = c(FST_BACKDROP, .cp_20, .bio_20, .prot_off, .diet_el),
+  FSTL2_CP20_BioOn_NoProt_DietOff = c(FST_BACKDROP, .cp_20, .bio_20, .prot_off, .diet_off)
 )
 
 FST_LEVERS_TCBAU_SCENARIOS <- c(
   "FSTL2_CPon_BioOn_Prot_DietEL",   "FSTL2_CPon_BioOn_Prot_DietOff",
-  "FSTL2_CPon_BioOn_NoProt_DietEL", "FSTL2_CPon_BioOn_NoProt_DietOff"
+  "FSTL2_CPon_BioOn_NoProt_DietEL", "FSTL2_CPon_BioOn_NoProt_DietOff",
+  "FSTL2_CP20_BioOn_Prot_DietEL",   "FSTL2_CP20_BioOn_Prot_DietOff",
+  "FSTL2_CP20_BioOn_NoProt_DietEL", "FSTL2_CP20_BioOn_NoProt_DietOff"
 )
 
 # ---- design table -----------------------------------------------------------

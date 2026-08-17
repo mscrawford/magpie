@@ -14,13 +14,13 @@
 #   * The arm-level keys are not silently overridden by a per-cell block.
 #   * The country exclusion actually excludes something (negative control).
 #
-# EXPECTED_CHECKS derivation (nCells = 4, dietEL = 2):
-#   inventory 4 + design 3 + diet 4 + 1.5C tags (2*nCells) 8
-#   + noselect coupling (2*nCells) 8 + base overrides 6                    = 33
+# EXPECTED_CHECKS derivation (nCells = 8: 4 at 1.5C + 4 at 2.0C; dietEL = 4):
+#   inventory 4 + design 3 + diet 4 + climate tags (2*nCells) 16
+#   + noselect coupling (2*nCells) 16 + base overrides 6                   = 49
 
 source("scripts/start/projects/fst_levers_v2_config.R")
 
-EXPECTED_CHECKS <- 33L
+EXPECTED_CHECKS <- 49L
 n_checks <- 0L
 n_fail   <- 0L
 
@@ -39,8 +39,8 @@ cells <- setdiff(names(FST_LEVERS_SCENARIOS), "BAU")
 cat("v2 scenarios (", length(names(FST_LEVERS_SCENARIOS)), "):\n  ",
     paste(names(FST_LEVERS_SCENARIOS), collapse = "\n  "), "\n\n", sep = "")
 
-chk(length(names(FST_LEVERS_SCENARIOS)) == 5, "5 scenarios (BAU + 4 cells)")
-chk(length(FST_LEVERS_TCBAU_SCENARIOS) == 4, "4 TCbau scenarios")
+chk(length(names(FST_LEVERS_SCENARIOS)) == 9, "9 scenarios (BAU + 4 at 1.5C + 4 at 2.0C)")
+chk(length(FST_LEVERS_TCBAU_SCENARIOS) == 8, "8 TCbau scenarios")
 chk(all(grepl("^FSTL2_", cells)), "every v2 cell carries the FSTL2_ prefix")
 
 # The base config's names, re-read in a throwaway env so this file's own globals
@@ -57,11 +57,13 @@ chk(length(intersect(.base_titles, .v2_titles)) == 0,
     "no v2 run title collides with a 2026-08 batch run title")
 
 # --- 2. design table (3 checks) ----------------------------------------------
-chk(nrow(FSTL2_DESIGN) == 4, "design table has 4 rows")
-chk(all(FSTL2_DESIGN$cp == "on") && all(FSTL2_DESIGN$bio == "on"),
-    "every v2 cell is the coherent 1.5C corner (cp on, bio on)")
-chk(sum(FSTL2_DESIGN$diet == "el") == 2L && sum(FSTL2_DESIGN$diet == "off") == 2L,
-    "diet levels split 2 EL / 2 off")
+chk(nrow(FSTL2_DESIGN) == 8, "design table has 8 rows")
+# Every cell is a COHERENT climate/bioenergy pairing (bio always on, at the same
+# ambition as the price): 1.5C = PkBudg650 both sides, 2.0C = PkBudg1000 both sides.
+chk(all(FSTL2_DESIGN$cp %in% c("on", "20")) && all(FSTL2_DESIGN$bio == "on"),
+    "every v2 cell is a coherent bio-on corner at 1.5C or 2.0C")
+chk(sum(FSTL2_DESIGN$diet == "el") == 4L && sum(FSTL2_DESIGN$diet == "off") == 4L,
+    "diet levels split 4 EL / 4 off")
 
 # --- 3. the diet lever (4 checks) --------------------------------------------
 el_cells <- cells[grepl("DietEL$", cells)]
@@ -87,12 +89,19 @@ chk(identical(got, sort(c("s15_exo_diet", "c15_kcal_scen", "s15_exo_foodscen_sta
                           "s15_exo_foodscen_target", "s15_exo_foodscen_convergence"))),
     "diet factor flips exactly the intended keys")
 
-# --- 4. the 1.5C tags (8 checks) ---------------------------------------------
+# --- 4. climate tags, and the c56/c60 pairing rule (16 checks) ---------------
+# The price and the bioenergy demand are the two images of ONE energy-system
+# solution, so they must carry the SAME tag; a PkBudg1000 price against PkBudg650
+# demand is the two-halves-of-two-scenarios defect the design hole exists to avoid.
+expected_tag <- function(s) {
+  if (grepl("^FSTL2_CPon_", s)) "R34M410-SSP2-PkBudg650" else "R34M410-SSP2-PkBudg1000"
+}
 for (s in cells) {
-  chk(identical(FST_LEVERS_SCENARIOS[[s]]$c56_pollutant_prices, "R34M410-SSP2-PkBudg650"),
-      paste0(s, ": 1.5C carbon price"))
-  chk(identical(FST_LEVERS_SCENARIOS[[s]]$c60_2ndgen_biodem, "R34M410-SSP2-PkBudg650"),
-      paste0(s, ": 1.5C bioenergy demand"))
+  tag <- expected_tag(s)
+  chk(identical(FST_LEVERS_SCENARIOS[[s]]$c56_pollutant_prices, tag),
+      paste0(s, ": carbon price = ", tag))
+  chk(identical(FST_LEVERS_SCENARIOS[[s]]$c60_2ndgen_biodem, tag),
+      paste0(s, ": bioenergy demand = ", tag, " (paired with the price)"))
 }
 
 # --- 5. the noselect coupling + arm-level keys (8 checks) --------------------
