@@ -29,6 +29,13 @@
 #   FST_LEVERS_QOS=short Rscript scripts/start/projects/fst_levers.R
 #   FST_LEVERS_DRYRUN=1  Rscript scripts/start/projects/fst_levers.R   # show, do not submit
 #
+#   FST_LEVERS_CONFIG   swap the scenario list (default: fst_levers_config.R).
+#                       A config may also define fstLeversBaseOverrides(cfg) for
+#                       arm-level settings; see fst_levers_v2_config.R.
+#   FST_LEVERS_SUMMARY  where to write the summary rds (default:
+#                       output/fst_levers_summary.rds). Set it for a second arm,
+#                       or that arm's summary overwrites the main batch's.
+#
 # ON THE CLUSTER, run this script itself as a batch job (or under tmux/nohup):
 # it polls for hours, and a foreground R process on a login node is reaped on
 # logout. Submit it to a qos with no 24 h wall limit (e.g. "SLURM medium").
@@ -63,7 +70,10 @@ suppressMessages({
 })
 
 source("scripts/start_functions.R")
-source("scripts/start/projects/fst_levers_config.R")
+# The scenario list is swappable so a second arm of the experiment can reuse this
+# orchestrator without forking it. Defaults to the main config, so an unchanged
+# invocation behaves exactly as before.
+source(Sys.getenv("FST_LEVERS_CONFIG", "scripts/start/projects/fst_levers_config.R"))
 source("scripts/output/extra/pin_bau_tau.R")
 
 # ---- knobs ------------------------------------------------------------------
@@ -117,6 +127,15 @@ cfg$output <- c("output_check", "rds_report")
 # (SSP2 sets c56_emis_policy and c60_res_2ndgenBE_dem; the config deliberately
 # overrides the former and inherits the latter.) Do not reorder.
 cfg <- gms::setScenario(cfg, c("SSP2", "NPI"))
+
+# Arm-level base overrides, if the loaded config defines them. Deliberately AFTER
+# setScenario (so an override wins over an SSP2 scenario column) and BEFORE
+# applyTCScenario (so a per-cell block still wins over an arm-level default).
+# The main config defines no such function, so this is inert for it.
+if (exists("fstLeversBaseOverrides", mode = "function")) {
+  message("Applying arm-level base overrides from the loaded scenario config.")
+  cfg <- fstLeversBaseOverrides(cfg)
+}
 
 # ---- helpers ----------------------------------------------------------------
 
@@ -311,7 +330,8 @@ for (scen in FST_LEVERS_TCBAU_SCENARIOS) {
 summary_df <- do.call(rbind, summary_rows)
 print(summary_df, row.names = FALSE)
 
-saveRDS(summary_df, "output/fst_levers_summary.rds")
+# Per-arm summary path, so a second arm cannot overwrite the main batch's summary.
+saveRDS(summary_df, Sys.getenv("FST_LEVERS_SUMMARY", "output/fst_levers_summary.rds"))
 
 n_ok <- sum(summary_df$feasible %in% TRUE)  # %in% treats NA as no-match
 message(sprintf("\n%d/%d runs feasible.", n_ok, nrow(summary_df)))

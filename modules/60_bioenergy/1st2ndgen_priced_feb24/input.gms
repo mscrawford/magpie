@@ -68,6 +68,20 @@ $offdelim
 
 $setglobal c60_res_2ndgenBE_dem  ssp2
 *   options:    ssp1,ssp2,ssp3,ssp4,ssp5,off
+* c60_res_2ndgenBE_dem applies to the countries in scen_countries60 - the SAME
+* country set that selects c60_2ndgen_biodem - and c60_res_2ndgenBE_dem_noselect
+* applies to all other countries, exactly as for the dedicated 2nd-gen demand.
+* This makes it possible to switch the exogenous residue demand off in a single
+* region without touching any other region. Because both default to the same
+* scenario and scen_countries60 defaults to all countries, the default result is
+* unchanged: the region share is then 1 everywhere and the blend in presolve.gms
+* reduces to the selected scenario exactly.
+* NOTE the asymmetry kept for backward compatibility: the historical-period
+* override further down in presolve.gms still keys on the SELECTED switch alone,
+* so c60_res_2ndgenBE_dem = "off" still zeroes EVERY region over the whole
+* horizon, as it always did.
+$setglobal c60_res_2ndgenBE_dem_noselect  ssp2
+*   options:    ssp1,ssp2,ssp3,ssp4,ssp5,off
 
 table f60_res_2ndgenBE_dem(t_all,i,scen2ndres60) annual residue demand for 2nd generation bioenergy(regional) (mio. GJ per yr)
 $ondelim
