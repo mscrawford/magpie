@@ -32,6 +32,24 @@
 # v2 removes that artifact so the design can be discussed on its land-use merits,
 # and leaves the artifact itself for a later, separate fix.
 #
+# #############################################################################
+# 2026-08-18: CHANGE 1 (the module-60 residue patch) HAS BEEN REVERTED.
+#
+# Mike's call after the 1.5C round. Exempting Japan's residue demand ALONE still
+# left all four TCbau corners infeasible, so the patch did not buy the 1.5C
+# dynamics it was written for. The model source goes back to stock and the Japan
+# exemption is expressed in CONFIG ALONE. The patch is preserved verbatim, with
+# its backward-compatibility proof, in project memory
+# `magpie_residue_noselect_patch` (clone commit a6581aea1).
+#
+# REPRODUCIBILITY CONSEQUENCE: every FSTL2_* and FSTL3_* run on disk was produced
+# WITH the patch applied. They CANNOT be reproduced from the current tree without
+# re-applying it. Their folders already exist so the orchestrator skips them - do
+# not delete one expecting a re-run to recreate the same scenario.
+#
+# CHANGE 1 is kept below verbatim as the record of what the patch did and why.
+# #############################################################################
+#
 # ---- CHANGE 1: Japan's exogenous residue demand is switched off -------------
 #
 # Implemented with the country-selection ("noselect") idiom the module already
@@ -140,13 +158,14 @@ fstLeversBaseOverrides <- function(cfg) {
   iso <- iso[nzchar(iso)]
   if (!FSTL2_EXCLUDED_ISO %in% iso) {
     stop("fst_levers v2: '", FSTL2_EXCLUDED_ISO, "' is not in all_iso_countries; ",
-         "the residue switch-off would silently be a no-op.")
+         "the Japan bioenergy exemption would silently be a no-op.")
   }
-  # Selected countries keep the SSP2 residue demand; the one de-selected country
-  # (Japan) falls through to the _noselect scenario, which is "off" = zero.
-  cfg$gms$scen_countries60              <- paste(setdiff(iso, FSTL2_EXCLUDED_ISO), collapse = ",")
-  cfg$gms$c60_res_2ndgenBE_dem          <- "ssp2"
-  cfg$gms$c60_res_2ndgenBE_dem_noselect <- "off"
+  # scen_countries60 drives the DEDICATED 2nd-gen demand split (preloop.gms:30-31)
+  # and, since the 2026-08-18 revert, nothing else. Stock MAgPIE gives the RESIDUE
+  # channel no country split, so c60_res_2ndgenBE_dem applies globally - Japan
+  # included. Set explicitly rather than inherited so the value is visible here.
+  cfg$gms$scen_countries60     <- paste(setdiff(iso, FSTL2_EXCLUDED_ISO), collapse = ",")
+  cfg$gms$c60_res_2ndgenBE_dem <- "ssp2"
   cfg
 }
 
@@ -229,7 +248,29 @@ FST_LEVERS_SCENARIOS <- list(
   FSTL3_CPon_BioOnXJP_Prot_DietEL    = c(FST_BACKDROP, .cp_on, .bio_on_xjp, .prot_on,  .diet_el),
   FSTL3_CPon_BioOnXJP_Prot_DietOff   = c(FST_BACKDROP, .cp_on, .bio_on_xjp, .prot_on,  .diet_off),
   FSTL3_CPon_BioOnXJP_NoProt_DietEL  = c(FST_BACKDROP, .cp_on, .bio_on_xjp, .prot_off, .diet_el),
-  FSTL3_CPon_BioOnXJP_NoProt_DietOff = c(FST_BACKDROP, .cp_on, .bio_on_xjp, .prot_off, .diet_off)
+  FSTL3_CPon_BioOnXJP_NoProt_DietOff = c(FST_BACKDROP, .cp_on, .bio_on_xjp, .prot_off, .diet_off),
+
+  # ---- 2026-08-18 ROUND 4: the same four cells with NO model change ---------
+  # The module-60 residue patch is reverted, so Japan's RESIDUE demand follows the
+  # global ssp2 scenario again while its DEDICATED demand stays on NPi2025 through
+  # the stock _noselect twin. This is the one rung of the feasibility ladder never
+  # tested, and the decisive one:
+  #
+  #   Japan fully on ................. TCbau 0/4   FSTL2_CPon, pre-patch
+  #   residue off, dedicated on ...... TCbau 0/4   FSTL2_CPon, post-patch
+  #   residue off, dedicated off ..... TCbau 4/4   FSTL3
+  #   residue ON,  dedicated off ..... this arm    <- untested
+  #
+  # If these four TCbau corners solve, the patch was never load-bearing and the
+  # whole Japan exemption is pure config. If they do not, the patch has to return.
+  #
+  # The SWITCH SET here is byte-identical to FSTL3's - the difference lives in the
+  # model source, not in cfg. Hence a distinct bio token (BioOnXJPded), so that no
+  # downstream consumer can pool the two arms on switch equality alone.
+  FSTL4_CPon_BioOnXJPded_Prot_DietEL    = c(FST_BACKDROP, .cp_on, .bio_on_xjp, .prot_on,  .diet_el),
+  FSTL4_CPon_BioOnXJPded_Prot_DietOff   = c(FST_BACKDROP, .cp_on, .bio_on_xjp, .prot_on,  .diet_off),
+  FSTL4_CPon_BioOnXJPded_NoProt_DietEL  = c(FST_BACKDROP, .cp_on, .bio_on_xjp, .prot_off, .diet_el),
+  FSTL4_CPon_BioOnXJPded_NoProt_DietOff = c(FST_BACKDROP, .cp_on, .bio_on_xjp, .prot_off, .diet_off)
 )
 
 FST_LEVERS_TCBAU_SCENARIOS <- c(
@@ -238,7 +279,9 @@ FST_LEVERS_TCBAU_SCENARIOS <- c(
   "FSTL2_CP20_BioOn_Prot_DietEL",   "FSTL2_CP20_BioOn_Prot_DietOff",
   "FSTL2_CP20_BioOn_NoProt_DietEL", "FSTL2_CP20_BioOn_NoProt_DietOff",
   "FSTL3_CPon_BioOnXJP_Prot_DietEL",   "FSTL3_CPon_BioOnXJP_Prot_DietOff",
-  "FSTL3_CPon_BioOnXJP_NoProt_DietEL", "FSTL3_CPon_BioOnXJP_NoProt_DietOff"
+  "FSTL3_CPon_BioOnXJP_NoProt_DietEL", "FSTL3_CPon_BioOnXJP_NoProt_DietOff",
+  "FSTL4_CPon_BioOnXJPded_Prot_DietEL",   "FSTL4_CPon_BioOnXJPded_Prot_DietOff",
+  "FSTL4_CPon_BioOnXJPded_NoProt_DietEL", "FSTL4_CPon_BioOnXJPded_NoProt_DietOff"
 )
 
 # ---- design table -----------------------------------------------------------
@@ -253,11 +296,15 @@ FST_LEVERS_TOKENS$diet <- c(FST_LEVERS_TOKENS$diet, DietEL = "el")
 # consumer can silently pool it with the global BioOn arm - the two are not the
 # same scenario, and any 2^k machinery must pin levels rather than assume binary.
 FST_LEVERS_TOKENS$bio  <- c(FST_LEVERS_TOKENS$bio,  BioOnXJP = "on_xjp")
+# A FOURTH bioenergy level: as BioOnXJP, but Japan is exempted from the DEDICATED
+# ramp only - its residue demand follows the global scenario. Identical cfg to
+# BioOnXJP; the two differ in the MODEL SOURCE, so they must never be pooled.
+FST_LEVERS_TOKENS$bio  <- c(FST_LEVERS_TOKENS$bio,  BioOnXJPded = "on_xjp_ded")
 
 FSTL2_DESIGN <- do.call(rbind, lapply(
   setdiff(names(FST_LEVERS_SCENARIOS), "BAU"),
   function(scen) {
-    d <- parseCellName(sub("^FSTL[23]_", "", scen))
+    d <- parseCellName(sub("^FSTL[234]_", "", scen))
     d$scenario <- scen
     d
   }))

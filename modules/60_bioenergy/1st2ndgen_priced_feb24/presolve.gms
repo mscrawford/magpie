@@ -24,14 +24,8 @@ if(m_year(t) <= sm_fix_SSP2,
 else
   i60_1stgen_bioenergy_dem(t,i,kall) =
     f60_1stgen_bioenergy_dem(t,i,"%c60_1stgen_biodem%",kall);
-* Residue demand is split by country selection in the same way as the dedicated
-* 2nd-generation demand in preloop.gms: the selected scenario applies to the
-* countries in scen_countries60, the _noselect scenario to all others, weighted
-* by the population share p60_region_BE_shr. With the default (all countries
-* selected) the share is 1 and this reduces EXACTLY to the selected scenario.
   i60_res_2ndgenBE_dem(t,i) =
-    f60_res_2ndgenBE_dem(t,i,"%c60_res_2ndgenBE_dem%") * p60_region_BE_shr(t,i)
-    + f60_res_2ndgenBE_dem(t,i,"%c60_res_2ndgenBE_dem_noselect%") * (1-p60_region_BE_shr(t,i));
+    f60_res_2ndgenBE_dem(t,i,"%c60_res_2ndgenBE_dem%");
 );
 
 * for residues used as bioenergy feedstock switch off
