@@ -118,7 +118,10 @@ dietOn   <- FST_LEVERS_DESIGN$scenario[FST_LEVERS_DESIGN$diet == "on"]
 protOn   <- FST_LEVERS_DESIGN$scenario[FST_LEVERS_DESIGN$prot == "on"]
 for (s in cells) {
   v <- FST_LEVERS_SCENARIOS[[s]]
-  chk(identical(v$s44_start_year, 2026),          paste0(s, ": BII start 2026 (model requires >sm_fix_SSP2)"))
+  # 2030, not 2026: module 44 matches the start year against m_year(t) EXACTLY, so
+  # an off-grid year silently disables the whole BII target. This assertion used to
+  # lock in 2026 and would now fail the fix, which is the point of updating it.
+  chk(identical(v$s44_start_year, 2030),          paste0(s, ": BII start 2030 (a timestep AND >sm_fix_SSP2)"))
   chk(identical(v$s44_target_year, 2050),         paste0(s, ": BII target 2050"))
   chk(identical(v$s22_conservation_target, 2050), paste0(s, ": conservation target 2050"))
   chk(identical(v$s29_snv_scenario_target, 2050), paste0(s, ": SNV target 2050"))

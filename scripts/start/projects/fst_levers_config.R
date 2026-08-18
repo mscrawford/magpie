@@ -282,7 +282,18 @@ FST_BACKDROP <- c(.macc_block, .ghgframe_block)
   s22_conservation_target       = 2050,
   s22_restore_land              = 1,
   s44_bii_target                = 0.78,
-  s44_start_year                = 2026,
+  # 2030, NOT 2026. Module 44 builds p44_bii_target inside
+  #   if (m_year(t) = s44_start_year AND s44_bii_target > 0, ... )
+  # an EXACT timestep match, unlike every other lever here, which uses an
+  # m_*_time_interpol fader anchored at a year that need not be a timestep. 2026
+  # satisfies the module's own abort guard (s44_start_year > sm_fix_SSP2 = 2025)
+  # but is NOT on the timestep grid (...2020, 2025, 2030...), so the block never
+  # fired: p44_bii_target stayed at its preloop 0 across all 15336 entries, total
+  # shortfall was exactly 0, and vm_cost_bv_loss never accrued. The BII floor was
+  # INERT in every run before 2026-08-18. 2030 is the earliest year that is both a
+  # timestep and > 2025. Verified against the old batch, where start_year 2030
+  # gives 1540 nonzero target entries and a 0.76 shortfall at 2100.
+  s44_start_year                = 2030,
   s44_target_year               = 2050,
   c44_bii_decrease              = 1,
   s29_snv_shr                   = 0.2,
@@ -301,7 +312,9 @@ FST_BACKDROP <- c(.macc_block, .ghgframe_block)
   s22_conservation_target       = 2050,
   s22_restore_land              = 1,
   s44_bii_target                = 0,
-  s44_start_year                = 2026,
+  # Kept identical to .prot_on so the protection factor toggles s44_bii_target
+  # alone. Inert here regardless (the module block also requires target > 0).
+  s44_start_year                = 2030,
   s44_target_year               = 2050,
   c44_bii_decrease              = 1,
   s29_snv_shr                   = 0,
