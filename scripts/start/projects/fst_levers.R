@@ -117,10 +117,30 @@ cfg$gms$c_timesteps   <- TIMESTEPS
 if (SLURM) cfg$qos <- Sys.getenv("FST_LEVERS_QOS", "short")
 
 # Drop extra/disaggregation. It runs INSIDE the SLURM job, after GAMS, against
-# the same wall-time and memory budget, and produces gridded output this
-# experiment does not use (every outcome is a global or regional aggregate).
-# Keeping it is the main OOM path, and an OOM kill triggers the no-modelstat
-# hang the deadline above guards against.
+# the same wall-time and memory budget. Keeping it is the main OOM path, and an
+# OOM kill triggers the no-modelstat hang the deadline above guards against.
+#
+# 2026-08-18 - THIS IS NOT FREE, and the earlier claim here that the gridded
+# output is unused was wrong. SIX magpie4 report functions read the gridded files
+# disaggregation writes, and each one fails without them:
+#
+#   cell.land_0.5.mz       -> reportBII, reportPBbiosphere, reportPBnitrogen,
+#                             reportNitrogenPollution, reportFit(level='grid')
+#   cell.land_split_0.5.mz -> reportPBland
+#
+# getReport() catches each failure per function and carries on, so report.rds
+# ships SILENTLY missing BII and three of the four planetary boundaries, with the
+# only trace an ERROR line in the run's slurm.log. For a project whose subject is
+# the planetary boundaries, that is a hole, not a saving.
+#
+# The fix keeps both properties: leave the model job lean, and disaggregate
+# AFTERWARDS as a separate post-processing job, where an OOM can no longer take a
+# finished solve with it. After a batch completes, run
+#
+#   04-fst-levers/analysis/submit_disagg.sh <run-name> [<run-name> ...]
+#
+# which re-runs extra/disaggregation + rds_report per run and rewrites
+# report.rds in place, complete. Verified on FSTL3 (2026-08-18).
 cfg$output <- c("output_check", "rds_report")
 
 # Scenario columns FIRST, experiment switches AFTER: applyTCScenario must win.
