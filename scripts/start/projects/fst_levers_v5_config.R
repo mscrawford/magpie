@@ -1,3 +1,9 @@
+# ---- LINEAGE / STATUS -------------------------------------------------------
+# CURRENT ENTRY POINT (as of 2026-08-18). Top of the stack:
+#     THIS FILE -> fst_levers_v2_config.R -> fst_levers_config.R
+# All three are live. Run the orchestrator against this file.
+# See RIKEN/04-fst-levers/LINEAGE.md for which arm is current.
+# -----------------------------------------------------------------------------
 # fst_levers ARM 5: the first arm in which the BII target actually works.
 #
 # WHY THIS ARM EXISTS

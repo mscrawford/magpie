@@ -5,6 +5,19 @@
 # |  MAgPIE License Exception, version 1.0 (see LICENSE file).
 # |  Contact: magpie@pik-potsdam.de
 
+# ---- LINEAGE / STATUS -------------------------------------------------------
+# FROZEN at the 2026-08 5-factor / 25-run iteration, which is SUPERSEDED.
+# Two known limits, and they must be fixed together or not at all:
+#   1. the discovery regex below does not match the CP20_* (2.0C) runs;
+#   2. the climate level is derived as ifelse(tk[1] == "CPon", "on", "off"),
+#      so loosening the regex alone would silently label every CP20 run
+#      climate-OFF.
+# The CURRENT pipeline for round-2 arms is RIKEN/04-fst-levers/analysis/
+# (extract_fstl.R / plot_fstl.R / build_doc.py), parameterised by FSTL_ARM.
+# Do not mix this script's outputs with that pipeline's in one figure or deck.
+# See RIKEN/04-fst-levers/LINEAGE.md for which arm is current.
+# -----------------------------------------------------------------------------
+
 # Standalone analysis for the 5-factor fst_levers design (25 runs).
 # Produces every figure the deck needs, plus a CSV behind each one.
 #

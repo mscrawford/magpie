@@ -1,3 +1,12 @@
+> **STATUS: PARTLY SUPERSEDED** | written for the 5-factor / 25-run iteration (2026-08-02) | as of 2026-08-18 | authority: `RIKEN/04-fst-levers/LINEAGE.md`
+>
+> The METHODS here (block-composition config, the two-phase tau-pinned orchestrator, the
+> 2^k decomposition algebra, the SLURM hazards) are still correct and still canonical.
+> The DESIGN description is not: the experiment has since moved to the round-2 arms, and
+> the current arm is FSTL5, a 2^3 protection x diet x TC at 1.5C. Two claims in here are
+> retracted - "TC is a prerequisite for 1.5C bioenergy" (a Japan-region artifact), and any
+> description of the protection bundle as including a BII floor (it was inert before FSTL5).
+
 # fst_levers experiment
 
 As a **Food System Transformation** (FST) is assembled from its levers, how do

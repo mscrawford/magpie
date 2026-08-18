@@ -5,6 +5,13 @@
 # |  MAgPIE License Exception, version 1.0 (see LICENSE file).
 # |  Contact: magpie@pik-potsdam.de
 
+# ---- LINEAGE / STATUS -------------------------------------------------------
+# LIVE - MIDDLE LAYER of a three-file stack. Sourced by fst_levers_v5_config.R,
+# sources fst_levers_config.R. Holds the Japan exclusion machinery and the
+# FSTL2/FSTL3 designs. Not an entry point on its own for current work.
+# See RIKEN/04-fst-levers/LINEAGE.md for which arm is current.
+# -----------------------------------------------------------------------------
+
 # fst_levers ROUND 2 ("v2"): the 1.5C coherent corner, re-run with the Japan
 # residue artifact removed and the dietary lever switched to MAgPIE's own
 # EAT-Lancet realization.

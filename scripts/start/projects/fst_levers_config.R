@@ -5,6 +5,16 @@
 # |  MAgPIE License Exception, version 1.0 (see LICENSE file).
 # |  Contact: magpie@pik-potsdam.de
 
+# ---- LINEAGE / STATUS -------------------------------------------------------
+# LIVE - BASE LAYER of a three-file stack. NOT superseded, despite the newer
+# v2/v5 filenames sitting beside it:
+#     fst_levers_v5_config.R  ->  sources v2  ->  sources THIS FILE
+# The lever atoms (.cp_*, .bio_*, .prot_*, .diet_*) and the corrected BII start
+# year live here, so the current arm depends on this file. Do not delete or
+# bypass it. Only fst_levers_v5_config.R is an entry point.
+# See RIKEN/04-fst-levers/LINEAGE.md for which arm is current.
+# -----------------------------------------------------------------------------
+
 # Scenario definitions for the fst_levers experiment.
 # See scripts/start/projects/fst_levers.R for the orchestrator and
 # scripts/start/projects/fst_levers_README.md for the methods writeup.
