@@ -150,6 +150,24 @@ fstLeversBaseOverrides <- function(cfg) {
   cfg
 }
 
+# ---- Factor 3 variant: the 1.5C ramp for everyone EXCEPT Japan --------------
+
+# Identical to .bio_on for every selected country, but the de-selected one
+# (Japan, already excluded from scen_countries60 by fstLeversBaseOverrides) falls
+# through to the _noselect scenario and stays on the NPi2025 baseline trajectory.
+# So Japan is exempted from the 1.5C BECCS ramp without touching any other region.
+#
+# NPi2025, not zero, and not "none": the _noselect value is used directly as a
+# column of f60_bioenergy_dem, so it must be a member of scen2nd60. "none" is NOT
+# a member - it is a special case handled earlier in preloop.gms and keyed on the
+# SELECTED switch only, so putting it here would be an invalid set element rather
+# than a switch-off. NPi2025 is also exactly what this design already means by
+# "baseline bioenergy demand" (.bio_off), which keeps the arm interpretable.
+.bio_on_xjp <- list(
+  c60_2ndgen_biodem             = "R34M410-SSP2-PkBudg650",
+  c60_2ndgen_biodem_noselect    = "R34M410-SSP2-NPi2025"
+)
+
 # ---- Factor 5, v2 arm: MAgPIE's own EAT-Lancet diet -------------------------
 
 # ON = s15_exo_diet 3. Deliberately no c15_EAT_scen (inert here, and setting it
@@ -194,14 +212,33 @@ FST_LEVERS_SCENARIOS <- list(
   FSTL2_CP20_BioOn_Prot_DietEL    = c(FST_BACKDROP, .cp_20, .bio_20, .prot_on,  .diet_el),
   FSTL2_CP20_BioOn_Prot_DietOff   = c(FST_BACKDROP, .cp_20, .bio_20, .prot_on,  .diet_off),
   FSTL2_CP20_BioOn_NoProt_DietEL  = c(FST_BACKDROP, .cp_20, .bio_20, .prot_off, .diet_el),
-  FSTL2_CP20_BioOn_NoProt_DietOff = c(FST_BACKDROP, .cp_20, .bio_20, .prot_off, .diet_off)
+  FSTL2_CP20_BioOn_NoProt_DietOff = c(FST_BACKDROP, .cp_20, .bio_20, .prot_off, .diet_off),
+
+  # ---- 2026-08-18 ROUND 3: Japan exempted from the DEDICATED ramp too -------
+  # Mike's call after seeing the 1.5C result. The residue switch-off cleared
+  # q60_res_2ndgenBE but the corner still failed, with the binding constraint
+  # walking to Japan's dedicated bioenergy demand, its minimum-forest floor and a
+  # trade balance. This arm asks the obvious follow-up: if Japan is exempted from
+  # the 1.5C BECCS ramp ENTIRELY, does 1.5C solve under frozen tau?
+  #
+  # No model change needed - the dedicated channel has had a _noselect twin all
+  # along, and scen_countries60 already excludes JPN, so this is purely a config
+  # difference (see .bio_on_xjp). The bio token is BioOnXJP, a THIRD level of the
+  # bioenergy factor, deliberately named so no consumer can mistake it for the
+  # global BioOn arm: Japan is on baseline demand while everyone else ramps.
+  FSTL3_CPon_BioOnXJP_Prot_DietEL    = c(FST_BACKDROP, .cp_on, .bio_on_xjp, .prot_on,  .diet_el),
+  FSTL3_CPon_BioOnXJP_Prot_DietOff   = c(FST_BACKDROP, .cp_on, .bio_on_xjp, .prot_on,  .diet_off),
+  FSTL3_CPon_BioOnXJP_NoProt_DietEL  = c(FST_BACKDROP, .cp_on, .bio_on_xjp, .prot_off, .diet_el),
+  FSTL3_CPon_BioOnXJP_NoProt_DietOff = c(FST_BACKDROP, .cp_on, .bio_on_xjp, .prot_off, .diet_off)
 )
 
 FST_LEVERS_TCBAU_SCENARIOS <- c(
   "FSTL2_CPon_BioOn_Prot_DietEL",   "FSTL2_CPon_BioOn_Prot_DietOff",
   "FSTL2_CPon_BioOn_NoProt_DietEL", "FSTL2_CPon_BioOn_NoProt_DietOff",
   "FSTL2_CP20_BioOn_Prot_DietEL",   "FSTL2_CP20_BioOn_Prot_DietOff",
-  "FSTL2_CP20_BioOn_NoProt_DietEL", "FSTL2_CP20_BioOn_NoProt_DietOff"
+  "FSTL2_CP20_BioOn_NoProt_DietEL", "FSTL2_CP20_BioOn_NoProt_DietOff",
+  "FSTL3_CPon_BioOnXJP_Prot_DietEL",   "FSTL3_CPon_BioOnXJP_Prot_DietOff",
+  "FSTL3_CPon_BioOnXJP_NoProt_DietEL", "FSTL3_CPon_BioOnXJP_NoProt_DietOff"
 )
 
 # ---- design table -----------------------------------------------------------
@@ -212,11 +249,15 @@ FST_LEVERS_TCBAU_SCENARIOS <- c(
 # at a fixed (cp=on, bio=on) corner, so it defines no cubes at all; any later
 # merge with the 2026-08 batch must pin diet levels explicitly.
 FST_LEVERS_TOKENS$diet <- c(FST_LEVERS_TOKENS$diet, DietEL = "el")
+# A THIRD bioenergy level: the 1.5C ramp everywhere EXCEPT Japan. Named so that no
+# consumer can silently pool it with the global BioOn arm - the two are not the
+# same scenario, and any 2^k machinery must pin levels rather than assume binary.
+FST_LEVERS_TOKENS$bio  <- c(FST_LEVERS_TOKENS$bio,  BioOnXJP = "on_xjp")
 
 FSTL2_DESIGN <- do.call(rbind, lapply(
   setdiff(names(FST_LEVERS_SCENARIOS), "BAU"),
   function(scen) {
-    d <- parseCellName(sub("^FSTL2_", "", scen))
+    d <- parseCellName(sub("^FSTL[23]_", "", scen))
     d$scenario <- scen
     d
   }))
