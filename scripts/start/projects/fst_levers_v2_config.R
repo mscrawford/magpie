@@ -128,11 +128,15 @@
 #
 # ---- What is NOT changed ---------------------------------------------------
 #
-#   * The tau pin. Phase 2 still pins to the EXISTING BAU_TCendo gdx from the
-#     2026-08 batch (BAU is listed below only so the orchestrator can find and
-#     skip it; it is NOT re-run, and its own residue demand is untouched). tau is
-#     a productivity trajectory, and a shared BAU pin is what makes cells
-#     comparable - see the base config's note on per-cell pinning.
+#   * The tau pin. Phase 2 still pins to the EXISTING BAU_TCendo gdx - a single
+#     run from 2026-06-20 at commit 70be7fccf (the branch divergence point),
+#     reused by every arm since (BAU is listed below only so the orchestrator can
+#     find and skip it; it is NOT re-run, and its own residue demand is
+#     untouched). tau is a productivity trajectory, and a shared BAU pin is what
+#     makes cells comparable - see the base config's note on per-cell pinning.
+#     Valid across commits because the net model-code diff 70be7fccf..ffe7547cd
+#     (modules/ core/ main.gms config/) is EMPTY: the module-60 residue patch was
+#     added and reverted in between, netting to zero.
 #   * Every other factor block: backdrop, climate, bioenergy, protection are
 #     taken verbatim from fst_levers_config.R.
 #
