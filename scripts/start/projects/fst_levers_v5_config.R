@@ -1,7 +1,8 @@
 # ---- LINEAGE / STATUS -------------------------------------------------------
-# CURRENT ENTRY POINT (as of 2026-08-18). Top of the stack:
-#     THIS FILE -> fst_levers_v2_config.R -> fst_levers_config.R
-# All three are live. Run the orchestrator against this file.
+# SUPERSEDED as entry point by fst_levers_v6_config.R (as of 2026-08-19), which is
+# a SIBLING of this file - v6 sources fst_levers_v2_config.R directly, exactly as
+# this file does. Keep this file: it is how the FSTL5 arm is reproduced, and FSTL6
+# reproduces FSTL5's eight cells exactly (max relative deviation 0).
 # See RIKEN/04-fst-levers/LINEAGE.md for which arm is current.
 # -----------------------------------------------------------------------------
 # fst_levers ARM 5: the first arm in which the BII target actually works.
