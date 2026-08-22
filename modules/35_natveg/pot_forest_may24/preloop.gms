@@ -5,6 +5,11 @@
 *** |  MAgPIE License Exception, version 1.0 (see LICENSE file).
 *** |  Contact: magpie@pik-potsdam.de
 
+** Edge-effect vegc factor read by 32_forestry. The presolve of 32 runs before the presolve of
+** 35 within a time step, so 32 sees the value set in the previous step; 1 = no reduction until
+** the first edge presolve has run (and always, when s35_edge_carbon = 0).
+pm_carbon_edge_factor(j) = 1;
+
 ** initialize other land
 i35_land_other(j,othertype35,ac) = 0;
 i35_land_other(j,"othernat","acx") = pcm_land(j,"other");

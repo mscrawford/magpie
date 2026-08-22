@@ -39,6 +39,7 @@ scalars
   s32_aff_bii_coeff               BII coefficent to be used for CO2 price driven afforestation 0=natural vegetation 1=plantation (1) / 0 /
   s32_max_aff_area_glo            Switch for global or regional afforestation constraint (1) / 1 /
   s32_aff_prot                    Switch for protection of afforested areas (0=until end of planning horizon 1=forever) / 1 /
+  s32_edge_haircut                Apply the 35_natveg edge-effect vegc factor to natural-curve afforestation pools ndc and aff (0=off 1=on) / 1 /
   s32_plant_contr_growth_startyear  Start year for plantation contribution growth fader (year) / 1995 /
   s32_plant_contr_growth_endyear    End year for plantation contribution growth fader (year) / 2025 /
   s32_plant_contr_growth_startvalue Start value for plantation contribution growth fader (percent per year) / 0.07 /

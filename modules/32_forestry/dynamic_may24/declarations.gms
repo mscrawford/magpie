@@ -46,6 +46,7 @@ parameters
  p32_bii_coeff(type32,bii_class_secd,potnatveg)     bii coeff (1)
  p32_disturbance_loss_ftype32(t,j,type32,ac)        Loss due to disturbances in all plantation type forests (mio. ha)
  pcm_land_forestry(j,type32)                        Forestry land pools (mio. ha)
+ pm_edge_carbon_loss_forestry(t,j)                  Vegetation carbon removed from natural-curve afforestation pools by the 35_natveg edge factor (mio. tC)
  pc32_prod_forestry_ini(i)                          Initial production from timber plantations (mio. tDM per yr)
  pc32_plant_contr_ini(i)                            Initial share of roundwood production coming from timber plantations (percent)
  i32_plant_contr_growth_fader(t_all)                Fader for growth rate of timber plantation share (percent)

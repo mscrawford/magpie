@@ -332,25 +332,37 @@ if(s35_edge_carbon = 1,
 * Carbon edge factor: fraction of original carbon density retained
   p35_carbon_edge_factor(j) = 1 - p35_edge_fraction(j) * s35_edge_degrad;
 
+* Export for 32_forestry, which applies it to the NATURAL-growth-curve afforestation pools (ndc,
+* and aff when s32_aff_plantation = 0) in its own presolve. 32 runs before 35 within a time step,
+* so 32 uses the value from the previous step; the factor drifts by a few percent per decade
+* (audit/cell_cluster_missed_emissions/KEYSTONE3_FROZEN_VS_DYNAMIC.md), so the lag is immaterial.
+  pm_carbon_edge_factor(j) = p35_carbon_edge_factor(j);
+
 * Calculate total carbon lost to edge effects BEFORE applying the factor
 * Loss = (1 - factor) * sum over forest types of (density_vegc * area)
 * Includes primforest, secdforest, and youngsecdf (young secondary forest < 20 tC/ha)
-* NOTE: forestry (managed plantations) is included in p35_forest_area for the closure
-*       geometry but its carbon density is NOT edge-reduced (module 32 runs before
-*       module 35). This is intentional, not merely a module-ordering artifact: the
-*       Brinck (2017) edge factor (s35_edge_degrad = 0.5) is a tropical NATURAL-forest
-*       mechanism (large-tree mortality + microclimate). primforest/secdforest/youngsecdf
-*       (all natural) are edge-reduced; managed/planted stands respond differently and
-*       context-dependently (Dong et al. 2026 Nat Commun: afforestation edges reduce the
-*       sink via wind/drought/pest/fire, not the natural-forest collapse, and can even be
-*       carbon-positive via growth release). Applying THIS factor to forestry would be a
-*       category error; a managed-plantation edge effect, if ever added, needs a SEPARATE
-*       parameterization. See 05-temporal-accounting/documents/EDGE_AREA_ACCOUNTING.md Section 7.
+* NOTE: forestry is included in p35_forest_area for the closure geometry. Its carbon is treated
+*       by pool (changed 2026-08-21). The NATURAL-curve afforestation pools (ndc; aff under
+*       s32_aff_plantation = 0) grow on pm_carbon_density_secdforest_ac_uncalib and are protected
+*       (s32_aff_prot = 1), i.e. they are biophysically the same object as secdforest, so
+*       32_forestry reduces their vegc by pm_carbon_edge_factor (one-step lag, see above) and
+*       reports the removed carbon as pm_edge_carbon_loss_forestry, added below. Timber
+*       plantations (plant) and plantation-curve aff stay UNREDUCED: the Brinck (2017) factor
+*       (s35_edge_degrad = 0.5) is a tropical NATURAL-forest mechanism (large-tree mortality +
+*       microclimate); managed even-aged stands are harvested before it applies and their edge
+*       response has uncertain sign (Dong et al. 2026 Nat Commun). A plantation edge effect, if
+*       ever added, needs a SEPARATE parameterization. s32_edge_haircut = 0 in 32_forestry
+*       restores the pre-2026-08-21 behaviour (natural forest only).
+*       See 05-temporal-accounting/documents/EDGE_AREA_ACCOUNTING.md Section 7.
   p35_edge_carbon_loss(t,j) =
     (1 - p35_carbon_edge_factor(j))
     * (fm_carbon_density(t,j,"primforest","vegc") * pcm_land(j,"primforest")
      + sum(ac, p35_carbon_density_secdforest(t,j,ac,"vegc") * pc35_secdforest(j,ac))
      + sum(ac, p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") * pc35_land_other(j,"youngsecdf",ac)));
+
+* Add the afforestation-pool loss applied by 32_forestry in this time step (natural-curve pools
+* only; 0 when s32_edge_haircut = 0). Keeps p35_edge_carbon_loss the single reporting source.
+  p35_edge_carbon_loss(t,j) = p35_edge_carbon_loss(t,j) + pm_edge_carbon_loss_forestry(t,j);
 
 * Apply to primforest vegc
   fm_carbon_density(t,j,"primforest","vegc") =

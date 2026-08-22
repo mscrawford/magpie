@@ -42,6 +42,7 @@ parameters
  p35_edge_ratio(j)                                       Edge perimeter to area ratio E div A from closure (1 per km)
  p35_carbon_edge_factor(j)                               Multiplicative carbon density reduction from edge effects (1)
  p35_edge_carbon_loss(t,j)                               Total vegetation carbon lost to edge degradation (mio. tC)
+ pm_carbon_edge_factor(j)                                Edge-effect vegc retention factor exported to 32_forestry for natural-curve afforestation pools (1)
 ;
 
 equations

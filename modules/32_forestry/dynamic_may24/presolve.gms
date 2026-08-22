@@ -67,6 +67,26 @@ p32_carbon_density_ac(t,j,"plant",ac,ag_pools) = pm_carbon_density_plantation_ac
 *' NDC carbon densities are natveg carbon densities.
 p32_carbon_density_ac(t,j,"ndc",ac,ag_pools) = pm_carbon_density_secdforest_ac_uncalib(t,j,ac,ag_pools);
 
+*' Edge-effect reduction of vegetation carbon for afforestation pools on NATURAL growth curves
+*' (`ndc`, and `aff` when `s32_aff_plantation` = 0). These pools grow on the secondary-forest
+*' curves and are protected, so they are treated like secondary forest in 35_natveg.
+*' `pm_carbon_edge_factor` is set in the presolve of 35_natveg, which runs after this one, so the
+*' value is from the previous time step (1 in the first). Timber plantations (`plant`) and
+*' plantation-curve `aff` are not reduced. The removed carbon is exported as
+*' `pm_edge_carbon_loss_forestry` for the edge accounting in 35_natveg. Applied BEFORE the
+*' afforestation CDR increment below, so the afforestation incentive sees the reduced density.
+pm_edge_carbon_loss_forestry(t,j) = 0;
+if(s32_edge_haircut = 1,
+  pm_edge_carbon_loss_forestry(t,j) = (1 - pm_carbon_edge_factor(j))
+    * sum(ac, p32_carbon_density_ac(t,j,"ndc",ac,"vegc") * pc32_land(j,"ndc",ac));
+  p32_carbon_density_ac(t,j,"ndc",ac,"vegc") = p32_carbon_density_ac(t,j,"ndc",ac,"vegc") * pm_carbon_edge_factor(j);
+  if(s32_aff_plantation = 0,
+    pm_edge_carbon_loss_forestry(t,j) = pm_edge_carbon_loss_forestry(t,j) + (1 - pm_carbon_edge_factor(j))
+      * sum(ac, p32_carbon_density_ac(t,j,"aff",ac,"vegc") * pc32_land(j,"aff",ac));
+    p32_carbon_density_ac(t,j,"aff",ac,"vegc") = p32_carbon_density_ac(t,j,"aff",ac,"vegc") * pm_carbon_edge_factor(j);
+  );
+);
+
 *' CDR from afforestation for each age-class, depending on planning horizon.
 p32_cdr_ac(t,j,ac)$(ord(ac) > 1 AND (ord(ac)-1) <= s32_planning_horizon/5)
 = p32_carbon_density_ac(t,j,"aff",ac,"vegc") - p32_carbon_density_ac(t,j,"aff",ac-1,"vegc");
