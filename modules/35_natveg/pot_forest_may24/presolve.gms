@@ -314,29 +314,55 @@ if(s35_edge_carbon = 1,
       * (1 - exp(-1 / (s35_edge_lambda * p35_edge_ratio(j))));
   );
 
-* Restrict edge degradation to tropical regions. Temperate/boreal forest edges are a
+* Restrict edge degradation to tropical forest. Temperate/boreal forest edges are a
 * net carbon SINK (Reinmann and Hutyra 2017; Smith 2019), not a loss, and are not
-* represented here. Gated by MAgPIE region via trop_edge (assumes h12). Coarse:
-* LAM/SSA/OAS include some non-tropical land, and tropical IND / subtropical CHA are
-* excluded - see open item in the plan.
-  p35_edge_fraction(j)$(NOT sum(cell(i,j)$trop_edge(i), 1)) = 0;
+* represented here. Two gates (s35_edge_gate):
+*   0 = MAgPIE region set trop_edge (assumes h12; the pre-2026-08-28 behaviour). Coarse:
+*       LAM/SSA/OAS include non-tropical land, tropical IND / subtropical CHA are excluded.
+*   1 = per-cluster FOREST-WEIGHTED tropical share f35_edge_trop_share(j): Koeppen A classes
+*       weighted by the cluster's 0.5 deg forest (built by audit/edge_version_ladder/
+*       02_build_trop_share.R in the fragmentation repo). Continuous: tropical forest in
+*       IND / CHA / CAZ / MEA is gated in, non-tropical land inside LAM / SSA / OAS is gated
+*       out. Decided 2026-08-28 (pipeline dossier M6). Newly admitted clusters need
+*       f35_edge_scale rebuilt for them (the shipped CSV carries 1.0 outside LAM/SSA/OAS).
+  if(s35_edge_gate = 0,
+    p35_edge_fraction(j)$(NOT sum(cell(i,j)$trop_edge(i), 1)) = 0;
+  );
+  if(s35_edge_gate = 1,
+    p35_edge_fraction(j) = p35_edge_fraction(j) * f35_edge_trop_share(j);
+  );
 
 * Aggregation-scale correction (TENTATIVE / EXPLORATORY). The closure is fit at 0.5deg
 * but evaluated once per ~200-cluster aggregate; because edge is sub-additive in area this
 * under-applies the closure. f35_edge_scale(j) (preprocessed, per-cluster, static) scales
 * the edge fraction up to the per-0.5deg-cell sum. min(,1) guards physicality (the true
-* factor keeps the scaled fraction <=1; verified offline, max ~0.80). Non-tropical j are 0
-* here already and have f35_edge_scale=1, so they stay 0.
+* factor keeps the scaled fraction <=1; verified offline, max ~0.80). Under s35_edge_gate = 0
+* non-tropical j are 0 here already and have f35_edge_scale=1, so they stay 0; under gate 1
+* every cluster with a non-zero share needs its own factor in the CSV.
   p35_edge_fraction(j) = min(p35_edge_fraction(j) * f35_edge_scale(j), 1);
 
-* Carbon edge factor: fraction of original carbon density retained
+* Carbon edge factor: fraction of original carbon density retained. Total-vegc factor (the
+* pre-2026-08-28 behaviour, s35_edge_agb_only = 0) or, with s35_edge_agb_only = 1, a land-type
+* specific factor that removes the edge loss from the ABOVEGROUND share of vegc only
+* (fm_aboveground_fraction, 14_yields: primforest 0.75, secdforest 0.80, other 0.70; youngsecdf
+* lives under "other"). Root:shoot rises under edge stress and the benchmarks (Brinck, Yang,
+* CK15) are aboveground-only: 02-parameterization/documents/BELOWGROUND_AGB_EDGE_FACTOR.md
+* (fragmentation repo). Written as 1 - f * d0 * ag so that ag = 1 reproduces the total-vegc
+* factor bit-identically; with s35_edge_agb_only = 0 the type factors are plain copies.
   p35_carbon_edge_factor(j) = 1 - p35_edge_fraction(j) * s35_edge_degrad;
+  p35_carbon_edge_factor_type(j,land_timber) = p35_carbon_edge_factor(j);
+  if(s35_edge_agb_only = 1,
+    p35_carbon_edge_factor_type(j,land_timber) =
+      1 - p35_edge_fraction(j) * s35_edge_degrad * fm_aboveground_fraction(land_timber);
+  );
 
 * Export for 32_forestry, which applies it to the NATURAL-growth-curve afforestation pools (ndc,
 * and aff when s32_aff_plantation = 0) in its own presolve. 32 runs before 35 within a time step,
 * so 32 uses the value from the previous step; the factor drifts by a few percent per decade
 * (audit/cell_cluster_missed_emissions/KEYSTONE3_FROZEN_VS_DYNAMIC.md), so the lag is immaterial.
-  pm_carbon_edge_factor(j) = p35_carbon_edge_factor(j);
+* Those pools grow on the secondary-forest curves, so they take the secdforest type factor
+* (identical to the total-vegc factor when s35_edge_agb_only = 0).
+  pm_carbon_edge_factor(j) = p35_carbon_edge_factor_type(j,"secdforest");
 
 * Calculate total carbon lost to edge effects BEFORE applying the factor
 * Loss = (1 - factor) * sum over forest types of (density_vegc * area)
@@ -354,19 +380,32 @@ if(s35_edge_carbon = 1,
 *       ever added, needs a SEPARATE parameterization. s32_edge_haircut = 0 in 32_forestry
 *       restores the pre-2026-08-21 behaviour (natural forest only).
 *       See 05-temporal-accounting/documents/EDGE_AREA_ACCOUNTING.md Section 7.
-  p35_edge_carbon_loss(t,j) =
-    (1 - p35_carbon_edge_factor(j))
-    * (fm_carbon_density(t,j,"primforest","vegc") * pcm_land(j,"primforest")
-     + sum(ac, p35_carbon_density_secdforest(t,j,ac,"vegc") * pc35_secdforest(j,ac))
-     + sum(ac, p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") * pc35_land_other(j,"youngsecdf",ac)));
+  if(s35_edge_agb_only = 0,
+    p35_edge_carbon_loss(t,j) =
+      (1 - p35_carbon_edge_factor(j))
+      * (fm_carbon_density(t,j,"primforest","vegc") * pcm_land(j,"primforest")
+       + sum(ac, p35_carbon_density_secdforest(t,j,ac,"vegc") * pc35_secdforest(j,ac))
+       + sum(ac, p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") * pc35_land_other(j,"youngsecdf",ac)));
+  );
+* Aboveground-only (s35_edge_agb_only = 1): each pool loses (1 - its own type factor) = f * d0 * ag.
+  if(s35_edge_agb_only = 1,
+    p35_edge_carbon_loss(t,j) =
+      (1 - p35_carbon_edge_factor_type(j,"primforest"))
+      * fm_carbon_density(t,j,"primforest","vegc") * pcm_land(j,"primforest")
+    + (1 - p35_carbon_edge_factor_type(j,"secdforest"))
+      * sum(ac, p35_carbon_density_secdforest(t,j,ac,"vegc") * pc35_secdforest(j,ac))
+    + (1 - p35_carbon_edge_factor_type(j,"other"))
+      * sum(ac, p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") * pc35_land_other(j,"youngsecdf",ac));
+  );
 
 * Add the afforestation-pool loss applied by 32_forestry in this time step (natural-curve pools
 * only; 0 when s32_edge_haircut = 0). Keeps p35_edge_carbon_loss the single reporting source.
   p35_edge_carbon_loss(t,j) = p35_edge_carbon_loss(t,j) + pm_edge_carbon_loss_forestry(t,j);
 
-* Apply to primforest vegc
+* Apply to primforest vegc (type factors: plain copies of p35_carbon_edge_factor unless
+* s35_edge_agb_only = 1, so the s35_edge_agb_only = 0 arithmetic is bit-identical to before)
   fm_carbon_density(t,j,"primforest","vegc") =
-    fm_carbon_density(t,j,"primforest","vegc") * p35_carbon_edge_factor(j);
+    fm_carbon_density(t,j,"primforest","vegc") * p35_carbon_edge_factor_type(j,"primforest");
 
 * Apply to secdforest vegc (all age classes). The secdforest carbon STOCK now uses
 * the blended density p35_carbon_density_secdforest (equations.gms q35_carbon), so the
@@ -376,13 +415,13 @@ if(s35_edge_carbon = 1,
 * pm_carbon_density_secdforest_ac is reduced as well, since it is still read by magpie4
 * (emisCO2, reportPBbiosphere) and was edge-reduced before the develop merge.
   p35_carbon_density_secdforest(t,j,ac,"vegc") =
-    p35_carbon_density_secdforest(t,j,ac,"vegc") * p35_carbon_edge_factor(j);
+    p35_carbon_density_secdforest(t,j,ac,"vegc") * p35_carbon_edge_factor_type(j,"secdforest");
   pm_carbon_density_secdforest_ac(t,j,ac,"vegc") =
-    pm_carbon_density_secdforest_ac(t,j,ac,"vegc") * p35_carbon_edge_factor(j);
+    pm_carbon_density_secdforest_ac(t,j,ac,"vegc") * p35_carbon_edge_factor_type(j,"secdforest");
 
 * Apply to youngsecdf via p35_carbon_density_other
   p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") =
-    p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") * p35_carbon_edge_factor(j);
+    p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") * p35_carbon_edge_factor_type(j,"other");
 
 * --- Temporal pipeline for edge carbon emissions ---
 * The temporal pipeline (Option B: symmetric realized-loss tracking with

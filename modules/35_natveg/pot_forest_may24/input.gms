@@ -44,6 +44,13 @@ s35_edge_n              Closure saturation exponent on log10 of 1 minus p (1)  /
 * the edge-affected carbon stock (still natural forest only). Second audit #2
 * sensitivity lever; default 1 reproduces shipped behaviour bit-identically.
 s35_edge_forestry_buffer Weight on forestry in closure geometry forest area (1) / 1 /
+* Aboveground-only edge loss (2026-08-28): 0 = the edge factor multiplies TOTAL vegc (above + below
+* ground, the pre-2026-08-28 behaviour), 1 = only the aboveground share (fm_aboveground_fraction)
+* takes the loss. See 02-parameterization/documents/BELOWGROUND_AGB_EDGE_FACTOR.md (fragmentation repo).
+s35_edge_agb_only       Apply the edge factor to aboveground carbon only (0=total vegc 1=aboveground) / 1 /
+* Tropical gate (2026-08-28): 0 = MAgPIE region set trop_edge (LAM SSA OAS), 1 = per-cluster
+* forest-weighted tropical share f35_edge_trop_share (Koeppen A classes weighted by 0.5 deg forest).
+s35_edge_gate           Tropical gate (0=region set trop_edge 1=forest-weighted tropical share) / 1 /
 ;
 
 table f35_forest_lost_share(i,driver_source) Share of area damaged by forest fires (1)
@@ -93,5 +100,12 @@ parameter f35_edge_scale(j) Per-cluster edge-closure aggregation-scale correctio
 /
 $ondelim
 $include "./modules/35_natveg/input/f35_edge_scale.csv"
+$offdelim
+/;
+
+parameter f35_edge_trop_share(j) Per-cluster forest-weighted tropical share for the edge gate (1)
+/
+$ondelim
+$include "./modules/35_natveg/input/f35_edge_trop_share.csv"
 $offdelim
 /;

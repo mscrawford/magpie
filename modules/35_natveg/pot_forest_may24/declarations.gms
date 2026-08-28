@@ -43,6 +43,7 @@ parameters
  p35_carbon_edge_factor(j)                               Multiplicative carbon density reduction from edge effects (1)
  p35_edge_carbon_loss(t,j)                               Total vegetation carbon lost to edge degradation (mio. tC)
  pm_carbon_edge_factor(j)                                Edge-effect vegc retention factor exported to 32_forestry for natural-curve afforestation pools (1)
+ p35_carbon_edge_factor_type(j,land_timber)              Edge-effect vegc retention factor by land type - a copy of p35_carbon_edge_factor unless s35_edge_agb_only is 1 (1)
 ;
 
 equations
