@@ -6,6 +6,7 @@
 # |                          mitigation = PkBudg1000 (2C price) at RCP2.6; conservation = 30by30 (Kunming-Montreal).
 # |    SSP3 Regional Rivalry: base ONLY (no sustainability interventions); high-forcing RCP7.0 world.
 # |  = 10 edge-ON + 3 baseline edge-OFF + 5 broad-edge (~1 km) = 18 runs (SSP1 8, SSP2 7, SSP3 3).
+# |  2026-08-29: edge model version L3 (haircut split + AGB-only factor + forest-weighted gate) - see set_edge_on.
 # |
 # |  RCP is per-CONFIG: gms::setScenario(cfg, c(ssp,"NPI",rcp)) sets the LPJmL cellular climate input
 # |  AND c52_land_carbon_sink_rcp; c37_labor_rcp is set manually (module 37 offers only rcp119/rcp585
@@ -97,6 +98,11 @@ set_edge_on <- function(cfg) {
   cfg$gms$s35_edge_degrad  <- 0.50
   cfg$gms$s35_edge_beta    <- 0.8286
   cfg$gms$s35_edge_n       <- 0.7984
+  # Model version L3 (promoted 2026-08-29, decision D1; ladder audit/edge_version_ladder/LADDER_REPORT.md):
+  # stated explicitly so the launch record does not depend on default.cfg.
+  cfg$gms$s32_edge_haircut  <- 1     # forestry haircut split: ndc + natural-curve aff carry the edge factor, plant exempt
+  cfg$gms$s35_edge_agb_only <- 1     # edge factor on aboveground carbon only (item A / M7)
+  cfg$gms$s35_edge_gate     <- 1     # forest-weighted Koeppen-A tropical share per cluster (M6); f35_edge_scale filled
   cfg
 }
 # --- Edge-damage sensitivity: broad ~1 km penetration (depth-only; intensity held) ---
@@ -142,11 +148,12 @@ launch <- function(cfg_i, title) {
   cfg_i$title <- title; n <<- n + 1L
   if (DRYRUN) {
     lam <- if (is.null(cfg_i$gms$s35_edge_lambda)) NA_real_ else cfg_i$gms$s35_edge_lambda
-    cat(sprintf("[dry] %-26s cellular=%-56s c52=%-6s c37=%-7s c56=%-24s c22=%-14s diet=%s edge=%s/%.3f\n",
+    cat(sprintf("[dry] %-26s cellular=%-56s c52=%-6s c37=%-7s c56=%-24s c22=%-14s diet=%s edge=%s/%.3f haircut=%s agb=%s gate=%s\n",
                 title, basename(cfg_i$input[["cellular"]]),
                 cfg_i$gms$c52_land_carbon_sink_rcp, cfg_i$gms$c37_labor_rcp,
                 cfg_i$gms$c56_pollutant_prices, cfg_i$gms$c22_protect_scenario,
-                cfg_i$gms$s15_exo_diet, cfg_i$gms$s35_edge_carbon, lam))
+                cfg_i$gms$s15_exo_diet, cfg_i$gms$s35_edge_carbon, lam,
+                cfg_i$gms$s32_edge_haircut, cfg_i$gms$s35_edge_agb_only, cfg_i$gms$s35_edge_gate))
     return(invisible(NULL))
   }
   cat(sprintf("\n===== %s (%d) =====\n", title, n))
