@@ -65,6 +65,7 @@ $offdelim
 
 * Environmental flow policy
 $setglobal c42_env_flow_policy  off
+
 parameter f42_env_flows(t_all,j) Environmental flow requirements from LPJ and Smakhtin algorithm (mio. m^3)
 /
 $ondelim

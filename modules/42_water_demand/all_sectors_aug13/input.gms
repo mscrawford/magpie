@@ -120,6 +120,7 @@ $if "%c42_watdem_scenario%" == "nocc_hist" f42_env_flows(t_all,j)$(m_year(t_all)
 m_fillmissingyears(f42_env_flows,"j");
 
 $setglobal c42_env_flow_policy  off
+
 * Costs of pumping are calculated for India as per methodology in forthcoming paper by Singh et.al.
 parameter
 f42_pumping_cost(t_all,i) Cost of pumping irrigation water (USD17MER per m^3)

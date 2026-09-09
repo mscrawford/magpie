@@ -7,7 +7,8 @@
 # |  The 07-01 run itself differs from arm stamp005 only by the fork commits since 2026-07-01 (haircut split etc.).
 # |  Usage: cd libraries/magpie && Rscript scripts/start/projects/counterfactual_cliff_stamps.R
 # |         on the PC (no scheduler): MAGPIE_SEQUENTIAL=TRUE caffeinate -dimsu Rscript scripts/start/projects/counterfactual_cliff_stamps.R
-# |  Afterwards: git checkout -- modules/35_natveg/pot_forest_may24/input.gms   (start_run stamps the last arm's values)
+# |  Afterwards: git checkout -- modules/35_natveg/pot_forest_may24/input.gms   (start_run stamps the last arm's values;
+# |  since 8f7f15184 config/default.cfg registers the four switches, so any later run re-stamps the upstream values anyway)
 
 source("scripts/start_functions.R")
 
