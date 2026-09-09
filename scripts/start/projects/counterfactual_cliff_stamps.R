@@ -5,6 +5,7 @@
 # |    shr1     : the upstream defaults restored on this branch (shr 1; costs 2460/3075/3690)
 # |  The 07-01 run itself differs from arm stamp005 only by the fork commits since 2026-07-01 (haircut split etc.).
 # |  Usage: cd libraries/magpie && Rscript scripts/start/projects/counterfactual_cliff_stamps.R
+# |         on the PC (no scheduler): MAGPIE_SEQUENTIAL=TRUE caffeinate -dimsu Rscript scripts/start/projects/counterfactual_cliff_stamps.R
 # |  Afterwards: git checkout -- modules/35_natveg/pot_forest_may24/input.gms   (start_run stamps the last arm's values)
 
 source("scripts/start_functions.R")
@@ -15,7 +16,7 @@ base <- gms::loadConfig(file.path(src, "config.yml"))
 base$results_folder <- "output/:title::date:"
 base$force_download <- FALSE
 base$recalc_npi_ndc <- FALSE
-base$sequential     <- FALSE
+base$sequential     <- Sys.getenv("MAGPIE_SEQUENTIAL", "FALSE") == "TRUE"   # TRUE on a machine without a scheduler (PC): runs block one after the other
 base$output         <- c("output_check", "rds_report")
 
 arms <- list(
