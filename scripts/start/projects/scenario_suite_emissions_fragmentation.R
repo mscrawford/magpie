@@ -21,6 +21,8 @@
 # |           MACC switches price-driven (-1, the fork default). The SSP2/SSP3 context bases keep the stock frame
 # |           (reddnatveg_nosoil, y2030), as RIKEN's BAU does.
 # |    Not ported: tau pinning / TC factor, the Japan bioenergy carve-out, the BioNone arm (RIKEN-specific).
+# |  Third-party validation 2026-09-09 (03-magpie-integration/documents/SUITE_DESIGN_B_VALIDATION_2026-09-09.md): VALID with notes;
+# |    guards added after it (diet keys in both arms, MACC + edge depth/buffer pinned, PkBudg650-for-SSP1-only assertion).
 # |
 # |  Cell tags are one alphanumeric token (run_pattern ^([A-Za-z0-9]+)_bodirsky_): SSP1M{0,1}P{0,1}D{0,1}; legacy names
 # |  map onto corners (SSP1base = SSP1M0P0D0, SSP1mitig = M1P0D0, SSP1halfearth = M0P1D0, SSP1diet = M0P0D1, SSP1all = M1P1D1).
@@ -69,11 +71,17 @@ set_world <- function(cfg, ssp, rcp) {
 set_cube_backdrop <- function(cfg) {
   cfg$gms$c56_emis_policy          <- "all_nosoil"
   cfg$gms$c56_mute_ghgprices_until <- "y2025"
+  for (k in c("s57_maxmac_n_soil", "s57_maxmac_n_awms", "s57_maxmac_ch4_rice", "s57_maxmac_ch4_entferm", "s57_maxmac_ch4_awms"))
+    cfg$gms[[k]] <- -1                                     # MACC price-driven, pinned (RIKEN .macc_block; setScenario never touches s57_*)
+  # NB (validation 2026-09-09): in input rev4.131 the NPi2025 price columns are all ZERO; preloop.gms floors co2_c at
+  # s56_minimum_cprice (3.67 USD17MER/tC) AFTER muting, so in the M-off cells the only live GHG price is that floor and the
+  # mute switch is inert. The backdrop is constant across the cube, so the factorial holds; the M effect = price level AND scope.
   cfg
 }
 
 # --- Factor M: mitigation = 1.5C carbon price AND the co-moving 2nd-gen bioenergy demand of the same REMIND run ---
 set_mitigation <- function(cfg, ssp, on) {
+  if (on && ssp != "SSP1") stop("PkBudg650 exists only for SSP1 in the price and bioenergy inputs (SSP2: PkBudg1000; SSP3: none)")
   scen <- paste0("R34M410-", ssp, "-", if (on) "PkBudg650" else "NPi2025")
   cfg$gms$c56_pollutant_prices          <- scen
   cfg$gms$c56_pollutant_prices_noselect <- scen
@@ -107,15 +115,11 @@ set_protection <- function(cfg, on) {
 
 # --- Factor D: EAT-Lancet diet, RIKEN .diet_el ---
 set_diet <- function(cfg, on) {
-  if (on) {
-    cfg$gms$s15_exo_diet                 <- 3
-    cfg$gms$c15_kcal_scen                <- "healthy_BMI"   # NOT 2500kcal
-    cfg$gms$s15_exo_foodscen_start       <- 2025
-    cfg$gms$s15_exo_foodscen_target      <- 2050
-    cfg$gms$s15_exo_foodscen_convergence <- 1
-  } else {
-    cfg$gms$s15_exo_diet <- 0
-  }
+  cfg$gms$s15_exo_diet                 <- if (on) 3 else 0
+  cfg$gms$c15_kcal_scen                <- "healthy_BMI"   # NOT 2500kcal; set in BOTH arms so the D pair differs in s15_exo_diet by construction
+  cfg$gms$s15_exo_foodscen_start       <- 2025
+  cfg$gms$s15_exo_foodscen_target      <- 2050
+  cfg$gms$s15_exo_foodscen_convergence <- 1
   cfg
 }
 
@@ -128,6 +132,8 @@ set_edge_on <- function(cfg) {
   cfg$gms$s35_edge_degrad  <- 0.50
   cfg$gms$s35_edge_beta    <- 0.8286
   cfg$gms$s35_edge_n       <- 0.7984
+  cfg$gms$s35_edge_depth   <- 0.5      # pinned (validation 2026-09-09): previously inherited from default.cfg
+  cfg$gms$s35_edge_forestry_buffer <- 1
   cfg$gms$s32_edge_haircut  <- 1     # forestry haircut split: ndc + natural-curve aff carry the edge factor, plant exempt
   cfg$gms$s35_edge_agb_only <- 1     # edge factor on aboveground carbon only
   cfg$gms$s35_edge_gate     <- 1     # forest-weighted Koeppen-A tropical share per cluster; f35_edge_scale filled
