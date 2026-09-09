@@ -2,10 +2,17 @@
 # |  Narrative-consistent lever + RCP design (consistency with the SSP narrative > factorial symmetry):
 # |    SSP1 Sustainability : 5 levers; sustainability world at RCP2.6, the all-levers package reaches RCP1.9.
 # |                          mitigation = PkBudg650 (1.5C price).
-# |    SSP2 Middle-of-road : base + mitig + 30by30 conservation + all (NO diet). Current policies at RCP4.5;
+# |    SSP2 Middle-of-road : base + mitig + 30by30 conservation + diet + all. Current policies at RCP4.5;
 # |                          mitigation = PkBudg1000 (2C price) at RCP2.6; conservation = 30by30 (Kunming-Montreal).
 # |    SSP3 Regional Rivalry: base ONLY (no sustainability interventions); high-forcing RCP7.0 world.
-# |  = 10 edge-ON + 3 baseline edge-OFF + 5 broad-edge (~1 km) = 18 runs (SSP1 8, SSP2 7, SSP3 3).
+# |  = 11 edge-ON + 3 baseline edge-OFF + 5 broad-edge (~1 km) = 19 runs (SSP1 8, SSP2 8, SSP3 3).
+# |  2026-09-09: switches aligned with the RIKEN fst_levers canonical set (Mike: 'use the switches canonically'):
+# |    diet = s15_exo_diet 3 (MAgPIE's own EAT-Lancet realization, healthy_BMI, 2025->2050 fade; was mode 1 + FLX);
+# |    conservation SSP1 = the full RIKEN protection bundle (area + BII floor 0.78 + SNV 0.2 + env flows, all to 2050);
+# |    conservation SSP2 = 30by30 area only (decision open: bundle or area); mitigation runs price ALL land emissions
+# |    (c56_emis_policy all_nosoil, prices unmuted from 2025; baselines keep the stock reddnatveg_nosoil / y2030 = RIKEN BAU);
+# |    SSP2diet added as the diet-change scenario (RIKEN runs diet on SSP2; re-added on Mike's ask after the 07-01 drop).
+# |    Not ported: tau pinning, the Japan bioenergy carve-out, the BioNone arm (RIKEN-specific).
 # |  2026-08-29: edge model version L3 (haircut split + AGB-only factor + forest-weighted gate) - see set_edge_on.
 # |
 # |  RCP is per-CONFIG: gms::setScenario(cfg, c(ssp,"NPI",rcp)) sets the LPJmL cellular climate input
@@ -18,7 +25,8 @@
 # |    mitig (price+bioe): c56 + c60 R34M410-SSPx-PkBudg{650 SSP1 | 1000 SSP2} (vs NPi2025 baseline).
 # |    30by30            : c22_protect_scenario "30by30" (~30% land, Kunming-Montreal GBF), phase-in 2025->2050.
 # |    halfearth         : c22_protect_scenario "GSN_HalfEarth" (~50% land, Dinerstein 2020), SSP1 only.
-# |    diet  (EAT-Lancet): s15_exo_diet=1 (exodietmacro.gms:372), FLX flexitarian + healthy_BMI, SSP1 only.
+# |    diet  (EAT-Lancet): s15_exo_diet=3 (exodietmacro.gms:441, MAgPIE-specific EAT-Lancet), healthy_BMI, fade 2025->2050;
+# |                        c15_EAT_scen deliberately NOT set (inert under mode 3; a non-BMI kcal target would route back to it).
 # |    edge  broad       : s35_edge_lambda 1.0 km (vs 0.059) = ~1 km depth; intensity s35_edge_degrad held 0.50.
 # |
 # |  Usage: cd magpie && Rscript scripts/start/projects/scenario_suite_emissions_fragmentation.R
@@ -65,6 +73,10 @@ set_price_high <- function(cfg, ssp, budget) {
   price <- paste0("R34M410-", ssp, "-", budget)
   cfg$gms$c56_pollutant_prices          <- price
   cfg$gms$c56_pollutant_prices_noselect <- price
+  # GHG-policy frame of the RIKEN FST cells (fst_levers_config.R FST_BACKDROP): the price applies to ALL land emissions
+  # except soil, from 2025. Stock default (reddnatveg_nosoil, muted until 2030) stays on the baselines, as RIKEN's BAU.
+  cfg$gms$c56_emis_policy          <- "all_nosoil"
+  cfg$gms$c56_mute_ghgprices_until <- "y2025"
   cfg
 }
 set_bioenergy_high <- function(cfg, ssp, budget) {
@@ -74,18 +86,36 @@ set_bioenergy_high <- function(cfg, ssp, budget) {
   cfg
 }
 # --- Lever: land conservation (c22 scenario "30by30" ~30% or "GSN_HalfEarth" ~50%), phase-in 2025->2050 ---
-set_conservation <- function(cfg, scen) {
+set_conservation <- function(cfg, scen, bundle = FALSE) {
   cfg$gms$c22_protect_scenario          <- scen
   cfg$gms$c22_protect_scenario_noselect <- scen
   cfg$gms$s22_conservation_start  <- 2025
   cfg$gms$s22_conservation_target <- 2050
+  cfg$gms$s22_restore_land        <- 1
+  if (isTRUE(bundle)) {
+    # RIKEN .prot_on (fst_levers_config.R): land + water protection as ONE bundle, every instrument on the 2025->2050 schedule.
+    cfg$gms$s44_bii_target    <- 0.78   # BII floor (module 44); start year MUST be a timestep > sm_fix_SSP2, else the target never fires
+    cfg$gms$s44_start_year    <- 2030
+    cfg$gms$s44_target_year   <- 2050
+    cfg$gms$c44_bii_decrease  <- 1
+    cfg$gms$s29_snv_shr       <- 0.2    # semi-natural vegetation share of cropland (module 29)
+    cfg$gms$s29_snv_shr_noselect <- 0.2
+    cfg$gms$s29_snv_scenario_start  <- 2025
+    cfg$gms$s29_snv_scenario_target <- 2050
+    cfg$gms$c42_env_flow_policy   <- "on"  # environmental flows (module 42), scenario 2
+    cfg$gms$s42_env_flow_scenario <- 2
+    cfg$gms$s42_efp_startyear     <- 2025
+    cfg$gms$s42_efp_targetyear    <- 2050
+  }
   cfg
 }
-# --- Lever: EAT-Lancet Commission diet (s15_exo_diet=1, FLX flexitarian, healthy_BMI) ---
+# --- Lever: EAT-Lancet diet, RIKEN .diet_el (s15_exo_diet=3: MAgPIE's own EAT-Lancet realization, exodietmacro.gms:441) ---
 set_diet_eatlancet <- function(cfg) {
-  cfg$gms$s15_exo_diet  <- 1            # =1 EAT-Lancet Commission (exodietmacro.gms:372)
-  cfg$gms$c15_EAT_scen  <- "FLX"        # flexitarian (module default; set explicit)
-  cfg$gms$c15_kcal_scen <- "healthy_BMI"
+  cfg$gms$s15_exo_diet                 <- 3
+  cfg$gms$c15_kcal_scen                <- "healthy_BMI"   # NOT 2500kcal: a non-BMI target routes back to the c15_EAT_scen dataset
+  cfg$gms$s15_exo_foodscen_start       <- 2025
+  cfg$gms$s15_exo_foodscen_target      <- 2050
+  cfg$gms$s15_exo_foodscen_convergence <- 1
   cfg
 }
 
@@ -117,7 +147,7 @@ build_policy <- function(cfg, p) {
   cfg <- set_ssp_base(cfg, p$ssp, p$rcp)
   if (isTRUE(p$price_high)) cfg <- set_price_high(cfg, p$ssp, p$budget)
   if (isTRUE(p$bioe_high))  cfg <- set_bioenergy_high(cfg, p$ssp, p$budget)
-  if (!is.null(p$conserv))  cfg <- set_conservation(cfg, p$conserv)
+  if (!is.null(p$conserv))  cfg <- set_conservation(cfg, p$conserv, bundle = isTRUE(p$bundle))
   if (isTRUE(p$diet))       cfg <- set_diet_eatlancet(cfg)
   cfg
 }
@@ -128,14 +158,16 @@ policies <- list(
   # SSP1 Sustainability: RCP2.6, all-levers -> RCP1.9; mitigation PkBudg650 (1.5C).
   list(tag = "SSP1base",      ssp = "SSP1", rcp = "rcp2p6", pair_off = TRUE),
   list(tag = "SSP1mitig",     ssp = "SSP1", rcp = "rcp2p6", budget = "PkBudg650",  price_high = TRUE, bioe_high = TRUE),
-  list(tag = "SSP1halfearth", ssp = "SSP1", rcp = "rcp2p6", conserv = "GSN_HalfEarth"),
+  list(tag = "SSP1halfearth", ssp = "SSP1", rcp = "rcp2p6", conserv = "GSN_HalfEarth", bundle = TRUE),
   list(tag = "SSP1diet",      ssp = "SSP1", rcp = "rcp2p6", diet = TRUE),
   list(tag = "SSP1all",       ssp = "SSP1", rcp = "rcp1p9", budget = "PkBudg650",  price_high = TRUE, bioe_high = TRUE,
-                                                            conserv = "GSN_HalfEarth", diet = TRUE),
-  # SSP2 Middle: current policies RCP4.5; mitigation PkBudg1000 (2C) at RCP2.6; conservation 30by30; NO diet.
+                                                            conserv = "GSN_HalfEarth", bundle = TRUE, diet = TRUE),
+  # SSP2 Middle: current policies RCP4.5; mitigation PkBudg1000 (2C) at RCP2.6; conservation 30by30 (area only);
+  # diet-change scenario on the middle-of-the-road world (RIKEN precedent; re-added 2026-09-09 on Mike's ask).
   list(tag = "SSP2base",      ssp = "SSP2", rcp = "rcp4p5", pair_off = TRUE),
   list(tag = "SSP2mitig",     ssp = "SSP2", rcp = "rcp2p6", budget = "PkBudg1000", price_high = TRUE, bioe_high = TRUE),
   list(tag = "SSP230by30",    ssp = "SSP2", rcp = "rcp4p5", conserv = "30by30"),
+  list(tag = "SSP2diet",      ssp = "SSP2", rcp = "rcp4p5", diet = TRUE),
   list(tag = "SSP2all",       ssp = "SSP2", rcp = "rcp2p6", budget = "PkBudg1000", price_high = TRUE, bioe_high = TRUE,
                                                             conserv = "30by30"),
   # SSP3 Regional Rivalry: base only; high-forcing RCP7.0.
@@ -148,10 +180,11 @@ launch <- function(cfg_i, title) {
   cfg_i$title <- title; n <<- n + 1L
   if (DRYRUN) {
     lam <- if (is.null(cfg_i$gms$s35_edge_lambda)) NA_real_ else cfg_i$gms$s35_edge_lambda
-    cat(sprintf("[dry] %-26s cellular=%-56s c52=%-6s c37=%-7s c56=%-24s c22=%-14s diet=%s edge=%s/%.3f haircut=%s agb=%s gate=%s\n",
+    cat(sprintf("[dry] %-26s cellular=%-56s c52=%-6s c37=%-7s c56=%-24s emis=%-17s mute=%s c22=%-14s bii=%.2f snv=%.1f efp=%-3s diet=%s edge=%s/%.3f haircut=%s agb=%s gate=%s\n",
                 title, basename(cfg_i$input[["cellular"]]),
                 cfg_i$gms$c52_land_carbon_sink_rcp, cfg_i$gms$c37_labor_rcp,
-                cfg_i$gms$c56_pollutant_prices, cfg_i$gms$c22_protect_scenario,
+                cfg_i$gms$c56_pollutant_prices, cfg_i$gms$c56_emis_policy, cfg_i$gms$c56_mute_ghgprices_until, cfg_i$gms$c22_protect_scenario,
+                cfg_i$gms$s44_bii_target, cfg_i$gms$s29_snv_shr, cfg_i$gms$c42_env_flow_policy,
                 cfg_i$gms$s15_exo_diet, cfg_i$gms$s35_edge_carbon, lam,
                 cfg_i$gms$s32_edge_haircut, cfg_i$gms$s35_edge_agb_only, cfg_i$gms$s35_edge_gate))
     return(invisible(NULL))
@@ -160,7 +193,7 @@ launch <- function(cfg_i, title) {
   folders <<- c(folders, start_run(cfg_i, codeCheck = FALSE))
 }
 
-# 10 edge-ON + 3 baseline edge-OFF = 13
+# 11 edge-ON + 3 baseline edge-OFF = 14
 for (p in policies) {
   for (edge in if (isTRUE(p$pair_off)) c("OFF", "ON") else "ON") {
     cfg_i <- build_policy(cfg, p)
