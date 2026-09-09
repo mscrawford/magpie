@@ -35,6 +35,8 @@
 # |  Usage: cd magpie && Rscript scripts/start/projects/scenario_suite_emissions_fragmentation.R
 # |         SUITE_DRYRUN=1 Rscript ...                 prints each run's wired switches and exits
 # |         SUITE_DRYRUN=1 SUITE_DUMP=<dir> Rscript ... additionally writes each run's resolved cfg$gms (+ input) as JSON
+# |         SUITE_ONLY=<title>[,<title>] Rscript ...   launches (or dry-runs) only the named run titles, e.g. the pilot pair
+# |                                                  SSP1M0P0D0_bodirsky_ON,SSP1M1P1D1_bodirsky_ON; configs are unchanged by the filter
 
 source("scripts/start_functions.R")
 source("config/default.cfg")
@@ -52,6 +54,7 @@ cfg$repositories <- append(cfg$repositories,
 
 DRYRUN <- identical(Sys.getenv("SUITE_DRYRUN"), "1")
 DUMP   <- Sys.getenv("SUITE_DUMP", "")
+ONLY   <- Filter(nzchar, trimws(strsplit(Sys.getenv("SUITE_ONLY", ""), ",")[[1]]))   # empty = every run
 
 # ---------------------------------------------------------------------------
 # Labor-productivity RCP bracket: module 37 offers only rcp119 / rcp585 -> nearest to the run's forcing.
@@ -169,6 +172,7 @@ broad_tags    <- c("SSP1M0P0D0", "SSP1M1P1D1", "SSP2base", "SSP3base")  # ~1 km 
 # ---------------------------------------------------------------------------
 folders <- c(); n <- 0L
 launch <- function(cfg_i, title) {
+  if (length(ONLY) && !title %in% ONLY) return(invisible(NULL))
   cfg_i$title <- title; n <<- n + 1L
   if (DRYRUN) {
     lam <- if (is.null(cfg_i$gms$s35_edge_lambda)) NA_real_ else cfg_i$gms$s35_edge_lambda
@@ -203,6 +207,7 @@ for (p in policies) if (p$tag %in% broad_tags) {
   launch(set_edge_broad(build_policy(cfg, p)), paste0(p$tag, "Broad_bodirsky_ON"))
 }
 
+if (length(ONLY)) { if (n < length(ONLY)) cat(sprintf("\n[warn] SUITE_ONLY named %d titles but %d matched; check spelling against the dry-run list\n", length(ONLY), n)) }
 if (DRYRUN) { cat(sprintf("\n[dry] %d configs built, none submitted.\n", n)); quit(save = "no") }
 cat(sprintf("\n========== ALL %d RUNS LAUNCHED ==========\n", length(folders)))
 for (f in folders) cat(sprintf("  %s\n", f))
