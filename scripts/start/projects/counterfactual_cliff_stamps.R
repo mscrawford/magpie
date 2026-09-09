@@ -1,5 +1,6 @@
 # |  Counterfactual A/B on the four calibration-cliff-test stamps (s35_natveg_harvest_shr, natveg timber harvest costs).
-# |  Both arms load the 07-01 SSP2base_bodirsky_ON config (same levers, same input revision, same edge settings) and run
+# |  Both arms take the 07-01 SSP2base_bodirsky_ON config (levers, prices, input revision, July edge settings) overlaid on
+# |  the current default.cfg (switches added since July keep their current defaults in both arms) and run
 # |  on THIS branch's code, so the only difference between them is the four values:
 # |    stamp005 : the values every 07-01 run carried (shr 0.05; costs 4920/6150/7380)
 # |    shr1     : the upstream defaults restored on this branch (shr 1; costs 2460/3075/3690)
@@ -10,9 +11,21 @@
 
 source("scripts/start_functions.R")
 
+source("config/default.cfg")            # the CURRENT schema (check_config refuses a cfg with missing keys)
 src <- Sys.glob("output/SSP2base_bodirsky_ON_2026-07-01_*")
 stopifnot(length(src) == 1)
-base <- gms::loadConfig(file.path(src, "config.yml"))
+july <- gms::loadConfig(file.path(src, "config.yml"))
+# Overlay every July value onto the current defaults: levers, prices, edge settings and the input revision are the
+# July ones; switches that did not exist in July (s32_edge_haircut, s35_edge_depth/_forestry_buffer/_agb_only/_gate)
+# keep their current default.cfg values, identically in both arms. July keys the current schema no longer knows are
+# dropped with a message.
+base <- cfg
+dropped <- setdiff(names(july$gms), names(base$gms))
+if (length(dropped) > 0) message("July switches unknown to the current default.cfg (dropped): ", paste(dropped, collapse = ", "))
+for (k in intersect(names(july$gms), names(base$gms))) base$gms[[k]] <- july$gms[[k]]
+base$input <- july$input
+added <- setdiff(names(base$gms), names(july$gms))
+message("switches new since July, taken from default.cfg: ", paste(added, collapse = ", "))
 base$results_folder <- "output/:title::date:"
 base$force_download <- FALSE
 base$recalc_npi_ndc <- FALSE
