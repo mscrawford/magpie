@@ -8,7 +8,7 @@
 #SBATCH --time=04:00:00
 #SBATCH --mail-type=FAIL
 #SBATCH --output=_suite_launch_%j.log
-# 18-run scenario suite on edge model version L3 (decision D1, 2026-08-29). The LAUNCHER runs on a
+# 17-run scenario suite, DESIGN B (Mike 2026-09-09; launcher 5a7bd2ca3, third-party validated). The LAUNCHER runs on a
 # compute node (Mike 2026-08-28: launch prep never on the login node); each start_run submits its own
 # solve via nested sbatch (submit_short.sh keeps END,FAIL mail for the real MAgPIE solves).
 cd /p/projects/magpie/users/crawford/dev_fragmentation/libraries/magpie || exit 1
