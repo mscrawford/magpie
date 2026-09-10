@@ -8,11 +8,12 @@
 sets
 
   driver_source Source of deforestation drivers
-  / overall, deforestation, shifting_agriculture,
-  forestry, wildfire, urbanization /
+  / overall, permanent_agriculture, hard_commodities, shifting_cultivation,
+  logging, wildfire, settlements_infrastructure, other_natural_disturbances,
+  unknown /
 
   combined_loss(driver_source) Combined loss from fire plus agriculture
-  / shifting_agriculture,wildfire /
+  / shifting_cultivation,wildfire /
 
   pol35 Land protection policy
   / none, npi, ndc /
