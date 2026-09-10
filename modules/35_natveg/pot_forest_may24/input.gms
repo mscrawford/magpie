@@ -29,7 +29,7 @@ s35_forest_damage_end   Year of forest damage end  (1)              / 2050 /
 s35_npi_ndc_reversal    Year in which NPI NDC reversal should take place (1) / Inf /
 ;
 
-table f35_forest_lost_share(i,driver_source) Share of area damaged by forest fires (1)
+table f35_forest_lost_share(i,driver_source) Share of forest area disturbed per year by driver (1)
 $ondelim
 $include "./modules/35_natveg/input/f35_forest_lost_share.cs3"
 $offdelim

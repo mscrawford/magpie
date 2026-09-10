@@ -7,13 +7,11 @@
 
 sets
 
-  driver_source Source of deforestation drivers
-  / overall, permanent_agriculture, hard_commodities, shifting_cultivation,
-  logging, wildfire, settlements_infrastructure, other_natural_disturbances,
-  unknown /
+  driver_source Source of forest disturbance
+  / overall, shifting_cultivation, wildfire, other_natural_disturbances /
 
-  combined_loss(driver_source) Combined loss from fire plus agriculture
-  / shifting_cultivation,wildfire /
+  combined_loss(driver_source) Combined loss from disturbances not modelled endogenously
+  / shifting_cultivation,wildfire,other_natural_disturbances /
 
   pol35 Land protection policy
   / none, npi, ndc /
