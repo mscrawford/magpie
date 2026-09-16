@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### changed
+- **55_awms/ipcc2006_aug16** `scen_conf55` is now `constant, ssp1, ssp2, ssp3, ssp4, ssp5, transformation`: the SRES names `a1, a2, b1, b2`, the never-supplied `sdp` and `GoodPractice` are removed, `transformation` (a digester/lagoon transition pathway) is added; requires input data from the revision that ships the rewritten `f55_awms_shr.cs4` (mrcommons `calcAWMSconfShr`). The option comments in `input.gms` and `default.cfg` list the new set; the default `ssp2` is unchanged
 - **57_maccs/on_aug22** Exogenously fixed MACC steps (`s57_maxmac_*` >= 2) are now a floor on the price-implied step, capped at the last MACC step, instead of an override, so a fixed step never yields less technical mitigation than the price-implied step; `-1` (default), `0` and `1` behave as before; the `s57_maxmac_*` descriptions in `default.cfg`, `input.gms` and the realization documentation say so. In the default phase-in mode a fixed step also follows the muting of the GHG prices (`c56_mute_ghgprices_until`, default y2030), so it first applies in 2035 instead of 2030; this changes FSEC's `nueMAC` and `riceMAC` columns and `scripts/start/extra/test_maccs.R`
 - **21_trade** Changed preprocessing calculation of bilateral trade flexibility band into the future, no longer based on historical standard deviations and rather based on mean historical ranges
 - **main.gms** model documentation references updated with recent MAgPIE publications (2020-2025)
