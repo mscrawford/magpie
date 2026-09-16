@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### changed
+- **55_awms/ipcc2006_aug16** `scen_conf55` is now `constant, ssp1, ssp2, ssp3, ssp4, ssp5, transformation`: the SRES names `a1, a2, b1, b2`, the never-supplied `sdp` and `GoodPractice` are removed, `transformation` (a digester/lagoon transition pathway) is added; requires input data from the revision that ships the rewritten `f55_awms_shr.cs4` (mrcommons `calcAWMSconfShr`). The option comments in `input.gms` and `default.cfg` list the new set; the default `ssp2` is unchanged
 - **21_trade** Changed preprocessing calculation of bilateral trade flexibility band into the future, no longer based on historical standard deviations and rather based on mean historical ranges
 - **main.gms** model documentation references updated with recent MAgPIE publications (2020-2025)
 - **scripts/npi_ndc** NPI/NDC/ndcdelay afforestation/reforestation (A/R) is now placed on cells by forest establishment headroom (potential minus current forest) times potential-forest carbon density, replacing the 2005 cropland+pasture area weight, so more of the prescribed target is delivered (less potential-clipping) and placement prefers higher-carbon cells; the reference year is pinned to the last observed year so the weight stays identical across climate scenarios.
