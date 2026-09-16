@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **scripts/npi_ndc** NPI/NDC/ndcdelay afforestation/reforestation (A/R) is now placed on cells by forest establishment headroom (potential minus current forest) times potential-forest carbon density, replacing the 2005 cropland+pasture area weight, so more of the prescribed target is delivered (less potential-clipping) and placement prefers higher-carbon cells; the reference year is pinned to the last observed year so the weight stays identical across climate scenarios.
 
 ### added
+- **scripts/output/extra/disaggregateNitrogen.R** New output script writing grid-level nitrogen pollution reports (`magpie4::getReportGridNitrogenPollution`: surplus, surplus intensity, exceedance of the critical nitrogen surplus); `config/default.cfg` exports `input/criticalNitrogenSurplus_0.5.mz` to the run folder so the exceedance can be computed there
 - **56_ghg_policy/price_aug22** New interface parameter `im_ghgprice_fader(t_all,i,pollutants)`: the factor module 56 applies to the exogenous GHG price of each pollutant by muting (`c56_mute_ghgprices_until`) and by the GHG policy fader (1 where it applies none)
 - **57_maccs/on_aug22** Phase-in of exogenously fixed MACC steps: `s57_maxmac_fader` (1 = muted and faded as the GHG price of the pollutant, default; 2 = own ramp via `s57_fader_start/end/target/functional_form`; 0 = none)
 - **config/default.cfg** `s57_maxmac_fader` and `s57_fader_*` exposed next to the `s57_maxmac_*` switches
