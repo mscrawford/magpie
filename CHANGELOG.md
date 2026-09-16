@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **scripts/npi_ndc** NPI/NDC/ndcdelay afforestation/reforestation (A/R) is now placed on cells by forest establishment headroom (potential minus current forest) times potential-forest carbon density, replacing the 2005 cropland+pasture area weight, so more of the prescribed target is delivered (less potential-clipping) and placement prefers higher-carbon cells; the reference year is pinned to the last observed year so the weight stays identical across climate scenarios.
 
 ### added
+- **scripts/output/extra/disaggregateNitrogen.R** New output script writing grid-level nitrogen pollution reports (`magpie4::getReportGridNitrogenPollution`: surplus, surplus intensity, exceedance of the critical nitrogen surplus); `config/default.cfg` exports `input/criticalNitrogenSurplus_0.5.mz` to the run folder so the exceedance can be computed there
 - **15_food** Added flexible source-to-target food substitution with configurable food baskets and kcal/protein replacement basis
 - **scenario_config_ec.csv** A set of scenarios for the Earth Commission
 - **scripts/start/projects/project_EC.R** Start script for EC scenarios.
