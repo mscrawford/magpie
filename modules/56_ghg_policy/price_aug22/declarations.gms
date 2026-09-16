@@ -7,6 +7,7 @@
 
 parameters
  im_pollutant_prices(t_all,i,pollutants,emis_source)          Certificate prices for N2O-N CH4 CO2-C used in the model (USD17MER per Mg)
+ im_ghgprice_fader(t_all,i,pollutants)                        Factor applied to the exogenous GHG prices by muting and the GHG policy fader (1)
  p56_pollutant_prices_input(t_all,i,pollutants,emis_source)   Certificate prices for N2O-N CH4 CO2-C from input files (USD17MER per Mg)
  p56_c_price_aff(t_all,i,ac)                      C price used for afforestation decision-making (USD17MER per tC)
  pc56_c_price_induced_aff                         Helper for fixing C price driven afforestation to zero for historic time steps (binary)

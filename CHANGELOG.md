@@ -7,11 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### changed
+- **57_maccs/on_aug22** Exogenously fixed MACC steps (`s57_maxmac_*` >= 2) are now a floor on the price-implied step, capped at the last MACC step, instead of an override, so a fixed step never yields less technical mitigation than the price-implied step; `-1` (default), `0` and `1` behave as before; the `s57_maxmac_*` descriptions in `default.cfg`, `input.gms` and the realization documentation say so. In the default phase-in mode a fixed step also follows the muting of the GHG prices (`c56_mute_ghgprices_until`, default y2030), so it first applies in 2035 instead of 2030; this changes FSEC's `nueMAC` and `riceMAC` columns and `scripts/start/extra/test_maccs.R`
 - **21_trade** Changed preprocessing calculation of bilateral trade flexibility band into the future, no longer based on historical standard deviations and rather based on mean historical ranges
 - **main.gms** model documentation references updated with recent MAgPIE publications (2020-2025)
 - **scripts/npi_ndc** NPI/NDC/ndcdelay afforestation/reforestation (A/R) is now placed on cells by forest establishment headroom (potential minus current forest) times potential-forest carbon density, replacing the 2005 cropland+pasture area weight, so more of the prescribed target is delivered (less potential-clipping) and placement prefers higher-carbon cells; the reference year is pinned to the last observed year so the weight stays identical across climate scenarios.
 
 ### added
+- **56_ghg_policy/price_aug22** New interface parameter `im_ghgprice_fader(t_all,i,pollutants)`: the factor module 56 applies to the exogenous GHG price of each pollutant by muting (`c56_mute_ghgprices_until`) and by the GHG policy fader (1 where it applies none)
+- **57_maccs/on_aug22** Phase-in of exogenously fixed MACC steps: `s57_maxmac_fader` (1 = muted and faded as the GHG price of the pollutant, default; 2 = own ramp via `s57_fader_start/end/target/functional_form`; 0 = none)
+- **config/default.cfg** `s57_maxmac_fader` and `s57_fader_*` exposed next to the `s57_maxmac_*` switches
 - **15_food** Added flexible source-to-target food substitution with configurable food baskets and kcal/protein replacement basis
 - **scenario_config_ec.csv** A set of scenarios for the Earth Commission
 - **scripts/start/projects/project_EC.R** Start script for EC scenarios.
@@ -20,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 -
 
 ### fixed
+- **56_ghg_policy/price_aug22** The regional share of the GHG policy fader (`fader_countries56`) had no effect: both terms of `p56_fader_reg` carried the fader, so every region was faded uniformly. The unselected population share now sees the full price (factor 1), as documented. Only affects runs with `s56_ghgprice_fader = 1`
 -
 
 

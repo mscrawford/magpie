@@ -11,11 +11,16 @@ $setglobal c57_macc_version  PBL_2022
 $setglobal c57_macc_scenario  Default
 
 scalars
-  s57_maxmac_n_soil    activate soil N mitigation independent of pollutant price (step of MACC and -1 is inactive) / -1 /
-  s57_maxmac_n_awms    activate awms N mitigation independent of pollutant price (step of MACC and -1 is inactive) / -1 /
-  s57_maxmac_ch4_rice    activate rice CH4 mitigation independent of pollutant price (step of MACC and -1 is inactive)/ -1 /
-  s57_maxmac_ch4_entferm activate enteric fermentation CH4 mitigation independent of pollutant price (step of MACC and -1 is inactive) / -1 /
-  s57_maxmac_ch4_awms  activate awms CH4 mitigation independent of pollutant price (step of MACC and -1 is inactive) / -1 /
+  s57_maxmac_n_soil    fixed MACC step for soil N mitigation as a floor on the price-implied step (MACC step and -1 is price-driven) / -1 /
+  s57_maxmac_n_awms    fixed MACC step for awms N mitigation as a floor on the price-implied step (MACC step and -1 is price-driven) / -1 /
+  s57_maxmac_ch4_rice    fixed MACC step for rice CH4 mitigation as a floor on the price-implied step (MACC step and -1 is price-driven)/ -1 /
+  s57_maxmac_ch4_entferm fixed MACC step for enteric fermentation CH4 mitigation as a floor on the price-implied step (MACC step and -1 is price-driven) / -1 /
+  s57_maxmac_ch4_awms  fixed MACC step for awms CH4 mitigation as a floor on the price-implied step (MACC step and -1 is price-driven) / -1 /
+  s57_maxmac_fader     phase-in of fixed MACC steps (0=none 1=as the GHG price of the pollutant in module 56 2=own ramp) / 1 /
+  s57_fader_start      start year of the own phase-in of fixed MACC steps (1) / 2035 /
+  s57_fader_end        end year of the own phase-in of fixed MACC steps (1) / 2050 /
+  s57_fader_target     target value of the own phase-in of fixed MACC steps in the end year (1) / 1 /
+  s57_fader_functional_form  functional form of the own phase-in of fixed MACC steps (1=linear 2=sigmoid) / 1 /
   s57_implicit_emis_factor emission factor for direct soil emissions implicit to MACC curves (tN2ON per tN) / 0.01 /
   s57_implicit_fert_cost fertilizer costs implicit to MACC curves (USD17MER per ton N) / 738 /
 ;

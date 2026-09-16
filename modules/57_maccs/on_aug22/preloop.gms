@@ -25,15 +25,47 @@ i57_mac_step_n2o(t,i,emis_source) = min(201, ceil(im_pollutant_prices(t,i,"n2o_n
 i57_mac_step_ch4(t,i,emis_source) = min(201, ceil(im_pollutant_prices(t,i,"ch4",emis_source)/25*44/12 / s57_step_length) + 1);
 
 
+* Phase-in of exogenously fixed MACC steps (s57_maxmac_* >= 2):
+*  s57_maxmac_fader = 1 (default): the fixed step is phased in with the same factor that module 56
+*    applies to the GHG price of the respective pollutant (im_ghgprice_fader: 0 while the prices are
+*    muted until c56_mute_ghgprices_until, then the fader if s56_ghgprice_fader is on and the pollutant
+*    is in pollutants_fader, else 1), so that a change to the GHG-price muting or phase-in carries
+*    over to the non-CO2 MACCs.
+*  s57_maxmac_fader = 2: own ramp (s57_fader_start, s57_fader_end, s57_fader_target,
+*    s57_fader_functional_form), e.g. one GHG price but technical mitigation on its own schedule.
+*  s57_maxmac_fader = 0: no phase-in.
+* The fixed step is a floor on the price-implied step and is capped at the last MACC step, so it
+* never yields less technical mitigation than the price-implied step. s57_maxmac_* = 0 or 1 fix the
+* step at 0 or 1, i.e. no technical mitigation, as before.
+abort$(s57_maxmac_fader < 0 or s57_maxmac_fader > 2) "s57_maxmac_fader must be 0, 1 or 2";
+abort$(s57_maxmac_fader = 2 and (s57_fader_functional_form < 1 or s57_fader_functional_form > 2)) "s57_fader_functional_form must be 1 or 2";
+p57_fader(t_all) = 1;
+if (s57_maxmac_fader = 2,
+  if (s57_fader_functional_form = 1,
+    m_linear_time_interpol(p57_fader,s57_fader_start,s57_fader_end,0,s57_fader_target);
+  elseif s57_fader_functional_form = 2,
+    m_sigmoid_time_interpol(p57_fader,s57_fader_start,s57_fader_end,0,s57_fader_target);
+  );
+);
+p57_maxmac_fader(t_all,i,pollutants) = 1;
+p57_maxmac_fader(t_all,i,pollutants)$(s57_maxmac_fader = 1) = im_ghgprice_fader(t_all,i,pollutants);
+p57_maxmac_fader(t_all,i,pollutants)$(s57_maxmac_fader = 2) = p57_fader(t_all);
+
 loop(t,
 
   if(m_year(t) > sm_fix_SSP2,
 
-    if (s57_maxmac_n_soil >= 0, i57_mac_step_n2o(t,i,emis_source_inorg_fert_n2o) = s57_maxmac_n_soil);
-    if (s57_maxmac_n_awms >= 0, i57_mac_step_n2o(t,i,emis_source_awms_n2o) = s57_maxmac_n_awms);
-    if (s57_maxmac_ch4_rice >= 0, i57_mac_step_ch4(t,i,emis_source_rice_ch4) = s57_maxmac_ch4_rice);
-    if (s57_maxmac_ch4_entferm >= 0, i57_mac_step_ch4(t,i,emis_source_ent_ferm_ch4) = s57_maxmac_ch4_entferm);
-    if (s57_maxmac_ch4_awms >= 0, i57_mac_step_ch4(t,i,emis_source_awms_ch4) = s57_maxmac_ch4_awms);
+    if (s57_maxmac_n_soil >= 2, i57_mac_step_n2o(t,i,emis_source_inorg_fert_n2o) = min(card(maccs_steps), max(i57_mac_step_n2o(t,i,emis_source_inorg_fert_n2o), 1 + round((s57_maxmac_n_soil - 1) * p57_maxmac_fader(t,i,"n2o_n_direct")))));
+    if (s57_maxmac_n_awms >= 2, i57_mac_step_n2o(t,i,emis_source_awms_n2o) = min(card(maccs_steps), max(i57_mac_step_n2o(t,i,emis_source_awms_n2o), 1 + round((s57_maxmac_n_awms - 1) * p57_maxmac_fader(t,i,"n2o_n_direct")))));
+    if (s57_maxmac_ch4_rice >= 2, i57_mac_step_ch4(t,i,emis_source_rice_ch4) = min(card(maccs_steps), max(i57_mac_step_ch4(t,i,emis_source_rice_ch4), 1 + round((s57_maxmac_ch4_rice - 1) * p57_maxmac_fader(t,i,"ch4")))));
+    if (s57_maxmac_ch4_entferm >= 2, i57_mac_step_ch4(t,i,emis_source_ent_ferm_ch4) = min(card(maccs_steps), max(i57_mac_step_ch4(t,i,emis_source_ent_ferm_ch4), 1 + round((s57_maxmac_ch4_entferm - 1) * p57_maxmac_fader(t,i,"ch4")))));
+    if (s57_maxmac_ch4_awms >= 2, i57_mac_step_ch4(t,i,emis_source_awms_ch4) = min(card(maccs_steps), max(i57_mac_step_ch4(t,i,emis_source_awms_ch4), 1 + round((s57_maxmac_ch4_awms - 1) * p57_maxmac_fader(t,i,"ch4")))));
+
+    if (s57_maxmac_n_soil >= 0 and s57_maxmac_n_soil <= 1, i57_mac_step_n2o(t,i,emis_source_inorg_fert_n2o) = s57_maxmac_n_soil);
+    if (s57_maxmac_n_awms >= 0 and s57_maxmac_n_awms <= 1, i57_mac_step_n2o(t,i,emis_source_awms_n2o) = s57_maxmac_n_awms);
+    if (s57_maxmac_ch4_rice >= 0 and s57_maxmac_ch4_rice <= 1, i57_mac_step_ch4(t,i,emis_source_rice_ch4) = s57_maxmac_ch4_rice);
+    if (s57_maxmac_ch4_entferm >= 0 and s57_maxmac_ch4_entferm <= 1, i57_mac_step_ch4(t,i,emis_source_ent_ferm_ch4) = s57_maxmac_ch4_entferm);
+    if (s57_maxmac_ch4_awms >= 0 and s57_maxmac_ch4_awms <= 1, i57_mac_step_ch4(t,i,emis_source_awms_ch4) = s57_maxmac_ch4_awms);
 
   );
 );

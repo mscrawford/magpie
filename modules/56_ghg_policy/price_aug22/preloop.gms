@@ -59,7 +59,8 @@ elseif s56_fader_functional_form = 2,
 
 m_linear_time_interpol(p56_fader_cpriceaff,s56_fader_cpriceaff_start,s56_fader_cpriceaff_end,0,s56_c_price_induced_aff);
 
-p56_fader_reg(t_all,i) = p56_fader(t_all) * p56_region_fader_shr(t_all,i) + p56_fader(t_all) * (1-p56_region_fader_shr(t_all,i));
+* Regions are faded in proportion to the population share of the selected countries; the rest of the region sees the full price (factor 1)
+p56_fader_reg(t_all,i) = p56_fader(t_all) * p56_region_fader_shr(t_all,i) + 1 * (1-p56_region_fader_shr(t_all,i));
 im_pollutant_prices(t_all,i,pollutants_fader,emis_source)$(s56_ghgprice_fader = 1) = im_pollutant_prices(t_all,i,pollutants_fader,emis_source) * p56_fader_reg(t_all,i);
 
 ***apply reduction factor on CO2 price to account for potential negative side effects
@@ -70,6 +71,12 @@ im_pollutant_prices(t_all,i,"co2_c",emis_source) = im_pollutant_prices(t_all,i,"
 im_pollutant_prices(t_all,i,pollutants,emis_source)$(m_year(t_all) <= sm_fix_SSP2) = 0;
 ** set GHG prices to zero for all future time steps until the year defined by `c56_mute_ghgprices_until` or `s56_fader_start`
 im_pollutant_prices(t_all,i,pollutants,emis_source)$(m_year(t_all) > sm_fix_SSP2 AND m_year(t_all) <= max(m_year("%c56_mute_ghgprices_until%"),s56_fader_start*s56_ghgprice_fader)) = 0;
+***export the factor the fader and the muting apply to the exogenous GHG prices (1 for pollutants and years
+***they do not touch; 0 for the historic period and the muted years; the CO2 minimum price below is not
+***represented), used by module 57 to phase in exogenously fixed MACC steps
+im_ghgprice_fader(t_all,i,pollutants) = 1;
+im_ghgprice_fader(t_all,i,pollutants_fader)$(s56_ghgprice_fader = 1) = p56_fader_reg(t_all,i);
+im_ghgprice_fader(t_all,i,pollutants)$(m_year(t_all) <= max(sm_fix_SSP2,m_year("%c56_mute_ghgprices_until%"),s56_fader_start*s56_ghgprice_fader)) = 0;
 ** Exception for C price, which can be set to a minium price for all time steps
 im_pollutant_prices(t_all,i,"co2_c",emis_source)$(im_pollutant_prices(t_all,i,"co2_c",emis_source) < s56_minimum_cprice) = s56_minimum_cprice;
 

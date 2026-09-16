@@ -13,6 +13,8 @@ parameters
  im_maccs_mitigation(t,i,emis_source,pollutants)        Technical mitigation of GHG emissions (percent)
  i57_mac_step_n2o(t,i,emis_source)                                  Helper to map N2O prices and maccs_steps (1)
  i57_mac_step_ch4(t,i,emis_source)                                  Helper to map CH4 prices and maccs_steps (1)
+ p57_fader(t_all)                                                   Own phase-in of fixed MACC steps (1)
+ p57_maxmac_fader(t_all,i,pollutants)                               Factor applied to fixed MACC steps (1)
  p57_maccs_costs_integral(t,i,emis_source,pollutants)   Costs of technical mitigation (USD17MER per Tg N CH4 C)
 ;
 

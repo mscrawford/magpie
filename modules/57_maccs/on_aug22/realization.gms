@@ -9,6 +9,10 @@
 *' that non-CO2 emissions can be reduced by technical mitigation at additional costs.
 *' The following MACC data sets are available in this module:
 *' @LUCAS200785 (PBL_2007) and @Harmsen2019 (PBL_2019).
+*' The mitigation step of each source follows from the price of its pollutant. An exogenously
+*' fixed step (`s57_maxmac_*` from 2 to 201) is a floor on that price-implied step and is by
+*' default muted and phased in as module 56 mutes and phases in the GHG price of the pollutant;
+*' an own ramp is available (`s57_maxmac_fader`).
 *'
 *' @limitations The data set PBL_2007 is outdated and only kept for backward compatibility
 
