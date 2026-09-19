@@ -36,4 +36,11 @@ sets
   trop_edge(i) Regions where the tropical edge-degradation loss applies
   / LAM, SSA, OAS /
 
+* Forest degradation drivers represented as vegetation-carbon density deficits on standing
+* natural forest (the degradation ledger, model version L4, 2026-09). One member today. A fire
+* or logging driver is added as a set element with its own exposure source and time constants,
+* not as new equations (fragmentation repo, DEGRADATION_LEDGER_PROPOSAL.md section 6).
+  degr35 Forest degradation drivers as density deficits on standing forest
+  / edge /
+
 ;

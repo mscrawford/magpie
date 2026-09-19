@@ -51,6 +51,12 @@ s35_edge_agb_only       Apply the edge factor to aboveground carbon only (0=tota
 * Tropical gate (2026-08-28): 0 = MAgPIE region set trop_edge (LAM SSA OAS), 1 = per-cluster
 * forest-weighted tropical share f35_edge_trop_share (Koeppen A classes weighted by 0.5 deg forest).
 s35_edge_gate           Tropical gate (0=region set trop_edge 1=forest-weighted tropical share) / 1 /
+* Time constants of the APPLIED edge deficit (degradation ledger, L4, 2026-09): the applied deficit fraction
+* relaxes toward the closure target as g_t = g*_t + (g_t-1 - g*_t) exp(-dt/tau), with tau_damage when the
+* target rises and tau_recovery when it falls. 0 = instantaneous (the applied deficit equals the target every
+* step; reproduces the L0-L3 solve bit for bit). Values > 0 are the S7 timing sensitivity, not the default.
+s35_edge_tau_damage     Time constant for a rising edge deficit (yr with 0 = instantaneous)   / 0 /
+s35_edge_tau_recovery   Time constant for a falling edge deficit (yr with 0 = instantaneous)  / 0 /
 ;
 
 table f35_forest_lost_share(i,driver_source) Share of area damaged by forest fires (1)

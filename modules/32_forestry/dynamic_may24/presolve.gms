@@ -67,23 +67,29 @@ p32_carbon_density_ac(t,j,"plant",ac,ag_pools) = pm_carbon_density_plantation_ac
 *' NDC carbon densities are natveg carbon densities.
 p32_carbon_density_ac(t,j,"ndc",ac,ag_pools) = pm_carbon_density_secdforest_ac_uncalib(t,j,ac,ag_pools);
 
-*' Edge-effect reduction of vegetation carbon for afforestation pools on NATURAL growth curves
+*' Degradation-factor reduction of vegetation carbon for afforestation pools on NATURAL growth curves
 *' (`ndc`, and `aff` when `s32_aff_plantation` = 0). These pools grow on the secondary-forest
 *' curves and are protected, so they are treated like secondary forest in 35_natveg.
-*' `pm_carbon_edge_factor` is set in the presolve of 35_natveg, which runs after this one, so the
+*' `pm_carbon_degr_factor` (the combined retention factor over the degradation drivers of 35_natveg,
+*' today the edge factor) is set in the presolve of 35_natveg, which runs after this one, so the
 *' value is from the previous time step (1 in the first). Timber plantations (`plant`) and
-*' plantation-curve `aff` are not reduced. The removed carbon is exported as
-*' `pm_edge_carbon_loss_forestry` for the edge accounting in 35_natveg. Applied BEFORE the
-*' afforestation CDR increment below, so the afforestation incentive sees the reduced density.
+*' plantation-curve `aff` are not reduced. The unreduced densities are kept for the committed-stock
+*' export in postsolve (L4); the deficit fraction applied in this step is recorded as `p32_degr_applied`.
+*' The removed carbon on last step's land is exported as `pm_edge_carbon_loss_forestry` for the LEGACY
+*' presolve-basis accounting in 35_natveg (regression gate only). Applied BEFORE the afforestation CDR
+*' increment below, so the afforestation incentive sees the reduced density.
+p32_vegc_unreduced(t,j,type32,ac) = p32_carbon_density_ac(t,j,type32,ac,"vegc");
+p32_degr_applied(t,j,ac) = 0;
 pm_edge_carbon_loss_forestry(t,j) = 0;
 if(s32_edge_haircut = 1,
-  pm_edge_carbon_loss_forestry(t,j) = (1 - pm_carbon_edge_factor(j))
-    * sum(ac, p32_carbon_density_ac(t,j,"ndc",ac,"vegc") * pc32_land(j,"ndc",ac));
-  p32_carbon_density_ac(t,j,"ndc",ac,"vegc") = p32_carbon_density_ac(t,j,"ndc",ac,"vegc") * pm_carbon_edge_factor(j);
+  p32_degr_applied(t,j,ac) = 1 - pm_carbon_degr_factor(j,ac);
+  pm_edge_carbon_loss_forestry(t,j) = sum(ac, p32_degr_applied(t,j,ac)
+    * p32_carbon_density_ac(t,j,"ndc",ac,"vegc") * pc32_land(j,"ndc",ac));
+  p32_carbon_density_ac(t,j,"ndc",ac,"vegc") = p32_carbon_density_ac(t,j,"ndc",ac,"vegc") * pm_carbon_degr_factor(j,ac);
   if(s32_aff_plantation = 0,
-    pm_edge_carbon_loss_forestry(t,j) = pm_edge_carbon_loss_forestry(t,j) + (1 - pm_carbon_edge_factor(j))
-      * sum(ac, p32_carbon_density_ac(t,j,"aff",ac,"vegc") * pc32_land(j,"aff",ac));
-    p32_carbon_density_ac(t,j,"aff",ac,"vegc") = p32_carbon_density_ac(t,j,"aff",ac,"vegc") * pm_carbon_edge_factor(j);
+    pm_edge_carbon_loss_forestry(t,j) = pm_edge_carbon_loss_forestry(t,j) + sum(ac, p32_degr_applied(t,j,ac)
+      * p32_carbon_density_ac(t,j,"aff",ac,"vegc") * pc32_land(j,"aff",ac));
+    p32_carbon_density_ac(t,j,"aff",ac,"vegc") = p32_carbon_density_ac(t,j,"aff",ac,"vegc") * pm_carbon_degr_factor(j,ac);
   );
 );
 

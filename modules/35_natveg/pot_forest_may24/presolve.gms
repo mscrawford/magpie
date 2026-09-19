@@ -9,6 +9,11 @@
 * Shift ageclasses due to shifting agriculture fires
 * ----------------------------------------------------
 
+* Remembered land steps (degradation ledger seam 8): at this presolve pcm_land is last step's land; lag2 keeps
+* the land two steps back for the lagged clearing term of a future driver. Read by nothing yet.
+p35_land_lag2(j,land) = p35_land_lag1(j,land);
+p35_land_lag1(j,land) = pcm_land(j,land);
+
 * first calculate damages
 if(s35_forest_damage=1,
   p35_disturbance_loss_secdf(t,j,ac_sub) = pc35_secdforest(j,ac_sub) * sum(cell(i,j),f35_forest_lost_share(i,"shifting_agriculture"))*m_timestep_length_forestry;
@@ -325,12 +330,16 @@ if(s35_edge_carbon = 1,
 *       IND / CHA / CAZ / MEA is gated in, non-tropical land inside LAM / SSA / OAS is gated
 *       out. Decided 2026-08-28 (pipeline dossier M6). Newly admitted clusters need
 *       f35_edge_scale rebuilt for them (the shipped CSV carries 1.0 outside LAM/SSA/OAS).
+* The gate is carried per driver (ledger seam 7): edge = the tropical gate below; any other driver = 1 (preloop).
+* Multiplying by the gate (1 or the share) reproduces the former in-place assignment bit for bit.
+  p35_degr_gate(j,"edge") = 1;
   if(s35_edge_gate = 0,
-    p35_edge_fraction(j)$(NOT sum(cell(i,j)$trop_edge(i), 1)) = 0;
+    p35_degr_gate(j,"edge")$(NOT sum(cell(i,j)$trop_edge(i), 1)) = 0;
   );
   if(s35_edge_gate = 1,
-    p35_edge_fraction(j) = p35_edge_fraction(j) * f35_edge_trop_share(j);
+    p35_degr_gate(j,"edge") = f35_edge_trop_share(j);
   );
+  p35_edge_fraction(j) = p35_edge_fraction(j) * p35_degr_gate(j,"edge");
 
 * Aggregation-scale correction (TENTATIVE / EXPLORATORY). The closure is fit at 0.5deg
 * but evaluated once per ~200-cluster aggregate; because edge is sub-additive in area this
@@ -341,14 +350,49 @@ if(s35_edge_carbon = 1,
 * every cluster with a non-zero share needs its own factor in the CSV.
   p35_edge_fraction(j) = min(p35_edge_fraction(j) * f35_edge_scale(j), 1);
 
-* Carbon edge factor: fraction of original carbon density retained. Total-vegc factor (the
-* pre-2026-08-28 behaviour, s35_edge_agb_only = 0) or, with s35_edge_agb_only = 1, a land-type
-* specific factor that removes the edge loss from the ABOVEGROUND share of vegc only
-* (fm_aboveground_fraction, 14_yields: primforest 0.75, secdforest 0.80, other 0.70; youngsecdf
-* lives under "other"). Root:shoot rises under edge stress and the benchmarks (Brinck, Yang,
-* CK15) are aboveground-only: 02-parameterization/documents/BELOWGROUND_AGB_EDGE_FACTOR.md
-* (fragmentation repo). Written as 1 - f * d0 * ag so that ag = 1 reproduces the total-vegc
-* factor bit-identically; with s35_edge_agb_only = 0 the type factors are plain copies.
+* --- Degradation ledger (L4, 2026-09; seams 1-4 and 6 of DEGRADATION_LEDGER_PROPOSAL.md section 6) ---
+* Exposure and damage are separate objects per driver (degr35, one member today: edge). The target deficit
+* fraction per land type and age class is exposure x damage, times the aboveground share of vegc when
+* s35_edge_agb_only = 1 (fm_aboveground_fraction, 14_yields: primforest 0.75, secdforest 0.80, other 0.70;
+* youngsecdf lives under "other"). Root:shoot rises under edge stress and the benchmarks (Brinck, Yang, CK15)
+* are aboveground-only: 02-parameterization/documents/BELOWGROUND_AGB_EDGE_FACTOR.md (fragmentation repo).
+* Written as (exposure x damage) x ag so that the single-driver retention factor 1 - g reproduces the legacy
+* edge factor 1 - f * d0 * ag bit for bit. The edge exposure is the gated, scaled edge fraction (exported per step).
+  p35_degr_exposure(t,j,"edge") = p35_edge_fraction(j);
+  p35_degr_target(j,land_timber,ac,degr35) = p35_degr_exposure(t,j,degr35) * p35_degr_damage(degr35);
+  if(s35_edge_agb_only = 1,
+    p35_degr_target(j,land_timber,ac,degr35) =
+      p35_degr_exposure(t,j,degr35) * p35_degr_damage(degr35) * fm_aboveground_fraction(land_timber);
+  );
+* Primforest has no age classes in the model: its deficit lives in the terminal class acx (mature forest).
+* Timber plantations (forestry) are never reduced here (see the plantation note below); the natural-curve
+* afforestation pools are reduced in 32_forestry through the interface factor.
+  p35_degr_target(j,"primforest",ac,degr35)$(NOT sameas(ac,"acx")) = 0;
+  p35_degr_target(j,"forestry",ac,degr35) = 0;
+
+* Relaxation toward the target (seam 4): g_t = g*_t + (g_t-1 - g*_t) exp(-dt/tau), tau_damage when the target
+* is above last step's applied deficit and tau_recovery when below. With both time constants 0 (the default)
+* the applied deficit IS the target - a plain copy, no arithmetic - so the L0-L3 solve is reproduced bit for
+* bit; tau > 0 is the S7 timing sensitivity (fast damage, slow recovery) in the model's stock, never in the report.
+  p35_degr_applied(t,j,land_timber,ac,degr35) = p35_degr_target(j,land_timber,ac,degr35);
+  if(ord(t) > 1,
+    p35_degr_applied(t,j,land_timber,ac,degr35)$(p35_degr_tau_damage(degr35) > 0
+        AND p35_degr_target(j,land_timber,ac,degr35) >= p35_degr_applied(t-1,j,land_timber,ac,degr35)) =
+      p35_degr_target(j,land_timber,ac,degr35)
+      + (p35_degr_applied(t-1,j,land_timber,ac,degr35) - p35_degr_target(j,land_timber,ac,degr35))
+        * exp(-(m_timestep_length) / p35_degr_tau_damage(degr35));
+    p35_degr_applied(t,j,land_timber,ac,degr35)$(p35_degr_tau_recovery(degr35) > 0
+        AND p35_degr_target(j,land_timber,ac,degr35) < p35_degr_applied(t-1,j,land_timber,ac,degr35)) =
+      p35_degr_target(j,land_timber,ac,degr35)
+      + (p35_degr_applied(t-1,j,land_timber,ac,degr35) - p35_degr_target(j,land_timber,ac,degr35))
+        * exp(-(m_timestep_length) / p35_degr_tau_recovery(degr35));
+  );
+
+* Combined retention factor: the product over drivers of 1 minus the applied deficit (seam 2).
+  p35_carbon_degr_factor(j,land_timber,ac) = prod(degr35, 1 - p35_degr_applied(t,j,land_timber,ac,degr35));
+
+* LEGACY edge-only factors (L0-L3 record; read only by the presolve-basis diagnostic p35_edge_carbon_loss
+* below): the total-vegc factor 1 - f d0 and its land-type copies with the aboveground share.
   p35_carbon_edge_factor(j) = 1 - p35_edge_fraction(j) * s35_edge_degrad;
   p35_carbon_edge_factor_type(j,land_timber) = p35_carbon_edge_factor(j);
   if(s35_edge_agb_only = 1,
@@ -356,22 +400,21 @@ if(s35_edge_carbon = 1,
       1 - p35_edge_fraction(j) * s35_edge_degrad * fm_aboveground_fraction(land_timber);
   );
 
-* Export for 32_forestry, which applies it to the NATURAL-growth-curve afforestation pools (ndc,
-* and aff when s32_aff_plantation = 0) in its own presolve. 32 runs before 35 within a time step,
-* so 32 uses the value from the previous step; the factor drifts by a few percent per decade
-* (audit/cell_cluster_missed_emissions/KEYSTONE3_FROZEN_VS_DYNAMIC.md), so the lag is immaterial.
-* Those pools grow on the secondary-forest curves, so they take the secdforest type factor
-* (identical to the total-vegc factor when s35_edge_agb_only = 0).
-  pm_carbon_edge_factor(j) = p35_carbon_edge_factor_type(j,"secdforest");
+* Interface export for 32_forestry (seam 10: the interface says degradation, not edge), which applies it to
+* the NATURAL-growth-curve afforestation pools (ndc, and aff when s32_aff_plantation = 0) in its own presolve.
+* 32 runs before 35 within a time step, so 32 uses the value from the previous step; the factor drifts by a
+* few percent per decade (audit/cell_cluster_missed_emissions/KEYSTONE3_FROZEN_VS_DYNAMIC.md), so the lag is
+* immaterial. Those pools grow on the secondary-forest curves, so they take the secdforest factor per age class.
+  pm_carbon_degr_factor(j,ac) = p35_carbon_degr_factor(j,"secdforest",ac);
 
-* Calculate total carbon lost to edge effects BEFORE applying the factor
-* Loss = (1 - factor) * sum over forest types of (density_vegc * area)
-* Includes primforest, secdforest, and youngsecdf (young secondary forest < 20 tC/ha)
+* LEGACY (L0-L3 presolve basis; kept for the regression gate, NOT read by the L4 report): total carbon
+* committed to edge loss on LAST step's land, (1 - edge-only factor) * sum over pools of density_vegc * area,
+* computed BEFORE the factors are applied. Includes primforest, secdforest and youngsecdf.
 * NOTE: forestry is included in p35_forest_area for the closure geometry. Its carbon is treated
 *       by pool (changed 2026-08-21). The NATURAL-curve afforestation pools (ndc; aff under
 *       s32_aff_plantation = 0) grow on pm_carbon_density_secdforest_ac_uncalib and are protected
 *       (s32_aff_prot = 1), i.e. they are biophysically the same object as secdforest, so
-*       32_forestry reduces their vegc by pm_carbon_edge_factor (one-step lag, see above) and
+*       32_forestry reduces their vegc by pm_carbon_degr_factor (one-step lag, see above) and
 *       reports the removed carbon as pm_edge_carbon_loss_forestry, added below. Timber
 *       plantations (plant) and plantation-curve aff stay UNREDUCED: the Brinck (2017) factor
 *       (s35_edge_degrad = 0.5) is a tropical NATURAL-forest mechanism (large-tree mortality +
@@ -402,34 +445,40 @@ if(s35_edge_carbon = 1,
 * only; 0 when s32_edge_haircut = 0). Keeps p35_edge_carbon_loss the single reporting source.
   p35_edge_carbon_loss(t,j) = p35_edge_carbon_loss(t,j) + pm_edge_carbon_loss_forestry(t,j);
 
-* Apply to primforest vegc (type factors: plain copies of p35_carbon_edge_factor unless
-* s35_edge_agb_only = 1, so the s35_edge_agb_only = 0 arithmetic is bit-identical to before)
-  fm_carbon_density(t,j,"primforest","vegc") =
-    fm_carbon_density(t,j,"primforest","vegc") * p35_carbon_edge_factor_type(j,"primforest");
+* Unreduced density copies (seam 3): the base that every driver multiplies and on which the committed deficit
+* stock is booked in postsolve (the L4 exports). Taken after the blend and before any factor is applied.
+  p35_vegc_unreduced_primforest(t,j)    = fm_carbon_density(t,j,"primforest","vegc");
+  p35_vegc_unreduced_secdforest(t,j,ac) = p35_carbon_density_secdforest(t,j,ac,"vegc");
+  p35_vegc_unreduced_youngsecdf(t,j,ac) = p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc");
 
-* Apply to secdforest vegc (all age classes). The secdforest carbon STOCK now uses
-* the blended density p35_carbon_density_secdforest (equations.gms q35_carbon), so the
-* edge factor must reduce the blend to reach the stock. Reducing the blend is
-* mathematically equivalent to reducing both the calibrated and uncalibrated input
-* curves, because the blend is a linear (convex) combination of them. The calibrated
+* Apply the combined degradation factor. Primforest has no age classes in the model and takes its factor from
+* the terminal class acx (mature forest); with one driver and tau = 0 every factor below equals the legacy edge
+* type factor bit for bit.
+  fm_carbon_density(t,j,"primforest","vegc") =
+    fm_carbon_density(t,j,"primforest","vegc") * p35_carbon_degr_factor(j,"primforest","acx");
+
+* Apply to secdforest vegc (all age classes). The secdforest carbon STOCK uses the blended density
+* p35_carbon_density_secdforest (equations.gms q35_carbon), so the factor must reduce the blend to reach
+* the stock. Reducing the blend is mathematically equivalent to reducing both the calibrated and
+* uncalibrated input curves, because the blend is a linear (convex) combination of them. The calibrated
 * pm_carbon_density_secdforest_ac is reduced as well, since it is still read by magpie4
 * (emisCO2, reportPBbiosphere) and was edge-reduced before the develop merge.
   p35_carbon_density_secdforest(t,j,ac,"vegc") =
-    p35_carbon_density_secdforest(t,j,ac,"vegc") * p35_carbon_edge_factor_type(j,"secdforest");
+    p35_carbon_density_secdforest(t,j,ac,"vegc") * p35_carbon_degr_factor(j,"secdforest",ac);
   pm_carbon_density_secdforest_ac(t,j,ac,"vegc") =
-    pm_carbon_density_secdforest_ac(t,j,ac,"vegc") * p35_carbon_edge_factor_type(j,"secdforest");
+    pm_carbon_density_secdforest_ac(t,j,ac,"vegc") * p35_carbon_degr_factor(j,"secdforest",ac);
 
-* Apply to youngsecdf via p35_carbon_density_other
+* Apply to youngsecdf via p35_carbon_density_other (youngsecdf lives under land type "other")
   p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") =
-    p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") * p35_carbon_edge_factor_type(j,"other");
+    p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") * p35_carbon_degr_factor(j,"other",ac);
 
-* --- Temporal pipeline for edge carbon emissions ---
-* The temporal pipeline (Option B: symmetric realized-loss tracking with
-* exponential time constant tau) is now computed in magpie4::reportEmissions
-* rather than GAMS. This keeps the optimizer instant while allowing
-* post-hoc temporal spreading without re-running GAMS.
-* See 05-temporal-accounting/documents/OPTION_B_DESIGN.md for the design rationale.
-* The key output for magpie4 is p35_edge_carbon_loss(t,j) computed above.
+* --- Reporting (L4, committed-stock accounting, 2026-09) ---
+* magpie4::reportEmissions reports the edge emission as the change of the committed deficit stock on
+* standing forest, from the postsolve exports p35_degr_committed / p32_degr_committed together with the
+* unreduced densities and the solved pool areas (fragmentation repo,
+* 05-temporal-accounting/documents/COMMITTED_STOCK_ACCOUNTING.md). The former lagged reporting overlay
+* (tau, rInit, area split, cc subtraction) is retired (decision 2026-09-08). p35_edge_carbon_loss above is
+* the L0-L3 presolve-basis diagnostic, kept for the regression gate only.
 
 );
 

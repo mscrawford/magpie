@@ -9,6 +9,16 @@
 pc32_land(j,type32,ac) = v32_land.l(j,type32,ac);
 *' @stop
 
+* Degradation ledger export (L4, 2026-09): the committed vegc deficit stock on the SOLVED natural-curve
+* afforestation pools (ndc; aff under s32_aff_plantation = 0), from the deficit fraction applied in this step's
+* presolve and the unreduced density copies. Postsolve only, so no effect on the solve. The per-driver split of
+* this combined deficit is made in the report from the 35_natveg exports (one driver today).
+p32_degr_committed(t,j,type32,ac) = 0;
+p32_degr_committed(t,j,"ndc",ac) = p32_degr_applied(t,j,ac) * p32_vegc_unreduced(t,j,"ndc",ac) * v32_land.l(j,"ndc",ac);
+if(s32_aff_plantation = 0,
+  p32_degr_committed(t,j,"aff",ac) = p32_degr_applied(t,j,ac) * p32_vegc_unreduced(t,j,"aff",ac) * v32_land.l(j,"aff",ac);
+);
+
 *#################### R SECTION START (OUTPUT DEFINITIONS) #####################
  ov_cost_fore(t,i,"marginal")                        = vm_cost_fore.m(i);
  ov32_cost_hvarea(t,i,"marginal")                    = v32_cost_hvarea.m(i);

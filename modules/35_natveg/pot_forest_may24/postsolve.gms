@@ -18,6 +18,20 @@ p35_secdforest_natural(t,j,ac) = pc35_secdforest_natural(j,ac);
 *other land age class calculation
 pc35_land_other(j,othertype35,ac) = vm_land_other.l(j,othertype35,ac);
 
+* --- Degradation ledger exports (L4, 2026-09): the committed vegc deficit stock per driver on the SOLVED
+* land, from the deficit fraction applied in this step's presolve and the unreduced density copies. Postsolve
+* only, so no effect on the solve. Exact for one driver; with several multiplicative drivers the report
+* attributes the total deficit (1 minus the product of 1 - g_d) by shares of -ln(1 - g_d). The presolve-basis
+* p35_edge_carbon_loss stays in the GDX for the L0 regression gate and is no longer read by the report.
+if(s35_edge_carbon = 1,
+  p35_degr_committed(t,j,"primforest","acx",degr35) = p35_degr_applied(t,j,"primforest","acx",degr35)
+    * p35_vegc_unreduced_primforest(t,j) * vm_land.l(j,"primforest");
+  p35_degr_committed(t,j,"secdforest",ac,degr35) = p35_degr_applied(t,j,"secdforest",ac,degr35)
+    * p35_vegc_unreduced_secdforest(t,j,ac) * v35_secdforest.l(j,ac);
+  p35_degr_committed(t,j,"other",ac,degr35) = p35_degr_applied(t,j,"other",ac,degr35)
+    * p35_vegc_unreduced_youngsecdf(t,j,ac) * vm_land_other.l(j,"youngsecdf",ac);
+);
+
 * Set the forest establishment bound for the next time step
 pm_max_forest_est(t+1,j) = f35_pot_forest_area(t+1,j) - sum(land_forest, vm_land.l(j,land_forest));
 pm_max_forest_est(t+1,j)$(pm_max_forest_est(t+1,j) < 1e-6) = 0;

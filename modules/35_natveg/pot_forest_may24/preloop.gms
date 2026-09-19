@@ -5,10 +5,21 @@
 *** |  MAgPIE License Exception, version 1.0 (see LICENSE file).
 *** |  Contact: magpie@pik-potsdam.de
 
-** Edge-effect vegc factor read by 32_forestry. The presolve of 32 runs before the presolve of
-** 35 within a time step, so 32 sees the value set in the previous step; 1 = no reduction until
-** the first edge presolve has run (and always, when s35_edge_carbon = 0).
-pm_carbon_edge_factor(j) = 1;
+** Degradation ledger (L4): the combined vegc retention factor read by 32_forestry. The presolve of 32 runs
+** before the presolve of 35 within a time step, so 32 sees the value set in the previous step; 1 = no
+** reduction until the first edge presolve has run (and always, when s35_edge_carbon = 0).
+pm_carbon_degr_factor(j,ac) = 1;
+p35_carbon_degr_factor(j,land_timber,ac) = 1;
+** Driver parameters, one driver today (edge): damage fraction and time constants from the input scalars;
+** the gate is 1 for any driver that does not set its own in presolve. Exposure and damage stay separate
+** objects so that a second driver (burned share x damage fraction) mirrors the pattern.
+p35_degr_damage("edge") = s35_edge_degrad;
+p35_degr_tau_damage("edge") = s35_edge_tau_damage;
+p35_degr_tau_recovery("edge") = s35_edge_tau_recovery;
+p35_degr_gate(j,degr35) = 1;
+** Remembered land steps for a future driver's lagged clearing term (shifted at every presolve).
+p35_land_lag1(j,land) = pcm_land(j,land);
+p35_land_lag2(j,land) = pcm_land(j,land);
 
 ** initialize other land
 i35_land_other(j,othertype35,ac) = 0;
