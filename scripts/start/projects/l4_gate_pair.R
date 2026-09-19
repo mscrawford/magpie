@@ -8,14 +8,18 @@
 # |  Usage (PC, no scheduler; sequential): cd libraries/magpie && MAGPIE_SEQUENTIAL=TRUE caffeinate -dimsu Rscript scripts/start/projects/l4_gate_pair.R
 # |  Dry run (write the resolved configs, start nothing): L4GATE_DRYRUN=1 Rscript scripts/start/projects/l4_gate_pair.R
 # |  Arms: L4GATE_ARMS=ON,OFF (default both, ON first).
+# |  Source run and title: L4GATE_SRC=<glob> L4GATE_TITLE=<prefix> (2026-09-19: the SSP1all priced pair for the aff export path).
 # |  Afterwards: git checkout -- modules/35_natveg/pot_forest_may24/input.gms modules/32_forestry/dynamic_may24/input.gms
 # |  (start_run stamps the last arm's switch values; default.cfg re-stamps them on any later run anyway).
 
 source("scripts/start_functions.R")
 
 source("config/default.cfg")            # the CURRENT schema (check_config refuses a cfg with missing keys)
-src <- Sys.glob("output/SSP2base_bodirsky_ON_2026-07-01_*")
+# L4GATE_SRC: glob of the July run whose config is overlaid (default the SSP2base gate reference; e.g. "output/SSP1all_bodirsky_ON_2026-07-01_*"
+# for the priced arm with natural-curve afforestation, the aff export path). L4GATE_TITLE: run-title prefix.
+src <- Sys.glob(Sys.getenv("L4GATE_SRC", "output/SSP2base_bodirsky_ON_2026-07-01_*"))
 stopifnot(length(src) == 1)
+titlePrefix <- Sys.getenv("L4GATE_TITLE", "SSP2base_L4gate_")
 july <- gms::loadConfig(file.path(src, "config.yml"))
 base <- cfg
 dropped <- setdiff(names(july$gms), names(base$gms))
@@ -41,7 +45,7 @@ folders <- c()
 for (a in wanted) {
   cfg <- base
   for (k in names(arms[[a]])) cfg$gms[[k]] <- arms[[a]][[k]]
-  cfg$title <- paste0("SSP2base_L4gate_", a)
+  cfg$title <- paste0(titlePrefix, a)
   if (dryrun) {
     out <- file.path(Sys.getenv("L4GATE_DRYRUN_DIR", "."), paste0("l4gate_dryrun_config_", a, ".yml"))
     # strip repository credentials before writing, as start_run does for the run's config.yml
