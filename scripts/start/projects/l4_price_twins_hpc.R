@@ -1,4 +1,5 @@
-# |  L4 price twins on the HPC (2026-09-20): two M0/M1 twin PAIRS on the SSP2 / RCP4.5 host, all four cells L4 edge ON.
+# |  L4 twins on the HPC (2026-09-20): the ALIGNED 2 x 2 price x diet cube under the design-B backdrop plus an M0/M1 ratchet pair,
+# |  SSP2 / RCP4.5 host, all six cells L4 edge ON.
 # |  Purpose: the carbon-price co-benefit on the committed-stock edge lines, measured twice - once with the design-B
 # |  emission backdrop (so the price scope matches the SSP1 cube the paper will use) and once with the S6 ratchet on
 # |  (so the co-benefit is bracketed from below, because L4 books edge recovery instantly and therefore hands the
@@ -100,12 +101,16 @@ set_edge_on <- function(cfg) {
   cfg
 }
 
-# --- The four cells: pair x M level. D is 0 throughout. ---
+# --- The six cells. "allnosoil" is the ALIGNED 2 x 2 (Mike, 2026-09-20): with the design-B backdrop the GHG price is live
+# --- from 2030, the same step as the diet's first faded step and the price scenario's bioenergy demand; the PC pilot of
+# --- 2026-09-19 had the price start five years after the diet (mute until y2030). "ratchet" stays an M0/M1 pair. ---
 cellDefs <- list(
-  allnosoil_M0D0 = list(pair = "allnosoil", M = FALSE, backdrop = TRUE,  ratchet = 0),
-  allnosoil_M1D0 = list(pair = "allnosoil", M = TRUE,  backdrop = TRUE,  ratchet = 0),
-  ratchet_M0D0   = list(pair = "ratchet",   M = FALSE, backdrop = FALSE, ratchet = 1),
-  ratchet_M1D0   = list(pair = "ratchet",   M = TRUE,  backdrop = FALSE, ratchet = 1))
+  allnosoil_M0D0 = list(pair = "allnosoil", M = FALSE, D = FALSE, backdrop = TRUE,  ratchet = 0),
+  allnosoil_M1D0 = list(pair = "allnosoil", M = TRUE,  D = FALSE, backdrop = TRUE,  ratchet = 0),
+  allnosoil_M0D1 = list(pair = "allnosoil", M = FALSE, D = TRUE,  backdrop = TRUE,  ratchet = 0),
+  allnosoil_M1D1 = list(pair = "allnosoil", M = TRUE,  D = TRUE,  backdrop = TRUE,  ratchet = 0),
+  ratchet_M0D0   = list(pair = "ratchet",   M = FALSE, D = FALSE, backdrop = FALSE, ratchet = 1),
+  ratchet_M1D0   = list(pair = "ratchet",   M = TRUE,  D = FALSE, backdrop = FALSE, ratchet = 1))
 
 cells <- Filter(nzchar, trimws(strsplit(Sys.getenv("L4TWIN_CELLS", paste(names(cellDefs), collapse = ",")), ",")[[1]]))
 unknown <- setdiff(cells, names(cellDefs))
@@ -120,7 +125,7 @@ for (cell in cells) {
   cfg <- set_edge_on(cfg)
   if (isTRUE(d$backdrop)) cfg <- set_cube_backdrop(cfg)
   cfg <- set_mitigation(cfg, on = isTRUE(d$M))
-  cfg <- set_diet(cfg, on = FALSE)
+  cfg <- set_diet(cfg, on = isTRUE(d$D))
   cfg$gms$s35_degr_ratchet <- d$ratchet
   cfg$title <- paste0(titlePrefix, cell)
   if (dryrun) {
