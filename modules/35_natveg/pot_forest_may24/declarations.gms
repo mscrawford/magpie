@@ -39,6 +39,8 @@ parameters
  p35_forest_area(j)                                      Total forest area per cluster for edge calc (mio. ha)
  p35_forest_fraction(j)                                  Forest fraction per cluster (1)
  p35_edge_fraction(j)                                    Fraction of forest that is edge-affected (1)
+ p35_edge_fraction_raw(t,j)                              Closure edge fraction per step before the tropical gate and before the aggregation-scale correction - diagnostic export (1)
+ p35_edge_fraction_gated(t,j)                            Closure edge fraction per step after the tropical gate and before the aggregation-scale correction - diagnostic export (1)
  p35_edge_ratio(j)                                       Edge perimeter to area ratio E div A from closure (1 per km)
  p35_carbon_edge_factor(j)                               LEGACY total-vegc edge retention factor 1 minus f d0 - used only by the presolve-basis diagnostic (1)
  p35_edge_carbon_loss(t,j)                               LEGACY presolve-basis vegc committed to edge loss on last step's land - regression gate only (mio. tC)

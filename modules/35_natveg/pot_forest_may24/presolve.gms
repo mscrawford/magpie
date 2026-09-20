@@ -319,6 +319,10 @@ if(s35_edge_carbon = 1,
       * (1 - exp(-1 / (s35_edge_lambda * p35_edge_ratio(j))));
   );
 
+* Ledger seam 5: the closure's edge fraction per step BEFORE the tropical gate and the aggregation-scale correction
+* (both overwrite p35_edge_fraction(j) in place below). Diagnostic export, read by no equation.
+  p35_edge_fraction_raw(t,j) = p35_edge_fraction(j);
+
 * Restrict edge degradation to tropical forest. Temperate/boreal forest edges are a
 * net carbon SINK (Reinmann and Hutyra 2017; Smith 2019), not a loss, and are not
 * represented here. Two gates (s35_edge_gate):
@@ -340,6 +344,10 @@ if(s35_edge_carbon = 1,
     p35_degr_gate(j,"edge") = f35_edge_trop_share(j);
   );
   p35_edge_fraction(j) = p35_edge_fraction(j) * p35_degr_gate(j,"edge");
+
+* Seam 5: gated, not yet scale-corrected. With p35_edge_fraction_raw and p35_degr_exposure(t,j,"edge") the three stages
+* of the exposure are readable per cluster-step. Diagnostic only.
+  p35_edge_fraction_gated(t,j) = p35_edge_fraction(j);
 
 * Aggregation-scale correction (TENTATIVE / EXPLORATORY). The closure is fit at 0.5deg
 * but evaluated once per ~200-cluster aggregate; because edge is sub-additive in area this
@@ -386,6 +394,19 @@ if(s35_edge_carbon = 1,
       p35_degr_target(j,land_timber,ac,degr35)
       + (p35_degr_applied(t-1,j,land_timber,ac,degr35) - p35_degr_target(j,land_timber,ac,degr35))
         * exp(-(m_timestep_length) / p35_degr_tau_recovery(degr35));
+  );
+
+* Ratchet (S6; s35_degr_ratchet, default 0): the applied deficit of a (land type, age class) cell may only rise, the
+* hysteresis lower bound of the mitigation co-benefit (L4 books recovery at tau_recovery, instantly at 0). Placed after the
+* ladder so both its branches are covered, and before p35_carbon_degr_factor so the densities and the 32_forestry interface
+* inherit it. Cell, not cohort: the target above is ac-invariant within a land type, so the two coincide today; an
+* age-dependent driver would have to revisit this. With the switch at 0 nothing above changes.
+  if(s35_degr_ratchet = 1,
+    if(ord(t) > 1,
+      p35_degr_applied(t,j,land_timber,ac,degr35) =
+        max(p35_degr_applied(t,j,land_timber,ac,degr35),
+            p35_degr_applied(t-1,j,land_timber,ac,degr35));
+    );
   );
 
 * Combined retention factor: the product over drivers of 1 minus the applied deficit (seam 2).

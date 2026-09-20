@@ -84,7 +84,7 @@ set_cube_backdrop <- function(cfg) {
 
 # --- Factor M: mitigation = 1.5C carbon price AND the co-moving 2nd-gen bioenergy demand of the same REMIND run ---
 set_mitigation <- function(cfg, ssp, on) {
-  if (on && ssp != "SSP1") stop("PkBudg650 exists only for SSP1 in the price and bioenergy inputs (SSP2: PkBudg1000; SSP3: none)")
+  if (on && ssp != "SSP1") stop("the design-B cube runs on SSP1 by design; rev4.131 does also carry the SSP2 PkBudg650 column in f56_pollutant_prices and f60_bioenergy_dem (verified 2026-09-19, see l4_lever_pilot_pc.R / l4_price_twins_hpc.R) - for SSP3 there is none")
   scen <- paste0("R34M410-", ssp, "-", if (on) "PkBudg650" else "NPi2025")
   cfg$gms$c56_pollutant_prices          <- scen
   cfg$gms$c56_pollutant_prices_noselect <- scen

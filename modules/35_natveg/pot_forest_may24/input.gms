@@ -57,6 +57,8 @@ s35_edge_gate           Tropical gate (0=region set trop_edge 1=forest-weighted 
 * step; reproduces the L0-L3 solve bit for bit). Values > 0 are the S7 timing sensitivity, not the default.
 s35_edge_tau_damage     Time constant for a rising edge deficit (yr with 0 = instantaneous)   / 0 /
 s35_edge_tau_recovery   Time constant for a falling edge deficit (yr with 0 = instantaneous)  / 0 /
+* S6 ratchet: 1 = the applied degradation deficit can only rise (hysteresis; lower bound of the price co-benefit). 0 = L4.
+s35_degr_ratchet        Ratchet the applied degradation deficit so it can only rise (0=off 1=on) / 0 /
 ;
 
 table f35_forest_lost_share(i,driver_source) Share of area damaged by forest fires (1)
