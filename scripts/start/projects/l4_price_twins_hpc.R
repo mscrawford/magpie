@@ -1,43 +1,26 @@
-# |  L4 twins on the HPC (2026-09-20): the ALIGNED 2 x 2 price x diet cube under the design-B backdrop plus an M0/M1 ratchet pair,
-# |  SSP2 / RCP4.5 host, all six cells L4 edge ON.
-# |  Purpose: the carbon-price co-benefit on the committed-stock edge lines, measured twice - once with the design-B
-# |  emission backdrop (so the price scope matches the SSP1 cube the paper will use) and once with the S6 ratchet on
-# |  (so the co-benefit is bracketed from below, because L4 books edge recovery instantly and therefore hands the
-# |  deficit back as soon as forest area regrows).
-# |    pair 1 "allnosoil" : M0D0 / M1D0 with set_cube_backdrop() overlaid (c56_emis_policy all_nosoil,
-# |                         c56_mute_ghgprices_until y2025, the five s57_maxmac_* pinned to -1), s35_degr_ratchet 0.
-# |    pair 2 "ratchet"   : M0D0 / M1D0 on the BASE backdrop (the July SSP2base frame: reddnatveg_nosoil, y2030)
-# |                         with s35_degr_ratchet = 1.
-# |  Each pair is internally comparable (its two cells differ in the M keys only), so the price effect is a clean
-# |  within-pair difference; the two pairs differ from each other in the backdrop AND the ratchet and are NOT a
-# |  factorial - they are two separate readings of the same price lever.
-# |  Host world: SSP2 at RCP4.5, inherited from the July SSP2base config (rev4.131 ssp245 cellular archive), exactly
-# |  as l4_lever_pilot_pc.R / l4_gate_pair.R build it. The M atom therefore uses the SSP2 PkBudg650 column, which
-# |  rev4.131 does carry in both f56_pollutant_prices and f60_bioenergy_dem (verified 2026-09-19); the design-B
-# |  launcher's SSP1-only stop() is about the cube's design, not about the data.
-# |  Reference corner: output/SSP2base_L4gate_ON_2026-09-19_14.25.45 (l4_gate_pair.R, arm ON) is the base this script
-# |  reproduces; against its config.yml each cell here must differ in the backdrop keys, the ratchet key and the M
-# |  keys ONLY (dry-run diff, see below).
-# |
-# |  Usage (HPC, slurm; one process submits all four):
-# |    cd magpie && Rscript scripts/start/projects/l4_price_twins_hpc.R
-# |  Subset:            L4TWIN_CELLS=ratchet_M0D0,ratchet_M1D0 Rscript scripts/start/projects/l4_price_twins_hpc.R
-# |  Dry run (write the resolved configs, submit nothing):
-# |    L4TWIN_DRYRUN=1 L4TWIN_DRYRUN_DIR=/tmp Rscript scripts/start/projects/l4_price_twins_hpc.R
-# |  PC test (no scheduler, one cell at a time): MAGPIE_SEQUENTIAL=TRUE L4TWIN_CELLS=ratchet_M0D0 caffeinate -dimsu Rscript ...
-# |  Env: L4TWIN_CELLS (default all four), L4TWIN_DRYRUN, L4TWIN_DRYRUN_DIR (default .), L4TWIN_SRC (glob of the July
-# |       run overlaid; default the SSP2base gate source), L4TWIN_TITLE (prefix, default SSP2L4twin_),
-# |       L4TWIN_QOS (slurm qos; unset = start_functions.R's educated guess, which is what
-# |       scenario_suite_emissions_fragmentation.R relies on), MAGPIE_SEQUENTIAL.
-# |  Afterwards: git checkout -- modules/35_natveg/pot_forest_may24/input.gms modules/32_forestry/dynamic_may24/input.gms
-# |  (and any other module input.gms that start_run stamped: git status shows them).
+# |  L4 twins on the HPC (2026-09-20): the ALIGNED 2 x 2 price x diet cube under the design-B backdrop, plus an M0/M1 pair
+# |  with the S6 ratchet on the SAME backdrop (a third factor, not a separate frame). SSP2 / RCP4.5 host, all six cells L4 edge ON.
+# |    allnosoil_M{0,1}D{0,1}: set_cube_backdrop() (c56_emis_policy all_nosoil, c56_mute_ghgprices_until y2025, MACCs pinned) so the
+# |      GHG price is live from 2030, the same step as the diet's first faded step and the price scenario's bioenergy demand
+# |      (the PC pilot of 2026-09-19 had the price start in 2035); M = R34M410-SSP2-PkBudg650 price + bioenergy, D = s15_exo_diet 3.
+# |    ratchet_M{0,1}D0: the same backdrop with s35_degr_ratchet = 1 (the applied deficit can only rise): ratchet_M1D0 - ratchet_M0D0
+# |      is the lower bound of the price co-benefit that allnosoil_M1D0 - allnosoil_M0D0 measures with instant recovery.
+# |  Base construction as l4_lever_pilot_pc.R: the July SSP2base config overlaid on the current default.cfg, edge ON.
+# |  Usage (HPC, slurm through start_run; one process submits all selected cells):
+# |    cd libraries/magpie && Rscript scripts/start/projects/l4_price_twins_hpc.R
+# |  Subset:  L4TWIN_CELLS=ratchet_M0D0,ratchet_M1D0 Rscript scripts/start/projects/l4_price_twins_hpc.R
+# |  Dry run: L4TWIN_DRYRUN=1 L4TWIN_DRYRUN_DIR=<dir> Rscript ... (writes the resolved configs, credentials stripped, starts nothing)
+# |  Env: L4TWIN_CELLS (default all six), L4TWIN_SRC (glob of the July run), L4TWIN_TITLE (prefix, default SSP2L4twin_),
+# |       L4TWIN_QOS (optional; unset = start_functions' load-based choice), MAGPIE_SEQUENTIAL=TRUE for a PC test one cell at a time
+# |       (WITHOUT it, on a machine without slurm, start_run launches every selected cell at once).
+# |  NB the design-B suite launcher's SSP1-only stop() is about the cube's design; rev4.131 carries the SSP2 PkBudg650 column.
 
 source("scripts/start_functions.R")
 source("config/default.cfg")            # the CURRENT schema (check_config refuses a cfg with missing keys)
 
 # --- Base: the July SSP2base config overlaid on the current default.cfg, L4 edge ON (l4_lever_pilot_pc.R / l4_gate_pair.R) ---
 src <- Sys.glob(Sys.getenv("L4TWIN_SRC", "output/SSP2base_bodirsky_ON_2026-07-01_*"))
-stopifnot(length(src) == 1)
+if (length(src) != 1) stop("L4TWIN_SRC matched ", length(src), " run dir(s); expected exactly one (default glob output/SSP2base_bodirsky_ON_2026-07-01_*)")
 titlePrefix <- Sys.getenv("L4TWIN_TITLE", "SSP2L4twin_")
 july <- gms::loadConfig(file.path(src, "config.yml"))
 base <- cfg
@@ -84,7 +67,7 @@ set_mitigation <- function(cfg, on) {
   cfg
 }
 
-# --- Factor D: off in every cell of this design, set EXPLICITLY in both arms (suite / pilot guard) ---
+# --- Factor D (EAT-Lancet diet), design-B atom, set EXPLICITLY in both arms (suite / pilot guard) ---
 set_diet <- function(cfg, on) {
   cfg$gms$s15_exo_diet                 <- if (on) 3 else 0
   cfg$gms$c15_kcal_scen                <- "healthy_BMI"
@@ -109,8 +92,8 @@ cellDefs <- list(
   allnosoil_M1D0 = list(pair = "allnosoil", M = TRUE,  D = FALSE, backdrop = TRUE,  ratchet = 0),
   allnosoil_M0D1 = list(pair = "allnosoil", M = FALSE, D = TRUE,  backdrop = TRUE,  ratchet = 0),
   allnosoil_M1D1 = list(pair = "allnosoil", M = TRUE,  D = TRUE,  backdrop = TRUE,  ratchet = 0),
-  ratchet_M0D0   = list(pair = "ratchet",   M = FALSE, D = FALSE, backdrop = FALSE, ratchet = 1),
-  ratchet_M1D0   = list(pair = "ratchet",   M = TRUE,  D = FALSE, backdrop = FALSE, ratchet = 1))
+  ratchet_M0D0   = list(pair = "ratchet",   M = FALSE, D = FALSE, backdrop = TRUE,  ratchet = 1),
+  ratchet_M1D0   = list(pair = "ratchet",   M = TRUE,  D = FALSE, backdrop = TRUE,  ratchet = 1))
 
 cells <- Filter(nzchar, trimws(strsplit(Sys.getenv("L4TWIN_CELLS", paste(names(cellDefs), collapse = ",")), ",")[[1]]))
 unknown <- setdiff(cells, names(cellDefs))

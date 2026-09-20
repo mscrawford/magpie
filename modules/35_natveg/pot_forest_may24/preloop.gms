@@ -122,3 +122,9 @@ vm_bv.l(j,"secdforest",potnatveg) =
 vm_bv.l(j,"other",potnatveg) = 
   sum(bii_class_secd, sum(ac_to_bii_class_secd(ac,bii_class_secd), sum(othertype35, i35_land_other(j,othertype35,ac))) *
   fm_bii_coeff(bii_class_secd,potnatveg)) * fm_luh2_side_layers(j,potnatveg);
+
+* S6 ratchet and the recovery relaxation cannot be combined: the ratchet discards every decrease, so a finite
+* s35_edge_tau_recovery would silently do nothing (audit 2026-09-20). Refuse the pair instead of running a null.
+if((s35_degr_ratchet = 1 and s35_edge_tau_recovery > 0),
+  abort "s35_degr_ratchet = 1 makes s35_edge_tau_recovery inert; set one of them to 0";
+);

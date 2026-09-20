@@ -400,7 +400,9 @@ if(s35_edge_carbon = 1,
 * hysteresis lower bound of the mitigation co-benefit (L4 books recovery at tau_recovery, instantly at 0). Placed after the
 * ladder so both its branches are covered, and before p35_carbon_degr_factor so the densities and the 32_forestry interface
 * inherit it. Cell, not cohort: the target above is ac-invariant within a land type, so the two coincide today; an
-* age-dependent driver would have to revisit this. With the switch at 0 nothing above changes.
+* age-dependent driver would have to revisit this. With the switch at 0 nothing above changes. Under the ratchet the
+* recovery relaxation (s35_edge_tau_recovery) is algebraically inert (its result always lies between target and the previous
+* value and the max discards it), so the two are refused together in preloop.gms; the damage relaxation is unaffected.
   if(s35_degr_ratchet = 1,
     if(ord(t) > 1,
       p35_degr_applied(t,j,land_timber,ac,degr35) =
