@@ -9,16 +9,20 @@
 # description: Nitrogen Boundary Scenarios
 # ----------------------------------------------------------
 
-# Design record: docs/decisions/2026-09-16-v11-run-design.md in the Nitrogen-Boundaries
+# Design record: docs/decisions/2026-09-16-v11-run-design.md and
+# docs/decisions/2026-09-17-v12-macc-fader-start-2025.md (addenda 2026-09-24) in the Nitrogen-Boundaries
 # repository (github.com/mscrawford/Nitrogen-Boundaries). The scenario switches are in
-# config/projects/scenario_config_Nitrogen-Boundaries.csv; its input rows still name the
-# rev4.131MSC-NB4 archives and are replaced with the MSC-NB5 archive names before the runs start.
+# config/projects/scenario_config_Nitrogen-Boundaries.csv.
+# Lever timing: every policy lever first acts in the first time step after sm_fix_SSP2 (2030).
+# GHG prices are muted until c56_mute_ghgprices_until = sm_fix_SSP2, the diet fader starts at
+# s15_exo_foodscen_start = sm_fix_SSP2, fixed MACC steps (s57_maxmac_*) apply after sm_fix_SSP2
+# and are phased in by the time-dependent MACC curves themselves; checkLeverTiming() enforces this.
 # Set the environment variable NB_SCENARIOS (comma-separated scenario names) to run a subset.
 
 library(gms)
 source("scripts/start_functions.R")
 
-version   <- "v11"
+version   <- "v12"
 codeCheck <- FALSE
 
 scenarios <- list(
@@ -37,6 +41,24 @@ scenarios <- list(
     SSP2_RCP4p5_SensitivityAWMSmedium = list(standard = c("cc", "SSP2", "rcp4p5"),                boundaries = "SSP2_RCP4p5_SensitivityAWMSmedium") # Sensitivity - AWMS MACCs Medium
 )
 
+# All policy levers must first act in the same time step: the GHG-price mute, the diet fader start and
+# the first year of fixed MACC steps (after sm_fix_SSP2) must coincide, and the module-56 price fader
+# (which extends the mute to its own start year) must be off
+checkLeverTiming <- function(cfg, scenario_name) {
+    mute <- as.numeric(sub("^y", "", cfg$gms$c56_mute_ghgprices_until))
+    years <- c(c56_mute_ghgprices_until = mute,
+               s15_exo_foodscen_start   = as.numeric(cfg$gms$s15_exo_foodscen_start),
+               sm_fix_SSP2              = as.numeric(cfg$gms$sm_fix_SSP2))
+    if (anyNA(years) || length(unique(years)) != 1) {
+        stop(scenario_name, ": policy levers do not start together: ",
+             paste(names(years), years, sep = " = ", collapse = ", "))
+    }
+    if (as.numeric(cfg$gms$s56_ghgprice_fader) != 0) {
+        stop(scenario_name, ": s56_ghgprice_fader must be 0 (it shifts the price start to s56_fader_start)")
+    }
+    invisible(TRUE)
+}
+
 configureScenario <- function(scenario_name) {
     source("config/default.cfg")
 
@@ -45,12 +67,13 @@ configureScenario <- function(scenario_name) {
     cfg <- setScenario(cfg, s$standard)
     cfg <- setScenario(cfg, s$boundaries, scenario_config = "config/projects/scenario_config_Nitrogen-Boundaries.csv")
     cfg$title <- paste(version, scenario_name, sep = "_")
-    cfg$info$designRecord <- "Nitrogen-Boundaries v11 runs: docs/decisions/2026-09-16-v11-run-design.md (github.com/mscrawford/Nitrogen-Boundaries)"
+    cfg$info$designRecord <- "Nitrogen-Boundaries v12 runs: docs/decisions/2026-09-16-v11-run-design.md and 2026-09-17-v12-macc-fader-start-2025.md (github.com/mscrawford/Nitrogen-Boundaries)"
     cfg$recalibrate <- FALSE
     cfg$qos <- "standby_highMem"
     cfg$force_download <- TRUE
     cfg$output <- c("output_check", "extra/disaggregation", "rds_report", "extra/disaggregateNitrogen")
 
+    checkLeverTiming(cfg, scenario_name)
     return(cfg)
 }
 
