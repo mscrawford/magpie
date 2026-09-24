@@ -29,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **52_carbon/35_natveg/32_forestry** Retired workarounds that are no longer needed once the wood calibration is separated from the carbon growth curve: the k-bisection growth-curve calibration, the "natural-origin" secondary-forest carbon blend and harvest floor, and the young-secondary-forest wood-harvest loophole.
 
 ### fixed
+- **56_ghg_policy/price_aug22** The regional share of the GHG policy fader (`fader_countries56`) had no effect: both terms of `p56_fader_reg` carried the fader, so every region was faded uniformly. The unselected population share now sees the full price (factor 1), as documented. Only affects runs with `s56_ghgprice_fader = 1`
 -
 
 
