@@ -13,6 +13,9 @@
 # |    ratchet_M{0,1}P0D0: the same backdrop with s35_degr_ratchet = 1 (the applied deficit can only rise): ratchet_M1P0D0 -
 # |      ratchet_M0P0D0 is the lower bound of the price co-benefit that allnosoil_M1P0D0 - allnosoil_M0P0D0 measures with instant recovery.
 # |    The pre-P cell names (allnosoil_M{0,1}D{0,1}, ratchet_M{0,1}D0) are accepted in L4TWIN_CELLS as aliases of their P0 cells.
+# |    inst_area / inst_area_norestore / inst_snv / inst_envflow (2026-10-01): the P bundle split by instrument at M0D0, each cell
+# |      allnosoil_M0P0D0 with one instrument on (inst_area vs inst_area_norestore isolates restoration; the BII floor is not
+# |      isolated). Launched only when named in L4TWIN_CELLS; the default set stays the ten cube + ratchet cells.
 # |  Base construction as l4_lever_pilot_pc.R: the July SSP2base config overlaid on the current default.cfg, edge ON.
 # |  Usage (HPC, slurm through start_run; one process submits all selected cells):
 # |    cd libraries/magpie && Rscript scripts/start/projects/l4_price_twins_hpc.R
@@ -87,27 +90,30 @@ set_diet <- function(cfg, on) {
 
 # --- Factor P: land + water protection as ONE bundle, copied verbatim from scenario_suite_emissions_fragmentation.R
 # --- (RIKEN .prot_on / .prot_off), every instrument on the 2025->2050 schedule, set EXPLICITLY in both arms ---
-set_protection <- function(cfg, on) {
-  scen <- if (on) "GSN_HalfEarth" else "none"
+# set_protection_parts() sets each instrument separately (2026-10-01, Mike: split the bundle after the P cell lowered natural
+# forest in the most-protected clusters); set_protection(on) is the bundle and reproduces the earlier cells' configs exactly.
+set_protection_parts <- function(cfg, area, restore = TRUE, bii, snv, envflow) {
+  scen <- if (area) "GSN_HalfEarth" else "none"
   cfg$gms$c22_protect_scenario          <- scen
   cfg$gms$c22_protect_scenario_noselect <- scen
   cfg$gms$s22_conservation_start  <- 2025
   cfg$gms$s22_conservation_target <- 2050
-  cfg$gms$s22_restore_land        <- 1                       # in both levels, as RIKEN
-  cfg$gms$s44_bii_target    <- if (on) 0.78 else 0          # BII floor (module 44)
+  cfg$gms$s22_restore_land        <- if (restore) 1 else 0   # 1 in both bundle levels, as RIKEN
+  cfg$gms$s44_bii_target    <- if (bii) 0.78 else 0         # BII floor (module 44)
   cfg$gms$s44_start_year    <- 2030                          # MUST be a timestep > sm_fix_SSP2 (2025), else the target never fires
   cfg$gms$s44_target_year   <- 2050
   cfg$gms$c44_bii_decrease  <- 1
-  cfg$gms$s29_snv_shr          <- if (on) 0.2 else 0        # semi-natural vegetation share of cropland (module 29)
-  cfg$gms$s29_snv_shr_noselect <- if (on) 0.2 else 0
+  cfg$gms$s29_snv_shr          <- if (snv) 0.2 else 0       # semi-natural vegetation share of cropland (module 29)
+  cfg$gms$s29_snv_shr_noselect <- if (snv) 0.2 else 0
   cfg$gms$s29_snv_scenario_start  <- 2025
   cfg$gms$s29_snv_scenario_target <- 2050
-  cfg$gms$c42_env_flow_policy   <- if (on) "on" else "off"  # environmental flows (module 42)
+  cfg$gms$c42_env_flow_policy   <- if (envflow) "on" else "off"  # environmental flows (module 42)
   cfg$gms$s42_env_flow_scenario <- 2
   cfg$gms$s42_efp_startyear     <- 2025
   cfg$gms$s42_efp_targetyear    <- 2050
   cfg
 }
+set_protection <- function(cfg, on) set_protection_parts(cfg, area = on, restore = TRUE, bii = on, snv = on, envflow = on)
 
 # --- L4 edge ON arm (l4_gate_pair.R) ---
 set_edge_on <- function(cfg) {
@@ -125,12 +131,23 @@ for (P in 0:1) for (D in 0:1) for (M in 0:1)
                                                               backdrop = TRUE, ratchet = 0)
 for (M in 0:1)
   cellDefs[[sprintf("ratchet_M%dP0D0", M)]] <- list(pair = "ratchet", M = M == 1, P = FALSE, D = FALSE, backdrop = TRUE, ratchet = 1)
+# Instrument split of P at M0D0 (2026-10-01): each cell = allnosoil_M0P0D0 with ONE instrument on (pv = the parts list);
+# inst_area vs inst_area_norestore isolates restoration; the BII floor is not isolated (bundle minus the singles carries it
+# together with the interactions). Not launched by default: select with L4TWIN_CELLS.
+instDefs <- list(
+  inst_area           = list(area = TRUE,  restore = TRUE,  bii = FALSE, snv = FALSE, envflow = FALSE),
+  inst_area_norestore = list(area = TRUE,  restore = FALSE, bii = FALSE, snv = FALSE, envflow = FALSE),
+  inst_snv            = list(area = FALSE, restore = TRUE,  bii = FALSE, snv = TRUE,  envflow = FALSE),
+  inst_envflow        = list(area = FALSE, restore = TRUE,  bii = FALSE, snv = FALSE, envflow = TRUE))
+for (nm in names(instDefs))
+  cellDefs[[nm]] <- list(pair = "inst", M = FALSE, P = FALSE, D = FALSE, backdrop = TRUE, ratchet = 0, pv = instDefs[[nm]])
 # pre-P names (2026-09-20 launcher, HPC brief) -> their P0 cells
 cellAlias <- c(allnosoil_M0D0 = "allnosoil_M0P0D0", allnosoil_M1D0 = "allnosoil_M1P0D0",
                allnosoil_M0D1 = "allnosoil_M0P0D1", allnosoil_M1D1 = "allnosoil_M1P0D1",
                ratchet_M0D0   = "ratchet_M0P0D0",   ratchet_M1D0   = "ratchet_M1P0D0")
 
-cells <- Filter(nzchar, trimws(strsplit(Sys.getenv("L4TWIN_CELLS", paste(names(cellDefs), collapse = ",")), ",")[[1]]))
+defaultCells <- names(cellDefs)[!startsWith(names(cellDefs), "inst_")]   # the ten cube + ratchet cells
+cells <- Filter(nzchar, trimws(strsplit(Sys.getenv("L4TWIN_CELLS", paste(defaultCells, collapse = ",")), ",")[[1]]))
 aliased <- intersect(cells, names(cellAlias))
 if (length(aliased) > 0) message("L4TWIN_CELLS: pre-P names mapped to their P0 cells: ",
                                  paste(aliased, "->", cellAlias[aliased], collapse = ", "))
@@ -147,7 +164,7 @@ for (cell in cells) {
   cfg <- set_edge_on(cfg)
   if (isTRUE(d$backdrop)) cfg <- set_cube_backdrop(cfg)
   cfg <- set_mitigation(cfg, on = isTRUE(d$M))
-  cfg <- set_protection(cfg, on = isTRUE(d$P))
+  cfg <- if (is.null(d$pv)) set_protection(cfg, on = isTRUE(d$P)) else do.call(set_protection_parts, c(list(cfg = cfg), d$pv))
   cfg <- set_diet(cfg, on = isTRUE(d$D))
   cfg$gms$s35_degr_ratchet <- d$ratchet
   cfg$title <- paste0(titlePrefix, cell)
