@@ -1,16 +1,24 @@
-# |  L4 twins on the HPC (2026-09-20): the ALIGNED 2 x 2 price x diet cube under the design-B backdrop, plus an M0/M1 pair
-# |  with the S6 ratchet on the SAME backdrop (a third factor, not a separate frame). SSP2 / RCP4.5 host, all six cells L4 edge ON.
-# |    allnosoil_M{0,1}D{0,1}: set_cube_backdrop() (c56_emis_policy all_nosoil, c56_mute_ghgprices_until y2025, MACCs pinned) so the
-# |      GHG price is live from 2030, the same step as the diet's first faded step and the price scenario's bioenergy demand
-# |      (the PC pilot of 2026-09-19 had the price start in 2035); M = R34M410-SSP2-PkBudg650 price + bioenergy, D = s15_exo_diet 3.
-# |    ratchet_M{0,1}D0: the same backdrop with s35_degr_ratchet = 1 (the applied deficit can only rise): ratchet_M1D0 - ratchet_M0D0
-# |      is the lower bound of the price co-benefit that allnosoil_M1D0 - allnosoil_M0D0 measures with instant recovery.
+# |  L4 twins on the HPC (2026-09-20): the ALIGNED price x diet cube under the design-B backdrop, plus an M0/M1 pair
+# |  with the S6 ratchet on the SAME backdrop (a third factor, not a separate frame). SSP2 / RCP4.5 host, every cell L4 edge ON.
+# |  2026-10-01 (Mike): protection P added as a third cube factor -> 2^3 = 8 cube cells + the ratchet pair = 10 cells.
+# |    allnosoil_M{0,1}P{0,1}D{0,1}: set_cube_backdrop() (c56_emis_policy all_nosoil, c56_mute_ghgprices_until y2025, MACCs pinned) so
+# |      the GHG price is live from 2030, the same step as the diet's first faded step and the price scenario's bioenergy demand
+# |      (the PC pilot of 2026-09-19 had the price start in 2035); M = R34M410-SSP2-PkBudg650 price + bioenergy, D = s15_exo_diet 3,
+# |      P = design B's RIKEN bundle, switch values copied verbatim (GSN_HalfEarth + BII 0.78 from 2030 + SNV 0.2 + env flows, all to 2050), set
+# |      EXPLICITLY in both arms. HalfEarth is the SSP1 narrative target, chosen here so the P effect is comparable with design B's
+# |      SSP1 cube (Mike, 2026-10-01); it is off-narrative for SSP2 (30x30). The bundle moves land through BII, SNV and water as well
+# |      as protected area, so a P effect on the edge stock is not attributable to forest protection alone.
+# |      P-off vs the July base: only s44_target_year (2100 -> 2050) and s42_efp_targetyear (2040 -> 2050) change, both inert when
+# |      their instrument is off (bii_target/presolve.gms guards on s44_bii_target > 0; p42_efp(t,"off") = 0 ignores the fader).
+# |    ratchet_M{0,1}P0D0: the same backdrop with s35_degr_ratchet = 1 (the applied deficit can only rise): ratchet_M1P0D0 -
+# |      ratchet_M0P0D0 is the lower bound of the price co-benefit that allnosoil_M1P0D0 - allnosoil_M0P0D0 measures with instant recovery.
+# |    The pre-P cell names (allnosoil_M{0,1}D{0,1}, ratchet_M{0,1}D0) are accepted in L4TWIN_CELLS as aliases of their P0 cells.
 # |  Base construction as l4_lever_pilot_pc.R: the July SSP2base config overlaid on the current default.cfg, edge ON.
 # |  Usage (HPC, slurm through start_run; one process submits all selected cells):
 # |    cd libraries/magpie && Rscript scripts/start/projects/l4_price_twins_hpc.R
-# |  Subset:  L4TWIN_CELLS=ratchet_M0D0,ratchet_M1D0 Rscript scripts/start/projects/l4_price_twins_hpc.R
+# |  Subset:  L4TWIN_CELLS=ratchet_M0P0D0,ratchet_M1P0D0 Rscript scripts/start/projects/l4_price_twins_hpc.R
 # |  Dry run: L4TWIN_DRYRUN=1 L4TWIN_DRYRUN_DIR=<dir> Rscript ... (writes the resolved configs, credentials stripped, starts nothing)
-# |  Env: L4TWIN_CELLS (default all six), L4TWIN_SRC (glob of the July run), L4TWIN_TITLE (prefix, default SSP2L4twin_),
+# |  Env: L4TWIN_CELLS (default all ten), L4TWIN_SRC (glob of the July run), L4TWIN_TITLE (prefix, default SSP2L4twin_),
 # |       L4TWIN_QOS (optional; unset = start_functions' load-based choice), MAGPIE_SEQUENTIAL=TRUE for a PC test one cell at a time
 # |       (WITHOUT it, on a machine without slurm, start_run launches every selected cell at once).
 # |  NB the design-B suite launcher's SSP1-only stop() is about the cube's design; rev4.131 carries the SSP2 PkBudg650 column.
@@ -77,6 +85,30 @@ set_diet <- function(cfg, on) {
   cfg
 }
 
+# --- Factor P: land + water protection as ONE bundle, copied verbatim from scenario_suite_emissions_fragmentation.R
+# --- (RIKEN .prot_on / .prot_off), every instrument on the 2025->2050 schedule, set EXPLICITLY in both arms ---
+set_protection <- function(cfg, on) {
+  scen <- if (on) "GSN_HalfEarth" else "none"
+  cfg$gms$c22_protect_scenario          <- scen
+  cfg$gms$c22_protect_scenario_noselect <- scen
+  cfg$gms$s22_conservation_start  <- 2025
+  cfg$gms$s22_conservation_target <- 2050
+  cfg$gms$s22_restore_land        <- 1                       # in both levels, as RIKEN
+  cfg$gms$s44_bii_target    <- if (on) 0.78 else 0          # BII floor (module 44)
+  cfg$gms$s44_start_year    <- 2030                          # MUST be a timestep > sm_fix_SSP2 (2025), else the target never fires
+  cfg$gms$s44_target_year   <- 2050
+  cfg$gms$c44_bii_decrease  <- 1
+  cfg$gms$s29_snv_shr          <- if (on) 0.2 else 0        # semi-natural vegetation share of cropland (module 29)
+  cfg$gms$s29_snv_shr_noselect <- if (on) 0.2 else 0
+  cfg$gms$s29_snv_scenario_start  <- 2025
+  cfg$gms$s29_snv_scenario_target <- 2050
+  cfg$gms$c42_env_flow_policy   <- if (on) "on" else "off"  # environmental flows (module 42)
+  cfg$gms$s42_env_flow_scenario <- 2
+  cfg$gms$s42_efp_startyear     <- 2025
+  cfg$gms$s42_efp_targetyear    <- 2050
+  cfg
+}
+
 # --- L4 edge ON arm (l4_gate_pair.R) ---
 set_edge_on <- function(cfg) {
   cfg$gms$s35_edge_carbon  <- 1
@@ -84,18 +116,25 @@ set_edge_on <- function(cfg) {
   cfg
 }
 
-# --- The six cells. "allnosoil" is the ALIGNED 2 x 2 (Mike, 2026-09-20): with the design-B backdrop the GHG price is live
-# --- from 2030, the same step as the diet's first faded step and the price scenario's bioenergy demand; the PC pilot of
-# --- 2026-09-19 had the price start five years after the diet (mute until y2030). "ratchet" stays an M0/M1 pair. ---
-cellDefs <- list(
-  allnosoil_M0D0 = list(pair = "allnosoil", M = FALSE, D = FALSE, backdrop = TRUE,  ratchet = 0),
-  allnosoil_M1D0 = list(pair = "allnosoil", M = TRUE,  D = FALSE, backdrop = TRUE,  ratchet = 0),
-  allnosoil_M0D1 = list(pair = "allnosoil", M = FALSE, D = TRUE,  backdrop = TRUE,  ratchet = 0),
-  allnosoil_M1D1 = list(pair = "allnosoil", M = TRUE,  D = TRUE,  backdrop = TRUE,  ratchet = 0),
-  ratchet_M0D0   = list(pair = "ratchet",   M = FALSE, D = FALSE, backdrop = TRUE,  ratchet = 1),
-  ratchet_M1D0   = list(pair = "ratchet",   M = TRUE,  D = FALSE, backdrop = TRUE,  ratchet = 1))
+# --- The ten cells. "allnosoil" is the ALIGNED cube (Mike, 2026-09-20; P added 2026-10-01): with the design-B backdrop the GHG
+# --- price is live from 2030, the same step as the diet's first faded step and the price scenario's bioenergy demand; the PC
+# --- pilot of 2026-09-19 had the price start five years after the diet (mute until y2030). "ratchet" stays an M0/M1 pair at P0D0. ---
+cellDefs <- list()
+for (P in 0:1) for (D in 0:1) for (M in 0:1)
+  cellDefs[[sprintf("allnosoil_M%dP%dD%d", M, P, D)]] <- list(pair = "allnosoil", M = M == 1, P = P == 1, D = D == 1,
+                                                              backdrop = TRUE, ratchet = 0)
+for (M in 0:1)
+  cellDefs[[sprintf("ratchet_M%dP0D0", M)]] <- list(pair = "ratchet", M = M == 1, P = FALSE, D = FALSE, backdrop = TRUE, ratchet = 1)
+# pre-P names (2026-09-20 launcher, HPC brief) -> their P0 cells
+cellAlias <- c(allnosoil_M0D0 = "allnosoil_M0P0D0", allnosoil_M1D0 = "allnosoil_M1P0D0",
+               allnosoil_M0D1 = "allnosoil_M0P0D1", allnosoil_M1D1 = "allnosoil_M1P0D1",
+               ratchet_M0D0   = "ratchet_M0P0D0",   ratchet_M1D0   = "ratchet_M1P0D0")
 
 cells <- Filter(nzchar, trimws(strsplit(Sys.getenv("L4TWIN_CELLS", paste(names(cellDefs), collapse = ",")), ",")[[1]]))
+aliased <- intersect(cells, names(cellAlias))
+if (length(aliased) > 0) message("L4TWIN_CELLS: pre-P names mapped to their P0 cells: ",
+                                 paste(aliased, "->", cellAlias[aliased], collapse = ", "))
+cells <- unique(ifelse(cells %in% names(cellAlias), cellAlias[cells], cells))
 unknown <- setdiff(cells, names(cellDefs))
 if (length(unknown) > 0) stop("unknown L4TWIN_CELLS: ", paste(unknown, collapse = ", "),
                               " (available: ", paste(names(cellDefs), collapse = ", "), ")")
@@ -108,6 +147,7 @@ for (cell in cells) {
   cfg <- set_edge_on(cfg)
   if (isTRUE(d$backdrop)) cfg <- set_cube_backdrop(cfg)
   cfg <- set_mitigation(cfg, on = isTRUE(d$M))
+  cfg <- set_protection(cfg, on = isTRUE(d$P))
   cfg <- set_diet(cfg, on = isTRUE(d$D))
   cfg$gms$s35_degr_ratchet <- d$ratchet
   cfg$title <- paste0(titlePrefix, cell)
@@ -116,9 +156,11 @@ for (cell in cells) {
     # strip repository credentials before writing, as start_run does for the run's config.yml
     cfg$repositories <- setNames(vector("list", length(cfg$repositories)), names(cfg$repositories))
     gms::saveConfig(cfg, out)
-    cat(sprintf("DRY RUN: %-14s title=%-30s emis=%-17s mute=%-6s c56=%-24s c60=%-24s ratchet=%s -> %s\n",
+    cat(sprintf("DRY RUN: %-16s title=%-32s emis=%-17s mute=%-6s c56=%-24s c60=%-24s c22=%-13s bii=%.2f snv=%.1f efp=%-3s diet=%s ratchet=%s -> %s\n",
                 cell, cfg$title, cfg$gms$c56_emis_policy, cfg$gms$c56_mute_ghgprices_until,
-                cfg$gms$c56_pollutant_prices, cfg$gms$c60_2ndgen_biodem, cfg$gms$s35_degr_ratchet, out))
+                cfg$gms$c56_pollutant_prices, cfg$gms$c60_2ndgen_biodem, cfg$gms$c22_protect_scenario,
+                cfg$gms$s44_bii_target, cfg$gms$s29_snv_shr, cfg$gms$c42_env_flow_policy, cfg$gms$s15_exo_diet,
+                cfg$gms$s35_degr_ratchet, out))
     next
   }
   cat(sprintf("\n===== Starting: %s =====\n", cfg$title))
