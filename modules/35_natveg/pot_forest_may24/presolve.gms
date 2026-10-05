@@ -44,11 +44,6 @@ pc35_secdforest(j,ac_sub) = pc35_secdforest(j,ac_sub) - p35_disturbance_loss_sec
 pcm_land(j,"primforest") = pcm_land(j,"primforest") - p35_disturbance_loss_primf(t,j);
 vm_land.l(j,"primforest") = pcm_land(j,"primforest");
 
-* Reduce natural-origin tracking proportionally with disturbance losses.
-* Damaged area keeps its origin mix (natural vs existing ratio preserved).
-pc35_secdforest_natural(j,ac_sub)$(pc35_secdforest(j,ac_sub) > 1e-6) =
-  pc35_secdforest_natural(j,ac_sub) * (1 - p35_disturbance_loss_secdf(t,j,ac_sub) / (pc35_secdforest(j,ac_sub) + p35_disturbance_loss_secdf(t,j,ac_sub)));
-
 
 * -------------------------------------------------
 * Calculate area of secondary forest recovery
@@ -101,11 +96,6 @@ s35_shift = m_timestep_length_forestry/5;
     p35_secdforest(t,j,"acx") = p35_secdforest(t,j,"acx")
                   + sum(ac$(ord(ac) > card(ac)-s35_shift), pc35_secdforest(j,ac));
 
-* Natural-origin area ages in lockstep with the secdforest age classes
-    p35_secdforest_natural(t,j,ac)$(ord(ac) > s35_shift) = pc35_secdforest_natural(j,ac-s35_shift);
-    p35_secdforest_natural(t,j,"acx") = p35_secdforest_natural(t,j,"acx")
-                  + sum(ac$(ord(ac) > card(ac)-s35_shift), pc35_secdforest_natural(j,ac));
-
 
 * -------------------------------------------------------
 * Carbon threshold for secondary forest maturation
@@ -115,22 +105,15 @@ s35_shift = m_timestep_length_forestry/5;
 *' If the vegetation carbon density in a simulation unit due to regrowth
 *' exceeds a threshold of 20 tC/ha the respective area is shifted from young secondary
 *' forest, which is still considered other land, to secondary forest land.
-*' Uses the uncalibrated natveg growth curve (Braakhekke et al.) so that
-*' natural succession from abandoned cropland matures at realistic rates,
-*' independent of the FRA 2025 calibration applied in module 52.
+*' Uses the secdforest carbon curve so natural succession from abandoned cropland matures at realistic
+*' rates; the FRA 2025 match is a wood-only multiplier in module 14 and never bends carbon.
 p35_maturesecdf(t,j,ac)$(not sameas(ac,"acx")) =
-      p35_land_other(t,j,"youngsecdf",ac)$(pm_carbon_density_secdforest_ac_uncalib(t,j,ac,"vegc") > 20);
+      p35_land_other(t,j,"youngsecdf",ac)$(pm_carbon_density_secdforest_ac(t,j,ac,"vegc") > 20);
 p35_land_other(t,j,"youngsecdf",ac) = p35_land_other(t,j,"youngsecdf",ac) - p35_maturesecdf(t,j,ac);
 p35_secdforest(t,j,ac) = p35_secdforest(t,j,ac) + p35_maturesecdf(t,j,ac);
-
-* Freshly matured youngsecdf is natural-origin (uncalibrated natveg curve).
-p35_secdforest_natural(t,j,ac) = p35_secdforest_natural(t,j,ac) + p35_maturesecdf(t,j,ac);
 *' @stop
 
 pc35_secdforest(j,ac) = p35_secdforest(t,j,ac);
-pc35_secdforest_natural(j,ac) = p35_secdforest_natural(t,j,ac);
-* Safety clamp: natural area cannot exceed total area (ensures bounds are consistent)
-pc35_secdforest_natural(j,ac)$(pc35_secdforest_natural(j,ac) > pc35_secdforest(j,ac)) = pc35_secdforest(j,ac);
 v35_secdforest.l(j,ac) = pc35_secdforest(j,ac);
 vm_land.l(j,"secdforest") = sum(ac, pc35_secdforest(j,ac));
 pcm_land(j,"secdforest") = sum(ac, pc35_secdforest(j,ac));
@@ -177,11 +160,14 @@ v35_secdforest.up(j,ac) = Inf;
 p35_protection_dist(j,ac_sub) = 0;
 p35_protection_dist(j,ac_sub)$(sum(ac_sub2,pc35_secdforest(j,ac_sub2)) > 0) = pc35_secdforest(j,ac_sub) / sum(ac_sub2,pc35_secdforest(j,ac_sub2));
 pm_land_conservation(t,j,"secdforest","protect")$(pm_land_conservation(t,j,"secdforest","protect") > sum(ac_sub, pc35_secdforest(j,ac_sub))) = sum(ac_sub, pc35_secdforest(j,ac_sub));
-* Natural-origin area is protected from harvest (uncalibrated natveg curve).
+* Secondary-forest lower bound: conservation protection (WDPA) and, for future steps, the per-period
+* harvest-share cap. There is no age-specific protection of old stands, so cost-minimizing harvest takes
+* the densest (oldest) secondary forest first (most wood per hectare, least area disturbed). To protect
+* old secondary forest as policy, use pm_land_conservation(...,"secdforest","protect").
 if (sum(sameas(t_past,t),1) = 1,
-v35_secdforest.lo(j,ac_sub) = max(pm_land_conservation(t,j,"secdforest","protect") * p35_protection_dist(j,ac_sub), pc35_secdforest_natural(j,ac_sub));
+v35_secdforest.lo(j,ac_sub) = pm_land_conservation(t,j,"secdforest","protect") * p35_protection_dist(j,ac_sub);
 else
-v35_secdforest.lo(j,ac_sub) = max((1-s35_natveg_harvest_shr) * pc35_secdforest(j,ac_sub), pm_land_conservation(t,j,"secdforest","protect") * p35_protection_dist(j,ac_sub), pc35_secdforest_natural(j,ac_sub));
+v35_secdforest.lo(j,ac_sub) = max((1-s35_natveg_harvest_shr) * pc35_secdforest(j,ac_sub), pm_land_conservation(t,j,"secdforest","protect") * p35_protection_dist(j,ac_sub));
 );
 * upper bound
 v35_secdforest.up(j,ac_sub) = pc35_secdforest(j,ac_sub);
@@ -243,18 +229,8 @@ m_boundfix(vm_land,(j,land_natveg),up,1e-6);
 * ------------------------------
 
 p35_carbon_density_other(t,j,"othernat",ac,ag_pools) = pm_carbon_density_other_ac(t,j,ac,ag_pools);
-* Youngsecdf uses the uncalibrated natveg curve (Braakhekke et al.).
-p35_carbon_density_other(t,j,"youngsecdf",ac,ag_pools) = pm_carbon_density_secdforest_ac_uncalib(t,j,ac,ag_pools);
-
-* Blended secdforest carbon density: weighted average of FRA-calibrated curve
-* (existing/managed) and uncalibrated natveg curve (natural-origin from succession).
-* Where natural=0 the blend equals the calibrated curve; where natural=total
-* it equals the uncalibrated natveg curve.
-p35_carbon_density_secdforest(t,j,ac,ag_pools) = pm_carbon_density_secdforest_ac(t,j,ac,ag_pools);
-p35_carbon_density_secdforest(t,j,ac,ag_pools)$(pc35_secdforest(j,ac) > 1e-10) =
-  pm_carbon_density_secdforest_ac(t,j,ac,ag_pools)
-  - (pm_carbon_density_secdforest_ac(t,j,ac,ag_pools) - pm_carbon_density_secdforest_ac_uncalib(t,j,ac,ag_pools))
-    * pc35_secdforest_natural(j,ac) / pc35_secdforest(j,ac);
+* Youngsecdf uses the secdforest carbon curve (never bent to FRA; see module 52).
+p35_carbon_density_other(t,j,"youngsecdf",ac,ag_pools) = pm_carbon_density_secdforest_ac(t,j,ac,ag_pools);
 
 * -------------------------------------------
 * Edge-effect carbon density degradation
@@ -435,7 +411,7 @@ if(s35_edge_carbon = 1,
 * computed BEFORE the factors are applied. Includes primforest, secdforest and youngsecdf.
 * NOTE: forestry is included in p35_forest_area for the closure geometry. Its carbon is treated
 *       by pool (changed 2026-08-21). The NATURAL-curve afforestation pools (ndc; aff under
-*       s32_aff_plantation = 0) grow on pm_carbon_density_secdforest_ac_uncalib and are protected
+*       s32_aff_plantation = 0) grow on pm_carbon_density_secdforest_ac and are protected
 *       (s32_aff_prot = 1), i.e. they are biophysically the same object as secdforest, so
 *       32_forestry reduces their vegc by pm_carbon_degr_factor (one-step lag, see above) and
 *       reports the removed carbon as pm_edge_carbon_loss_forestry, added below. Timber
@@ -450,7 +426,7 @@ if(s35_edge_carbon = 1,
     p35_edge_carbon_loss(t,j) =
       (1 - p35_carbon_edge_factor(j))
       * (fm_carbon_density(t,j,"primforest","vegc") * pcm_land(j,"primforest")
-       + sum(ac, p35_carbon_density_secdforest(t,j,ac,"vegc") * pc35_secdforest(j,ac))
+       + sum(ac, pm_carbon_density_secdforest_ac(t,j,ac,"vegc") * pc35_secdforest(j,ac))
        + sum(ac, p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") * pc35_land_other(j,"youngsecdf",ac)));
   );
 * Aboveground-only (s35_edge_agb_only = 1): each pool loses (1 - its own type factor) = f * d0 * ag.
@@ -459,7 +435,7 @@ if(s35_edge_carbon = 1,
       (1 - p35_carbon_edge_factor_type(j,"primforest"))
       * fm_carbon_density(t,j,"primforest","vegc") * pcm_land(j,"primforest")
     + (1 - p35_carbon_edge_factor_type(j,"secdforest"))
-      * sum(ac, p35_carbon_density_secdforest(t,j,ac,"vegc") * pc35_secdforest(j,ac))
+      * sum(ac, pm_carbon_density_secdforest_ac(t,j,ac,"vegc") * pc35_secdforest(j,ac))
     + (1 - p35_carbon_edge_factor_type(j,"other"))
       * sum(ac, p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc") * pc35_land_other(j,"youngsecdf",ac));
   );
@@ -469,9 +445,10 @@ if(s35_edge_carbon = 1,
   p35_edge_carbon_loss(t,j) = p35_edge_carbon_loss(t,j) + pm_edge_carbon_loss_forestry(t,j);
 
 * Unreduced density copies (seam 3): the base that every driver multiplies and on which the committed deficit
-* stock is booked in postsolve (the L4 exports). Taken after the blend and before any factor is applied.
+* stock is booked in postsolve (the L4 exports). Taken before any factor is applied: this step's index t of
+* fm_carbon_density and pm_carbon_density_secdforest_ac is reduced only by the statements below.
   p35_vegc_unreduced_primforest(t,j)    = fm_carbon_density(t,j,"primforest","vegc");
-  p35_vegc_unreduced_secdforest(t,j,ac) = p35_carbon_density_secdforest(t,j,ac,"vegc");
+  p35_vegc_unreduced_secdforest(t,j,ac) = pm_carbon_density_secdforest_ac(t,j,ac,"vegc");
   p35_vegc_unreduced_youngsecdf(t,j,ac) = p35_carbon_density_other(t,j,"youngsecdf",ac,"vegc");
 
 * Apply the combined degradation factor. Primforest has no age classes in the model and takes its factor from
@@ -480,14 +457,16 @@ if(s35_edge_carbon = 1,
   fm_carbon_density(t,j,"primforest","vegc") =
     fm_carbon_density(t,j,"primforest","vegc") * p35_carbon_degr_factor(j,"primforest","acx");
 
-* Apply to secdforest vegc (all age classes). The secdforest carbon STOCK uses the blended density
-* p35_carbon_density_secdforest (equations.gms q35_carbon), so the factor must reduce the blend to reach
-* the stock. Reducing the blend is mathematically equivalent to reducing both the calibrated and
-* uncalibrated input curves, because the blend is a linear (convex) combination of them. The calibrated
-* pm_carbon_density_secdforest_ac is reduced as well, since it is still read by magpie4
-* (emisCO2, reportPBbiosphere) and was edge-reduced before the develop merge.
-  p35_carbon_density_secdforest(t,j,ac,"vegc") =
-    p35_carbon_density_secdforest(t,j,ac,"vegc") * p35_carbon_degr_factor(j,"secdforest",ac);
+* Apply to secdforest vegc (all age classes). Since the develop merge of 2026-10 (upstream PR #917) there is
+* ONE secondary-forest curve and no blend: the stock equation q35_carbon_secdforest (equations.gms) reads
+* pm_carbon_density_secdforest_ac at the current step, so the factor is applied to that parameter IN PLACE,
+* at this step's index t only, and reaches the stock. magpie4 (emisCO2, reportPBbiosphere) reads the same
+* reduced parameter from the gdx. Every other reader of index t takes it BEFORE this statement and therefore
+* unreduced: the maturation threshold and the youngsecdf copy above in this file, 14_yields (growing stock)
+* and 32_forestry (ndc and natural-curve aff, which then apply pm_carbon_degr_factor themselves) in their
+* presolve, which runs before this one (modules/include.gms order 14, 29, 32, 35), and the preloop copies in
+* 29_cropland and 52_carbon. A new reader placed after this statement in the same step would see the reduced
+* curve; a module that copies it for a pool with its own factor (as 32 does) must stay ahead of 35.
   pm_carbon_density_secdforest_ac(t,j,ac,"vegc") =
     pm_carbon_density_secdforest_ac(t,j,ac,"vegc") * p35_carbon_degr_factor(j,"secdforest",ac);
 

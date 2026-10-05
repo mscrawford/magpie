@@ -7,22 +7,76 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### changed
-- **scripts** saveToResultsArchive saves to inbox folder if available
-- **renv/activate.R** updated to version 1.2.2
+- **39_landconversion/calib/input.gms**: default.cfg sets 5904 (4800 * 1.23), so changed the GAMS default to match.
+-  **default.cfg** module 39: Adjusted description for pasture calibration in module 39, adding that `cfg$gms$s39_ignore_calib_past <- 1 ` switches the pasture factors off in GAMS without any recalibration. 
+- **default.cfg** module 39: exposed `s39_reward_past_reduction` and `s39_ignore_calib_past` as configurable (previously hardcoded); rescaled `s39_reward_past_reduction` default from 7380 to 5904 to match cropland's reward/cost ratio; updated stale realization comment describing pasture cost as static
+- **config** Update scenario_config_susmip.csv with new values for bii targets
+- **config** additional data updated to `additional_data_rev4.74.tgz`, updated input vector including bugfix in rotation rules
+- **default.cfg** Correction: removed ALB from isoCountriesEUR list
+- **scripts/output/extra/runSEALSallocation.R** adjusted to SEALS v2.0.0
+- **config** additional data updated to `additional_data_rev4.73.tgz` (updated seals_scenario_config.csv to conform to SEALS v2.0.0)
+- **21_trade** Bugfix to bilateral trade flexibility band implementation, missing parameter initialization
+- **52_carbon** Forest carbon growth curves are now observation-based (naturally regenerating: Robinson et al. 2025, leaned to the p25 lower quartile of the cell-rate distribution via `s52_natveg_growth_scalar`; plantations: Bukoski et al. 2022, carbon asymptote anchored to the observed managed plateau via `s52_plant_asymp_anchor`; other planted: derived from naturally regenerating) instead of the modelled Braakhekke et al. 2019 curves. The carbon growth curve is separated from the FRA growing-stock (timber) calibration: one realistic carbon curve for all forest, with wood matched to the FRA target by a per-region multiplier on the harvestable growing stock, shared by primary and secondary forest, with other-land wood capped by the same correction and a wood-only niche floor (`s52_gs_niche_floor`) keeping it physical in arid cells. New switch `c52_growth_par_source` (default `refit`) keeps the legacy Braakhekke curves selectable (`braakhekke`; other planted then falls back to naturally regenerating).
+- **28_ageclass** New default forest age-class source GAMI (Besnard et al. 2024, satellite-derived global forest age); GFAD remains selectable via `c28_ageclass_source`.
+- **32_forestry** Cleaned up the forestry module: the plantation rotation now comes solely from the external per-Köppen rotation table, retiring the curve-derived rotation machinery (CAI/MAI/Faustmann) and the associated unused parameters and switches.
+- **56_ghg_policy/60_bioenergy** Added the R36M414 coupled REMIND-MAgPIE scenarios to the GHG-price and 2nd-generation bioenergy-demand scenario sets.
+- **inputdata** updated to rev4.134 (FRA2025 forest data, GAMI forest ages, R36M414 coupled scenarios, grassland-corrected potential forest area, regional bookkeeping LUC-CO2 validation band)
+- **config** additional data updated to `additional_data_rev4.72.tgz` (three-curve forest growth parameters, plantation rotation lengths and carbon-asymptote targets)
+- **21_trade** Changed preprocessing calculation of bilateral trade flexibility band into the future, no longer based on historical standard deviations and rather based on mean historical ranges
+- **main.gms** model documentation references updated with recent MAgPIE publications (2020-2025)
+- **scripts/npi_ndc** NPI/NDC/ndcdelay afforestation/reforestation (A/R) is now placed on cells by forest establishment headroom (potential minus current forest) times potential-forest carbon density, replacing the 2005 cropland+pasture area weight, so more of the prescribed target is delivered (less potential-clipping) and placement prefers higher-carbon cells; the reference year is pinned to the last observed year so the weight stays identical across climate scenarios.
 
 ### added
-- **calc_npi_ndc.R** New policy, AFFEXP, on defining afforestation targets based on the share of potential forest land and speed of afforestation.
-- **80_optimization/nlp_ipopt** New realization, using IPOPT instead of CONOPT4 (and the fallback CONOPT3) as the NLP solver for the MAgPIE model.
-- **scripts/start/extra/ipopt.R** Start script for solving MAgPIE with IPOPT.
-- **Dockerfile** Re-added a Dockerfile, which can be used to build a local docker image as well as a GH codespace
+- **15_food** Added `c15_exodiet_scen` switch to select between exogenous diet target scenarios — EAT-Lancet 2.0 (default) and India's NIN (National Institute of Nutrition) dietary recommendations
+- **32_forestry** Other-planted forest as its own harvestable pool with its own growth curve, matching the FRA 2025 taxonomy (naturally regenerating / other planted / plantation). Reported as `Planted Forest|+|Timber` and `Planted Forest|+|Other Planted`. Plantation rotation read from an external per-Köppen-zone table (`f32_plant_rotation.cs4`).
+- **35_natveg** Potential forest area corrected for grassland ecoregions (`c35_pot_forest_correction`, on by default): the LPJmL potential forest area is reduced by the grassland-ecoregion cover fraction (RESOLVE 2017 biomes 7-10) during preprocessing (`calcPotentialForestArea` with `calcGrassyEcoregions`, mrmagpie), where LPJmL overestimates forest cover in open grassland ecosystems; the switch selects the corrected (default) or uncorrected input file. Restricts afforestation and natural regrowth on grassland sites.
+- **73_timber** Sticky natveg harvest-capacity cost (`s73_sticky_harvest`, default on): treats natveg (primary/secondary/other) harvest capacity as a depreciating capital stock (mirrors 38_factor_costs sticky_feb18), damping the regional timestep-to-timestep source-switching sawtooth; per-source intensity via `s73_hvint_*`. FRA-pinned wood volume and carbon curves unchanged.
+- **15_food** Added flexible source-to-target food substitution with configurable food baskets and kcal/protein replacement basis
+- **scenario_config_ec.csv** A set of scenarios for the Earth Commission
+- **scripts/start/projects/project_EC.R** Start script for EC scenarios.
+- **39_landconversion** regional land conversion cost calibration extended to pasture (mirrors the existing cropland mechanism); new `calib_pasture_landconversion_cost` config switch (default TRUE) allows disabling pasture calibration for legacy crop-only behavior
+- **scripts/calibration/landconversion_cost.R** reward calibration factor is now capped (previously unbounded), via new `reward_calib_max_landconversion_cost`/`_past` config options
+- **scripts/start_functions.R** `recalibrate_landconversion_cost = "ifneeded"` now accounts for the new `calib_pasture_landconversion_cost` switch: when pasture calibration is off, a pasture calibration file must be neutral (not just present) to skip recalibration, so a stale file from an earlier pasture-calibration-enabled run is never silently reused
+### removed
+- **52_carbon/35_natveg/32_forestry** Retired workarounds that are no longer needed once the wood calibration is separated from the carbon growth curve: the k-bisection growth-curve calibration, the "natural-origin" secondary-forest carbon blend and harvest floor, and the young-secondary-forest wood-harvest loophole.
+
+### fixed
+- **scripts/calibration/landconversion_cost.R** `restart=TRUE` now reports cropland/pasture calibration-file state independently instead of assuming they match; best-iteration selection now indexes calibration factors by iteration name rather than array position, avoiding potential misalignment
+
+
+## [4.14.1] - 2026-08-25
+
+### changed
+- **.Rprofile** add r-universe repo, use envvars if present
+- **14_yields** pasture yield correction added to dynRegPastrTau_apr26 realization to match managementcalib_aug19
+- **CI** test-code.yaml: use ubuntu-latest and checkout@v7
+- **Dockerfile** now based on ubuntu 26.04, R 4.6, gams 54.1
+- **inputdata** updated input data to rev4.132, repairing a FAO item-name mapping mismatch in the preprocessing (present since rev4.121): factor requirements in `f38_fac_req_fao.csv` for `others`, `cottn_pro`, `groundnut`, `cassav_sp`, `puls_pro` and `oilpalm` return to pre-rev4.121 levels; added `f14_yld_past_switch.csv`
+- **main.gms** `reslim` reduced from 1000000 to 900 seconds, so a solver stuck inside one iteration is interrupted and retried instead of consuming the whole job allocation
+- **Makefile** `make reset-renv` resets renv
+- **renv/activate.R** updated to version 1.2.4
+- **scripts** saveToResultsArchive saves to inbox folder if available
+
+### added
 - **.devcontainer/devcontainer.json** A new configuration for development containers, which allow for reproducible, prepared development environments
+- **14_yields/dynRegPastrTau_apr26** New realization, allows changing tau factor spillover to pastures by region and timestep.
+- **22_land_conservation** new options for IPLC land conservation
+- **80_optimization/nlp_ipopt** New realization, using IPOPT instead of CONOPT4 (and the fallback CONOPT3) as the NLP solver for the MAgPIE model.
+- **Dockerfile** Re-added a Dockerfile, which can be used to build a local docker image as well as a GH codespace
+- **scenario_config_susmip.csv** A set of sceanrios for the SusMIP excercise in the PRISMA project
 - **scripts** added $RSCRIPT_SLURM_HOOK to run on slurm compute nodes via apptainer
+- **scripts/npi_ndc/start_npi_ndc.R** Added `ndcdelay` afforestation policy (PRISMA T6.4 "Asymmetric Roll-back") applying `ndc` targets with milestone target-years delayed by country categorization. Plus, added `AFFEXP` which derives afforestation targets based on the share of potential forest land and speed of afforestation.
+- **scripts/start/extra/ipopt.R** Start script for solving MAgPIE with IPOPT.
 
 ### removed
 - **scripts/projects/fsec.R** Removed FSEC_nitrogenPollution (grid-level nitrogen pollution downscaling) from the FSEC run output pipeline.
 
 ### fixed
+- **09_drivers**, **14_yields**, **15_food** Minor stylistic improvements to GAMS code following capitalization consistency rules in `gms::codeCheck`.
 - **21_trade** Bugfix and refinement of bilateral trade realization to avoid infeasibiliteis in SSP4 and SSP5.
+- **35_natveg/14_yields** Fix `youngsecdf` wood production: derive its growing stock (`im_growing_stock_ysf`) from the *uncalibrated* secondary-forest carbon curve — the same curve its carbon density uses — instead of the FRA-2025-calibrated `im_growing_stock(...,"secdforest")`. Previously young secondary forest on other land yielded calibrated (high) wood volumes while booking uncalibrated (low) carbon, letting the optimiser evade land-CO2 caps/prices by relocating wood harvest onto `youngsecdf`. Result-changing for scenarios with land-CO2 pricing or AFOLU caps; explains the "other-land wood harvest" anomaly flagged under PR #876's Known limitations.
+- **59_som** Carry the soil carbon stock (`pcm_carbon_stock(...,"soilc",...)`) forward each timestep in `postsolve` (both `cellpool_jan23` and `static_jan19`), so the soil term in `vm_emissions_reg` (`q52_emis_co2_actual`) is a per-timestep flux instead of a cumulative-since-initialisation change.
+- **scripts/output/projects** `FSDP_collect.R`, `FSDP_collect2.R` and `peatland.R` selected yield variables under names magpie4 no longer emits, so their yield series were silently empty (FSDP since 2024-04-25, peatland since 2024-02-26). Updated to the `Productivity|Yields` tree; `magpie4` dependency raised to >= 2.80.0 accordingly.
 
 
 ## [4.14.0] - 2026-05-05
@@ -1282,7 +1336,8 @@ This release version is focussed on consistency between the MAgPIE setup and the
 First open source release of the framework. See [MAgPIE 4.0 paper](https://doi.org/10.5194/gmd-12-1299-2019) for more information.
 
 
-[Unreleased]: https://github.com/magpiemodel/magpie/compare/v4.14.0...develop
+[Unreleased]: https://github.com/magpiemodel/magpie/compare/v4.14.1...develop
+[4.14.1]: https://github.com/magpiemodel/magpie/compare/v4.14.0...v4.14.1
 [4.14.0]: https://github.com/magpiemodel/magpie/compare/v4.13.0...v4.14.0
 [4.13.0]: https://github.com/magpiemodel/magpie/compare/v4.12.0...v4.13.0
 [4.12.0]: https://github.com/magpiemodel/magpie/compare/v4.11.0...v4.12.0
