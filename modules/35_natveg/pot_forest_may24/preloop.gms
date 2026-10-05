@@ -26,6 +26,14 @@ p35_land_lag2(j,land) = pcm_land(j,land);
 if((s35_edge_carbon = 1) and (s35_edge_geometry <> 0) and (s35_edge_geometry <> 1) and (s35_edge_geometry <> 2),
   abort "s35_edge_geometry must be 0, 1 or 2";
 );
+** Same for the gate and the formula: an out-of-range gate value would leave the gate at 1 in every cluster (the loss would
+** apply outside the tropics), an out-of-range formula value would switch the module off (audit 2026-10-05).
+if((s35_edge_carbon = 1) and (s35_edge_gate <> 0) and (s35_edge_gate <> 1),
+  abort "s35_edge_gate must be 0 or 1";
+);
+if((s35_edge_carbon = 1) and (s35_edge_formula <> 0) and (s35_edge_formula <> 1),
+  abort "s35_edge_formula must be 0 or 1";
+);
 
 ** initialize other land
 i35_land_other(j,othertype35,ac) = 0;
