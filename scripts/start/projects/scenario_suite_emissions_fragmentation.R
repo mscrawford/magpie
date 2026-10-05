@@ -43,6 +43,9 @@ source("config/default.cfg")
 
 cfg$gms$c_timesteps <- "coup2100"
 cfg$output          <- c("output_check", "rds_report")
+# SUITE_OUTPUT: comma-separated output scripts to run at job end, or "none". Use "none" while the run library holds a
+# magpie4 older than the model needs (job-end reports are provisional in any case, policy D7: read-outs are re-rendered).
+if (nzchar(Sys.getenv("SUITE_OUTPUT"))) cfg$output <- if (Sys.getenv("SUITE_OUTPUT") == "none") character(0) else trimws(strsplit(Sys.getenv("SUITE_OUTPUT"), ",")[[1]])
 cfg$force_download  <- FALSE
 # NPI / NDC policy tables: "ifneeded" (the default.cfg value) recomputes them when the distributed files are the all-zero
 # placeholders the input archives ship. This script set FALSE until 2026-10-05: every run launched after an input download
