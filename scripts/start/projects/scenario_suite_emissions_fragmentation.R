@@ -108,6 +108,21 @@ if (grepl("noNPI|geom[0-9]|ratchet|bii|nobii|fade|nopatch|curtisfix|Broad", TAG)
 DAMAGE <- Sys.getenv("SUITE_DAMAGE", "")
 if (!DAMAGE %in% c("", "fade")) stop("SUITE_DAMAGE must be unset or 'fade'")
 VARIANT <- paste0(if (NPI == "none") "noNPI" else "", if (nzchar(GEOM)) paste0("geom", GEOM) else "", if (RATCHET == "1") "ratchet" else "", PROT, DAMAGE, PATCHTAG, TAG)
+#   SUITE_SET=<key>=<value>[,<key>=<value>]  overrides of cfg$gms applied LAST to every selected run (review of 2026-10-05: the
+#       threshold of the geometry rule, variants of the BII floor, a second solve). Needs SUITE_TAG, so that an overridden run
+#       never carries a plain title; a key that the configuration does not hold stops the launcher (no silent typo); a value
+#       that reads as a number is set as a number. The plain design is unchanged when the variable is unset.
+SET <- Filter(nzchar, trimws(strsplit(Sys.getenv("SUITE_SET", ""), ",")[[1]]))
+if (length(SET) && !nzchar(TAG)) stop("SUITE_SET needs SUITE_TAG: an overridden run must not carry a plain title")
+if (length(SET) && !all(grepl("^[A-Za-z0-9_]+=[^=]+$", SET))) stop("SUITE_SET entries must read key=value")
+apply_set <- function(cfg_i) {
+  for (kv in SET) {
+    k <- sub("=.*$", "", kv); v <- sub("^[^=]*=", "", kv)
+    if (!k %in% names(cfg_i$gms)) stop("SUITE_SET: '", k, "' is not a key of cfg$gms")
+    cfg_i$gms[[k]] <- if (!is.na(suppressWarnings(as.numeric(v)))) as.numeric(v) else v
+  }
+  cfg_i
+}
 
 # ---------------------------------------------------------------------------
 # Labor-productivity RCP bracket: module 37 offers only rcp119 / rcp585 -> nearest to the run's forcing.
@@ -233,6 +248,7 @@ broad_tags    <- c("SSP1M0P0D0", "SSP1M1P1D1", "SSP2base", "SSP3base")  # ~1 km 
 folders <- c(); n <- 0L
 launch <- function(cfg_i, title) {
   if (length(ONLY) && !title %in% ONLY) return(invisible(NULL))
+  cfg_i <- apply_set(cfg_i)
   cfg_i$title <- title; n <<- n + 1L
   if (DRYRUN) {
     lam <- if (is.null(cfg_i$gms$s35_edge_lambda)) NA_real_ else cfg_i$gms$s35_edge_lambda
