@@ -27,7 +27,7 @@ cfg$gms$c_timesteps     <- "coup2100"   # match the SSP3base baseline
 cfg$gms$s35_edge_carbon <- 1            # edge ON
 cfg$output              <- c("output_check", "rds_report")
 cfg$force_download      <- TRUE     # disk has rev4.126; config wants rev4.131 -> force the correct-revision fetch (VPN on enables intern/scp fallbacks)
-cfg$recalc_npi_ndc      <- FALSE
+cfg$recalc_npi_ndc      <- "ifneeded"   # was FALSE until 2026-10-05: runs then read the all-zero placeholder NPI tables (merge audit)
 cfg$sequential          <- TRUE         # A completes before B (no parallel thrash / CSV race)
 cfg <- gms::setScenario(cfg, c("SSP3", "NPI"))
 

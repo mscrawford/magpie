@@ -64,7 +64,7 @@ set_edge_on <- function(cfg) {
 cfg$gms$c_timesteps <- "coup2100"
 cfg$output          <- c("output_check", "rds_report")
 cfg$force_download  <- FALSE
-cfg$recalc_npi_ndc  <- FALSE
+cfg$recalc_npi_ndc  <- "ifneeded"   # was FALSE until 2026-10-05: runs then read the all-zero placeholder NPI tables (merge audit)
 cfg$sequential      <- TRUE          # A completes before B (no CSV race)
 
 # build SSP1priceBioe + edge ON

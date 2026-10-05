@@ -26,11 +26,16 @@ dropped <- setdiff(names(july$gms), names(base$gms))
 if (length(dropped) > 0) message("July switches unknown to the current default.cfg (dropped): ", paste(dropped, collapse = ", "))
 for (k in intersect(names(july$gms), names(base$gms))) base$gms[[k]] <- july$gms[[k]]
 base$input <- july$input
+if (!identical(unname(base$input), unname(cfg$input)))
+  stop("this launcher overlays the config of a July 2026 run, including its input revision (", base$input[["regional"]],
+       "), on code whose default.cfg names ", cfg$input[["regional"]], ". The code after the develop merge of 2026-10 reads input files ",
+       "the old revision lacks, and the old runs carried all-zero NPI / NDC tables (recalc_npi_ndc = FALSE). Use ",
+       "scenario_suite_emissions_fragmentation.R (builds from default.cfg), or port this launcher first.")
 added <- setdiff(names(base$gms), names(july$gms))
 message("switches new since July, taken from default.cfg: ", paste(added, collapse = ", "))
 base$results_folder <- "output/:title::date:"
 base$force_download <- FALSE
-base$recalc_npi_ndc <- FALSE
+base$recalc_npi_ndc <- "ifneeded"   # was FALSE until 2026-10-05: runs then read the all-zero placeholder NPI tables (merge audit)
 base$sequential     <- Sys.getenv("MAGPIE_SEQUENTIAL", "FALSE") == "TRUE"
 base$output         <- c("output_check", "rds_report")
 

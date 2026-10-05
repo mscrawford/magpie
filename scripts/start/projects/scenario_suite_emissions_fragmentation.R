@@ -44,7 +44,12 @@ source("config/default.cfg")
 cfg$gms$c_timesteps <- "coup2100"
 cfg$output          <- c("output_check", "rds_report")
 cfg$force_download  <- FALSE
-cfg$recalc_npi_ndc  <- FALSE
+# NPI / NDC policy tables: "ifneeded" (the default.cfg value) recomputes them when the distributed files are the all-zero
+# placeholders the input archives ship. This script set FALSE until 2026-10-05: every run launched after an input download
+# then read all-zero tables, i.e. ran WITHOUT NPI afforestation targets and without the minimum forest / other-land stocks
+# although its policy switches said npi (found by the merge audit of 2026-10-05; verified in the gdx of the 07-01 and
+# 08-29 SSP2 bases, an 08-29 SSP1 run and the 10-01 twins). Never set FALSE here again.
+cfg$recalc_npi_ndc  <- "ifneeded"
 cfg$sequential      <- FALSE  # parallel GAMS solves
 
 # Per-RCP LPJmL cellular inputs (ssp126 for rcp2p6, ssp245 for rcp4p5, ssp370 for rcp7p0) are in the local madrat
@@ -55,6 +60,11 @@ cfg$repositories <- append(cfg$repositories,
 DRYRUN <- identical(Sys.getenv("SUITE_DRYRUN"), "1")
 DUMP   <- Sys.getenv("SUITE_DUMP", "")
 ONLY   <- Filter(nzchar, trimws(strsplit(Sys.getenv("SUITE_ONLY", ""), ",")[[1]]))   # empty = every run
+# SUITE_NPI=none: the no-policy twin of any run (c32_aff_policy, c35_ad_policy, c35_aolc_policy = "none"), titled
+# <tag>noNPI_bodirsky_<edge>. It reproduces by switch what the runs before 2026-10-05 did by accident (all-zero policy
+# tables), so <tag> minus <tag>noNPI measures what the missing policies were worth. Default: policies as the scenario sets them.
+NPI    <- Sys.getenv("SUITE_NPI", "")
+if (!NPI %in% c("", "none")) stop("SUITE_NPI must be unset or 'none'")
 
 # ---------------------------------------------------------------------------
 # Labor-productivity RCP bracket: module 37 offers only rcp119 / rcp585 -> nearest to the run's forcing.
@@ -137,7 +147,7 @@ set_edge_on <- function(cfg) {
   cfg$gms$s35_edge_n       <- 0.7984
   cfg$gms$s35_edge_depth   <- 0.5      # pinned (validation 2026-09-09): previously inherited from default.cfg
   cfg$gms$s35_edge_forestry_buffer <- 1
-  cfg$gms$s32_edge_haircut  <- 1     # forestry haircut split: ndc + natural-curve aff carry the edge factor, plant exempt
+  cfg$gms$s32_edge_haircut  <- 1     # forestry haircut split: ndc, natural-curve aff and other_planted carry the edge factor, plant exempt
   cfg$gms$s35_edge_agb_only <- 1     # edge factor on aboveground carbon only
   cfg$gms$s35_edge_gate     <- 1     # forest-weighted Koeppen-A tropical share per cluster; f35_edge_scale filled
   cfg
@@ -157,6 +167,7 @@ policies <- c(cube, context)
 
 build_policy <- function(cfg, p) {
   cfg <- set_world(cfg, p$ssp, p$rcp)
+  if (NPI == "none") for (k in c("c32_aff_policy", "c35_ad_policy", "c35_aolc_policy")) cfg$gms[[k]] <- "none"
   if (isTRUE(p$cube)) {
     cfg <- set_cube_backdrop(cfg)
     cfg <- set_mitigation(cfg, p$ssp, on = isTRUE(p$M))
@@ -183,6 +194,8 @@ launch <- function(cfg_i, title) {
                 cfg_i$gms$c56_emis_policy, cfg_i$gms$c56_mute_ghgprices_until, cfg_i$gms$c22_protect_scenario,
                 cfg_i$gms$s44_bii_target, cfg_i$gms$s29_snv_shr, cfg_i$gms$c42_env_flow_policy,
                 cfg_i$gms$s15_exo_diet, cfg_i$gms$s35_edge_carbon, lam))
+    cat(sprintf("      %-24s npi: aff=%s ad=%s aolc=%s recalc=%s | regional=%s additional=%s calibration=%s\n", "", cfg_i$gms$c32_aff_policy,
+                cfg_i$gms$c35_ad_policy, cfg_i$gms$c35_aolc_policy, cfg_i$recalc_npi_ndc, cfg_i$input[["regional"]], cfg_i$input[["additional"]], cfg_i$input[["calibration"]]))
     if (nzchar(DUMP)) {
       dir.create(DUMP, showWarnings = FALSE, recursive = TRUE)
       jsonlite::write_json(list(title = title, input = as.list(cfg_i$input), gms = cfg_i$gms),
@@ -199,12 +212,12 @@ for (p in policies) {
   for (edge in if (p$tag %in% edge_off_tags) c("OFF", "ON") else "ON") {
     cfg_i <- build_policy(cfg, p)
     cfg_i <- if (edge == "ON") set_edge_on(cfg_i) else set_edge_off(cfg_i)
-    launch(cfg_i, paste0(p$tag, "_bodirsky_", edge))
+    launch(cfg_i, paste0(p$tag, if (NPI == "none") "noNPI" else "", "_bodirsky_", edge))
   }
 }
 # broad-edge sensitivity = 4
 for (p in policies) if (p$tag %in% broad_tags) {
-  launch(set_edge_broad(build_policy(cfg, p)), paste0(p$tag, "Broad_bodirsky_ON"))
+  launch(set_edge_broad(build_policy(cfg, p)), paste0(p$tag, if (NPI == "none") "noNPI" else "", "Broad_bodirsky_ON"))
 }
 
 if (length(ONLY)) { if (n < length(ONLY)) cat(sprintf("\n[warn] SUITE_ONLY named %d titles but %d matched; check spelling against the dry-run list\n", length(ONLY), n)) }

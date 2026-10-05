@@ -50,7 +50,7 @@ parameters
  p35_degr_target(j,land_timber,ac,degr35)                Target vegc deficit fraction per driver land type and age class - exposure x damage x aboveground share (1)
  p35_degr_applied(t,j,land_timber,ac,degr35)             Applied vegc deficit fraction per driver after relaxation - equals the target when tau is 0 (1)
  p35_carbon_degr_factor(j,land_timber,ac)                Combined vegc retention factor over all drivers - product of 1 minus the applied deficits (1)
- pm_carbon_degr_factor(j,ac)                             Combined vegc retention factor of secdforest exported to 32_forestry for the natural-curve afforestation pools (1)
+ pm_carbon_degr_factor(j,ac)                             Combined vegc retention factor of secdforest exported to 32_forestry for the natural-curve forestry pools ndc aff other_planted (1)
  p35_vegc_unreduced_primforest(t,j)                      Primforest vegc density before the degradation factors (tC per ha)
  p35_vegc_unreduced_secdforest(t,j,ac)                   Secdforest vegc density before the degradation factors (tC per ha)
  p35_vegc_unreduced_youngsecdf(t,j,ac)                   Youngsecdf vegc density before the degradation factors (tC per ha)

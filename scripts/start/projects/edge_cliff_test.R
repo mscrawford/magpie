@@ -27,7 +27,7 @@ source("config/default.cfg")
 cfg$gms$c_timesteps <- "coup2100"
 cfg$output <- c("output_check", "rds_report")
 cfg$force_download <- FALSE
-cfg$recalc_npi_ndc <- FALSE
+cfg$recalc_npi_ndc <- "ifneeded"   # was FALSE until 2026-10-05: runs then read the all-zero placeholder NPI tables (merge audit)
 
 # --- Common SSP1 + flat price config ---
 make_base <- function(cfg) {

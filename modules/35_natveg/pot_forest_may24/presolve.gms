@@ -410,17 +410,20 @@ if(s35_edge_carbon = 1,
 * committed to edge loss on LAST step's land, (1 - edge-only factor) * sum over pools of density_vegc * area,
 * computed BEFORE the factors are applied. Includes primforest, secdforest and youngsecdf.
 * NOTE: forestry is included in p35_forest_area for the closure geometry. Its carbon is treated
-*       by pool (changed 2026-08-21). The NATURAL-curve afforestation pools (ndc; aff under
-*       s32_aff_plantation = 0) grow on pm_carbon_density_secdforest_ac and are protected
-*       (s32_aff_prot = 1), i.e. they are biophysically the same object as secdforest, so
+*       by pool (changed 2026-08-21). The NATURAL-curve forestry pools (ndc; aff under
+*       s32_aff_plantation = 0; other_planted since 2026-10-05) grow on the secondary-forest
+*       curve or one derived from it, i.e. they are biophysically close to secdforest, so
 *       32_forestry reduces their vegc by pm_carbon_degr_factor (one-step lag, see above) and
-*       reports the removed carbon as pm_edge_carbon_loss_forestry, added below. Timber
-*       plantations (plant) and plantation-curve aff stay UNREDUCED: the Brinck (2017) factor
-*       (s35_edge_degrad = 0.5) is a tropical NATURAL-forest mechanism (large-tree mortality +
-*       microclimate); managed even-aged stands are harvested before it applies and their edge
-*       response has uncertain sign (Dong et al. 2026 Nat Commun). A plantation edge effect, if
-*       ever added, needs a SEPARATE parameterization. s32_edge_haircut = 0 in 32_forestry
-*       restores the pre-2026-08-21 behaviour (natural forest only).
+*       reports the removed carbon as pm_edge_carbon_loss_forestry, added below. other_planted
+*       (FRA other planted forest, introduced by the develop merge of 2026-10) is harvestable,
+*       and takes the factor by decision (Mike, 2026-10-05): before the merge this area was
+*       initialised as ndc and carried it. Timber plantations (plant) and plantation-curve aff
+*       stay UNREDUCED: the Brinck (2017) factor (s35_edge_degrad = 0.5) is a tropical
+*       NATURAL-forest mechanism (large-tree mortality + microclimate); intensively managed
+*       even-aged stands are harvested before it applies and their edge response has uncertain
+*       sign (Dong et al. 2026 Nat Commun). A plantation edge effect, if ever added, needs a
+*       SEPARATE parameterization. s32_edge_haircut = 0 in 32_forestry restores the
+*       pre-2026-08-21 behaviour (natural forest only).
 *       See 05-temporal-accounting/documents/EDGE_AREA_ACCOUNTING.md Section 7.
   if(s35_edge_agb_only = 0,
     p35_edge_carbon_loss(t,j) =
