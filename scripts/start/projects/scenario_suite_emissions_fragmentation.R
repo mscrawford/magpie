@@ -66,7 +66,12 @@ cfg$repositories <- append(cfg$repositories,
 # the Sims-based share of the mrland PR #78 build. It lives in the fragmentation repo with a record of what it replaces
 # (03-magpie-integration/input_patches/), is re-applied by every input download and is named in each run's info.txt.
 # SUITE_INPUT_PATCH=none runs the released file; any other value is the path of another patch archive.
-PATCH <- Sys.getenv("SUITE_INPUT_PATCH", "/p/projects/magpie/users/crawford/dev_fragmentation/03-magpie-integration/input_patches/patch_f35_shiftcult_sims_2026-10-05.tgz")
+PATCH_DEFAULT <- "/p/projects/magpie/users/crawford/dev_fragmentation/03-magpie-integration/input_patches/patch_f35_shiftcult_sims_2026-10-05.tgz"
+PATCH <- Sys.getenv("SUITE_INPUT_PATCH", PATCH_DEFAULT)
+# A run on anything but the default patch says so in its title (audit 2026-10-05): "nopatch" for the released file, the
+# part of the archive name after "patch_f35_shiftcult_" otherwise (e.g. curtisfix).
+PATCHTAG <- if (PATCH == PATCH_DEFAULT) "" else if (PATCH == "none") "nopatch" else gsub("[^A-Za-z0-9]", "", sub("_[0-9]{4}-[0-9]{2}-[0-9]{2}\\.tgz$", "", sub("^patch_f35_shiftcult_", "", basename(PATCH))))
+if (PATCH != PATCH_DEFAULT && !nzchar(PATCHTAG)) stop("cannot derive a title tag from the patch name ", basename(PATCH))
 if (PATCH != "none") {
   if (!file.exists(PATCH)) stop("input patch not found: ", PATCH, " (set SUITE_INPUT_PATCH=none to run the released inputs)")
   cfg$repositories <- append(setNames(list(NULL), dirname(normalizePath(PATCH))), cfg$repositories)
@@ -94,7 +99,14 @@ if (!GEOM %in% c("", "0", "2") || !RATCHET %in% c("", "1") || !PROT %in% c("", "
 #   SUITE_TAG=<alphanumeric>  a free label appended to the tag, changing nothing else (e.g. to tell a rerun from an earlier run of the same cell)
 TAG <- Sys.getenv("SUITE_TAG", "")
 if (!grepl("^[A-Za-z0-9]*$", TAG)) stop("SUITE_TAG must be alphanumeric")
-VARIANT <- paste0(if (NPI == "none") "noNPI" else "", if (nzchar(GEOM)) paste0("geom", GEOM) else "", if (RATCHET == "1") "ratchet" else "", PROT, TAG)
+if (grepl("noNPI|geom[0-9]|ratchet|bii|nobii|fade|nopatch|curtisfix|Broad", TAG)) stop("SUITE_TAG must not contain a variant token (noNPI, geom<n>, ratchet, bii, nobii, fade, nopatch, curtisfix, Broad)")
+#   SUITE_DAMAGE=fade  s35_forest_damage 2: shifting cultivation fades to zero by 2050 (the model default)                -> fade
+# Default here (Mike, 2026-10-05: "Shifting cultivation stays on ... in baseline it should stay constant"): s35_forest_damage
+# = 1, the constant rate in every run. Under geometry 1 resets by shifting cultivation leave the geometry, so a fade to zero
+# would add a maturation-driven decline of the edge share to every baseline. The fork's default.cfg keeps the model default 2.
+DAMAGE <- Sys.getenv("SUITE_DAMAGE", "")
+if (!DAMAGE %in% c("", "fade")) stop("SUITE_DAMAGE must be unset or 'fade'")
+VARIANT <- paste0(if (NPI == "none") "noNPI" else "", if (nzchar(GEOM)) paste0("geom", GEOM) else "", if (RATCHET == "1") "ratchet" else "", PROT, DAMAGE, PATCHTAG, TAG)
 
 # ---------------------------------------------------------------------------
 # Labor-productivity RCP bracket: module 37 offers only rcp119 / rcp585 -> nearest to the run's forcing.
@@ -103,6 +115,7 @@ labor_rcp <- function(rcp) if (rcp %in% c("rcp6p0", "rcp7p0", "rcp8p5")) "rcp585
 # World: socioeconomics + NPi policy + the world's climate input (each field set EXPLICITLY, every factor OFF).
 set_world <- function(cfg, ssp, rcp) {
   cfg <- gms::setScenario(cfg, c(ssp, "NPI", rcp))
+  cfg$gms$s35_forest_damage <- if (DAMAGE == "fade") 2 else 1   # shifting cultivation: constant rate (1) unless the fade variant
   cfg$gms$c37_labor_rcp <- labor_rcp(rcp)
   cfg <- set_mitigation(cfg, ssp, on = FALSE)
   cfg <- set_protection(cfg, on = FALSE)
@@ -232,7 +245,8 @@ launch <- function(cfg_i, title) {
     cat(sprintf("      %-24s npi: aff=%s ad=%s aolc=%s recalc=%s | geometry=%s ratchet=%s | regional=%s additional=%s calibration=%s\n", "", cfg_i$gms$c32_aff_policy,
                 cfg_i$gms$c35_ad_policy, cfg_i$gms$c35_aolc_policy, cfg_i$recalc_npi_ndc, cfg_i$gms$s35_edge_geometry, cfg_i$gms$s35_degr_ratchet,
                 cfg_i$input[["regional"]], cfg_i$input[["additional"]], cfg_i$input[["calibration"]]))
-    cat(sprintf("      %-24s input patch: %s\n", "", if ("patch" %in% names(cfg_i$input)) cfg_i$input[["patch"]] else "none"))
+    cat(sprintf("      %-24s input patch: %s | shifting cultivation: %s\n", "", if ("patch" %in% names(cfg_i$input)) cfg_i$input[["patch"]] else "none",
+                c("0" = "off", "1" = "constant", "2" = "fades to 2050")[as.character(cfg_i$gms$s35_forest_damage)]))
     if (nzchar(DUMP)) {
       dir.create(DUMP, showWarnings = FALSE, recursive = TRUE)
       jsonlite::write_json(list(title = title, input = as.list(cfg_i$input), gms = cfg_i$gms),
@@ -246,14 +260,16 @@ launch <- function(cfg_i, title) {
 
 # 10 edge-ON + 3 edge-OFF = 13
 for (p in policies) {
+  if (nzchar(PROT) && !isTRUE(p$P)) next                                  # the BII split exists for protection cells only
   for (edge in if (p$tag %in% edge_off_tags) c("OFF", "ON") else "ON") {
+    if (edge == "OFF" && (nzchar(GEOM) || RATCHET == "1")) next            # geometry and ratchet are edge-module settings
     cfg_i <- build_policy(cfg, p)
     cfg_i <- if (edge == "ON") set_edge_on(cfg_i) else set_edge_off(cfg_i)
     launch(cfg_i, paste0(p$tag, VARIANT, "_bodirsky_", edge))
   }
 }
 # broad-edge sensitivity = 4
-for (p in policies) if (p$tag %in% broad_tags) {
+for (p in policies) if (p$tag %in% broad_tags && !(nzchar(PROT) && !isTRUE(p$P))) {
   launch(set_edge_broad(build_policy(cfg, p)), paste0(p$tag, VARIANT, "Broad_bodirsky_ON"))
 }
 

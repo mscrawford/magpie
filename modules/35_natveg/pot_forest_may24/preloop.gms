@@ -21,6 +21,12 @@ p35_degr_gate(j,degr35) = 1;
 p35_land_lag1(j,land) = pcm_land(j,land);
 p35_land_lag2(j,land) = pcm_land(j,land);
 
+** The closure geometry knows three settings (input.gms). Any other value would leave the geometry forest area at zero and
+** switch the edge effect off without a word while s35_edge_carbon = 1 (audit 2026-10-05).
+if((s35_edge_carbon = 1) and (s35_edge_geometry <> 0) and (s35_edge_geometry <> 1) and (s35_edge_geometry <> 2),
+  abort "s35_edge_geometry must be 0, 1 or 2";
+);
+
 ** initialize other land
 i35_land_other(j,othertype35,ac) = 0;
 i35_land_other(j,"othernat","acx") = pcm_land(j,"other");
