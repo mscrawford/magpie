@@ -15,6 +15,7 @@ pc32_land(j,type32,ac) = v32_land.l(j,type32,ac);
 * this combined deficit is made in the report from the 35_natveg exports (one driver today).
 p32_degr_committed(t,j,type32,ac) = 0;
 p32_degr_committed(t,j,"ndc",ac) = p32_degr_applied(t,j,ac) * p32_vegc_unreduced(t,j,"ndc",ac) * v32_land.l(j,"ndc",ac);
+p32_degr_committed(t,j,"other_planted",ac) = p32_degr_applied(t,j,ac) * p32_vegc_unreduced(t,j,"other_planted",ac) * v32_land.l(j,"other_planted",ac);
 if(s32_aff_plantation = 0,
   p32_degr_committed(t,j,"aff",ac) = p32_degr_applied(t,j,ac) * p32_vegc_unreduced(t,j,"aff",ac) * v32_land.l(j,"aff",ac);
 );

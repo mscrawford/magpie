@@ -72,9 +72,10 @@ p32_carbon_density_ac(t,j,"ndc",ac,ag_pools) = pm_carbon_density_secdforest_ac(t
 *' must be set before q32_carbon (which sums the full type32 set) or other_planted would be booked at density 0.
 p32_carbon_density_ac(t,j,"other_planted",ac,ag_pools) = pm_carbon_density_other_planted_ac(t,j,ac,ag_pools);
 
-*' Degradation-factor reduction of vegetation carbon for afforestation pools on NATURAL growth curves
-*' (`ndc`, and `aff` when `s32_aff_plantation` = 0). These pools grow on the secondary-forest
-*' curves and are protected, so they are treated like secondary forest in 35_natveg.
+*' Degradation-factor reduction of vegetation carbon for the forestry pools on NATURAL growth curves
+*' (`ndc`, `aff` when `s32_aff_plantation` = 0, and `other_planted`, whose curve is derived from the
+*' natveg curve). These pools grow like secondary forest, so they are treated like secondary forest
+*' in 35_natveg (`other_planted` since 2026-10-05, when the develop merge introduced the pool).
 *' `pm_carbon_degr_factor` (the combined retention factor over the degradation drivers of 35_natveg,
 *' today the edge factor) is set in the presolve of 35_natveg, which runs after this one, so the
 *' value is from the previous time step (1 in the first). Timber plantations (`plant`) and
@@ -91,6 +92,9 @@ if(s32_edge_haircut = 1,
   pm_edge_carbon_loss_forestry(t,j) = sum(ac, p32_degr_applied(t,j,ac)
     * p32_carbon_density_ac(t,j,"ndc",ac,"vegc") * pc32_land(j,"ndc",ac));
   p32_carbon_density_ac(t,j,"ndc",ac,"vegc") = p32_carbon_density_ac(t,j,"ndc",ac,"vegc") * pm_carbon_degr_factor(j,ac);
+  pm_edge_carbon_loss_forestry(t,j) = pm_edge_carbon_loss_forestry(t,j) + sum(ac, p32_degr_applied(t,j,ac)
+    * p32_carbon_density_ac(t,j,"other_planted",ac,"vegc") * pc32_land(j,"other_planted",ac));
+  p32_carbon_density_ac(t,j,"other_planted",ac,"vegc") = p32_carbon_density_ac(t,j,"other_planted",ac,"vegc") * pm_carbon_degr_factor(j,ac);
   if(s32_aff_plantation = 0,
     pm_edge_carbon_loss_forestry(t,j) = pm_edge_carbon_loss_forestry(t,j) + sum(ac, p32_degr_applied(t,j,ac)
       * p32_carbon_density_ac(t,j,"aff",ac,"vegc") * pc32_land(j,"aff",ac));
