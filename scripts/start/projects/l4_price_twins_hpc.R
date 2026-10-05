@@ -14,8 +14,11 @@
 # |      ratchet_M0P0D0 is the lower bound of the price co-benefit that allnosoil_M1P0D0 - allnosoil_M0P0D0 measures with instant recovery.
 # |    The pre-P cell names (allnosoil_M{0,1}D{0,1}, ratchet_M{0,1}D0) are accepted in L4TWIN_CELLS as aliases of their P0 cells.
 # |    inst_area / inst_area_norestore / inst_snv / inst_envflow (2026-10-01): the P bundle split by instrument at M0D0, each cell
-# |      allnosoil_M0P0D0 with one instrument on (inst_area vs inst_area_norestore isolates restoration; the BII floor is not
-# |      isolated). Launched only when named in L4TWIN_CELLS; the default set stays the ten cube + ratchet cells.
+# |      allnosoil_M0P0D0 with one instrument on (inst_area vs inst_area_norestore isolates restoration). Launched only when
+# |      named in L4TWIN_CELLS; the default set stays the ten cube + ratchet cells.
+# |    inst_bii / inst_nobii (2026-10-05, Mike): the BII floor alone, and the bundle without it. With allnosoil_M0P1D0 (bundle)
+# |      and allnosoil_M0P0D0 these close the split: the BII floor's interaction with the rest = bundle - inst_nobii - inst_bii
+# |      (each as a difference from M0P0D0).
 # |  Base construction as l4_lever_pilot_pc.R: the July SSP2base config overlaid on the current default.cfg, edge ON.
 # |  Usage (HPC, slurm through start_run; one process submits all selected cells):
 # |    cd libraries/magpie && Rscript scripts/start/projects/l4_price_twins_hpc.R
@@ -132,13 +135,15 @@ for (P in 0:1) for (D in 0:1) for (M in 0:1)
 for (M in 0:1)
   cellDefs[[sprintf("ratchet_M%dP0D0", M)]] <- list(pair = "ratchet", M = M == 1, P = FALSE, D = FALSE, backdrop = TRUE, ratchet = 1)
 # Instrument split of P at M0D0 (2026-10-01): each cell = allnosoil_M0P0D0 with ONE instrument on (pv = the parts list);
-# inst_area vs inst_area_norestore isolates restoration; the BII floor is not isolated (bundle minus the singles carries it
-# together with the interactions). Not launched by default: select with L4TWIN_CELLS.
+# inst_area vs inst_area_norestore isolates restoration. inst_bii = the BII floor alone; inst_nobii = the bundle without it
+# (2026-10-05), so bundle - inst_nobii - inst_bii is the floor's interaction. Not launched by default: select with L4TWIN_CELLS.
 instDefs <- list(
   inst_area           = list(area = TRUE,  restore = TRUE,  bii = FALSE, snv = FALSE, envflow = FALSE),
   inst_area_norestore = list(area = TRUE,  restore = FALSE, bii = FALSE, snv = FALSE, envflow = FALSE),
   inst_snv            = list(area = FALSE, restore = TRUE,  bii = FALSE, snv = TRUE,  envflow = FALSE),
-  inst_envflow        = list(area = FALSE, restore = TRUE,  bii = FALSE, snv = FALSE, envflow = TRUE))
+  inst_envflow        = list(area = FALSE, restore = TRUE,  bii = FALSE, snv = FALSE, envflow = TRUE),
+  inst_bii            = list(area = FALSE, restore = TRUE,  bii = TRUE,  snv = FALSE, envflow = FALSE),
+  inst_nobii          = list(area = TRUE,  restore = TRUE,  bii = FALSE, snv = TRUE,  envflow = TRUE))
 for (nm in names(instDefs))
   cellDefs[[nm]] <- list(pair = "inst", M = FALSE, P = FALSE, D = FALSE, backdrop = TRUE, ratchet = 0, pv = instDefs[[nm]])
 # pre-P names (2026-09-20 launcher, HPC brief) -> their P0 cells
