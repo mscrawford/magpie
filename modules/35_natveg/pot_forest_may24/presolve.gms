@@ -272,6 +272,13 @@ if(s35_edge_carbon = 1,
                       + sum(ac$(pm_carbon_density_secdforest_ac(t,j,ac,"vegc") > sm_edge_mature_vegc), pc35_secdforest(j,ac))
                       + s35_edge_forestry_buffer * pm_land_forestry_mature(j);
   );
+* s35_edge_geometry = 2 (2026-10-05): the rule for FORESTRY only. Secondary forest counts in full, as under 0, so the
+* initial age structure and later resets of secondary forest do not move the geometry; planted stands still enter
+* only once their own curve has passed the threshold.
+  if(s35_edge_geometry = 2,
+  p35_forest_area(j) = pcm_land(j,"primforest") + pcm_land(j,"secdforest")
+                      + s35_edge_forestry_buffer * pm_land_forestry_mature(j);
+  );
   p35_edge_forest_area(t,j) = p35_forest_area(j);
 
 * Forest fraction (dimensionless: forest Mha / total land Mha)

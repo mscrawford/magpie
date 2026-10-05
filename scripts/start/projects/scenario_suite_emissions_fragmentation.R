@@ -71,16 +71,17 @@ if (!NPI %in% c("", "none")) stop("SUITE_NPI must be unset or 'none'")
 # Pilot variants of any selected run (2026-10-05), each a labelled twin that differs from the plain run in ONE thing.
 # They change the title tag (<tag><variant>_bodirsky_<edge>), so SUITE_ONLY must name the variant titles.
 #   SUITE_GEOM=0     s35_edge_geometry 0: forest in the closure geometry by pool totals (the rule before 2026-10-05)  -> geom0
+#   SUITE_GEOM=2     s35_edge_geometry 2: the maturation rule for forestry only, secondary forest in full              -> geom2
 #   SUITE_RATCHET=1  s35_degr_ratchet 1: the applied edge deficit can only rise (lower bound of the co-benefit)       -> ratchet
 #   SUITE_PROT=bii   protection cells carry the BII floor ONLY;  SUITE_PROT=nobii  the bundle WITHOUT the BII floor   -> bii / nobii
 GEOM    <- Sys.getenv("SUITE_GEOM", "")
 RATCHET <- Sys.getenv("SUITE_RATCHET", "")
 PROT    <- Sys.getenv("SUITE_PROT", "")
-if (!GEOM %in% c("", "0") || !RATCHET %in% c("", "1") || !PROT %in% c("", "bii", "nobii")) stop("SUITE_GEOM must be unset or 0, SUITE_RATCHET unset or 1, SUITE_PROT unset, bii or nobii")
+if (!GEOM %in% c("", "0", "2") || !RATCHET %in% c("", "1") || !PROT %in% c("", "bii", "nobii")) stop("SUITE_GEOM must be unset, 0 or 2, SUITE_RATCHET unset or 1, SUITE_PROT unset, bii or nobii")
 #   SUITE_TAG=<alphanumeric>  a free label appended to the tag, changing nothing else (e.g. to tell a rerun from an earlier run of the same cell)
 TAG <- Sys.getenv("SUITE_TAG", "")
 if (!grepl("^[A-Za-z0-9]*$", TAG)) stop("SUITE_TAG must be alphanumeric")
-VARIANT <- paste0(if (NPI == "none") "noNPI" else "", if (GEOM == "0") "geom0" else "", if (RATCHET == "1") "ratchet" else "", PROT, TAG)
+VARIANT <- paste0(if (NPI == "none") "noNPI" else "", if (nzchar(GEOM)) paste0("geom", GEOM) else "", if (RATCHET == "1") "ratchet" else "", PROT, TAG)
 
 # ---------------------------------------------------------------------------
 # Labor-productivity RCP bracket: module 37 offers only rcp119 / rcp585 -> nearest to the run's forcing.
@@ -165,7 +166,7 @@ set_edge_on <- function(cfg) {
   cfg$gms$s35_edge_n       <- 0.7984
   cfg$gms$s35_edge_depth   <- 0.5      # pinned (validation 2026-09-09): previously inherited from default.cfg
   cfg$gms$s35_edge_forestry_buffer <- 1
-  cfg$gms$s35_edge_geometry   <- if (GEOM == "0") 0 else 1   # 1 = forest in the geometry by the maturation rule, per age class (2026-10-05)
+  cfg$gms$s35_edge_geometry   <- if (nzchar(GEOM)) as.numeric(GEOM) else 1   # 1 = forest in the geometry by the maturation rule, per age class (2026-10-05)
   cfg$gms$sm_edge_mature_vegc <- 20                          # its threshold = the model's secondary-forest maturation threshold
   cfg$gms$s35_degr_ratchet    <- if (RATCHET == "1") 1 else 0
   cfg$gms$s32_edge_haircut  <- 1     # forestry haircut split: ndc, natural-curve aff and other_planted carry the edge factor, plant exempt
