@@ -60,6 +60,19 @@ cfg$sequential      <- FALSE  # parallel GAMS solves
 cfg$repositories <- append(cfg$repositories,
                            list("file:///p/projects/rd3mod/inputdata/output_1.27" = NULL))
 
+# Input patch (2026-10-05, Mike): the released f35_forest_lost_share carries the Curtis transcription defect (Africa 3 instead
+# of 39 Mha: the SSA shifting-agriculture share is about 13x too low). Until an input revision built on the Sims et al.
+# drivers exists, a one-file archive listed LAST in cfg$input replaces the column the model reads (shifting_agriculture) by
+# the Sims-based share of the mrland PR #78 build. It lives in the fragmentation repo with a record of what it replaces
+# (03-magpie-integration/input_patches/), is re-applied by every input download and is named in each run's info.txt.
+# SUITE_INPUT_PATCH=none runs the released file; any other value is the path of another patch archive.
+PATCH <- Sys.getenv("SUITE_INPUT_PATCH", "/p/projects/magpie/users/crawford/dev_fragmentation/03-magpie-integration/input_patches/patch_f35_shiftcult_sims_2026-10-05.tgz")
+if (PATCH != "none") {
+  if (!file.exists(PATCH)) stop("input patch not found: ", PATCH, " (set SUITE_INPUT_PATCH=none to run the released inputs)")
+  cfg$repositories <- append(setNames(list(NULL), dirname(normalizePath(PATCH))), cfg$repositories)
+  cfg$input <- c(cfg$input, patch = basename(PATCH))
+}
+
 DRYRUN <- identical(Sys.getenv("SUITE_DRYRUN"), "1")
 DUMP   <- Sys.getenv("SUITE_DUMP", "")
 ONLY   <- Filter(nzchar, trimws(strsplit(Sys.getenv("SUITE_ONLY", ""), ",")[[1]]))   # empty = every run
@@ -219,6 +232,7 @@ launch <- function(cfg_i, title) {
     cat(sprintf("      %-24s npi: aff=%s ad=%s aolc=%s recalc=%s | geometry=%s ratchet=%s | regional=%s additional=%s calibration=%s\n", "", cfg_i$gms$c32_aff_policy,
                 cfg_i$gms$c35_ad_policy, cfg_i$gms$c35_aolc_policy, cfg_i$recalc_npi_ndc, cfg_i$gms$s35_edge_geometry, cfg_i$gms$s35_degr_ratchet,
                 cfg_i$input[["regional"]], cfg_i$input[["additional"]], cfg_i$input[["calibration"]]))
+    cat(sprintf("      %-24s input patch: %s\n", "", if ("patch" %in% names(cfg_i$input)) cfg_i$input[["patch"]] else "none"))
     if (nzchar(DUMP)) {
       dir.create(DUMP, showWarnings = FALSE, recursive = TRUE)
       jsonlite::write_json(list(title = title, input = as.list(cfg_i$input), gms = cfg_i$gms),
