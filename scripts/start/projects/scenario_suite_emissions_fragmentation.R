@@ -68,6 +68,16 @@ ONLY   <- Filter(nzchar, trimws(strsplit(Sys.getenv("SUITE_ONLY", ""), ",")[[1]]
 # tables), so <tag> minus <tag>noNPI measures what the missing policies were worth. Default: policies as the scenario sets them.
 NPI    <- Sys.getenv("SUITE_NPI", "")
 if (!NPI %in% c("", "none")) stop("SUITE_NPI must be unset or 'none'")
+# Pilot variants of any selected run (2026-10-05), each a labelled twin that differs from the plain run in ONE thing.
+# They change the title tag (<tag><variant>_bodirsky_<edge>), so SUITE_ONLY must name the variant titles.
+#   SUITE_GEOM=0     s35_edge_geometry 0: forest in the closure geometry by pool totals (the rule before 2026-10-05)  -> geom0
+#   SUITE_RATCHET=1  s35_degr_ratchet 1: the applied edge deficit can only rise (lower bound of the co-benefit)       -> ratchet
+#   SUITE_PROT=bii   protection cells carry the BII floor ONLY;  SUITE_PROT=nobii  the bundle WITHOUT the BII floor   -> bii / nobii
+GEOM    <- Sys.getenv("SUITE_GEOM", "")
+RATCHET <- Sys.getenv("SUITE_RATCHET", "")
+PROT    <- Sys.getenv("SUITE_PROT", "")
+if (!GEOM %in% c("", "0") || !RATCHET %in% c("", "1") || !PROT %in% c("", "bii", "nobii")) stop("SUITE_GEOM must be unset or 0, SUITE_RATCHET unset or 1, SUITE_PROT unset, bii or nobii")
+VARIANT <- paste0(if (NPI == "none") "noNPI" else "", if (GEOM == "0") "geom0" else "", if (RATCHET == "1") "ratchet" else "", PROT)
 
 # ---------------------------------------------------------------------------
 # Labor-productivity RCP bracket: module 37 offers only rcp119 / rcp585 -> nearest to the run's forcing.
@@ -108,21 +118,23 @@ set_mitigation <- function(cfg, ssp, on) {
 
 # --- Factor P: land + water protection as ONE bundle (RIKEN .prot_on / .prot_off), every instrument on the 2025->2050 schedule ---
 set_protection <- function(cfg, on) {
-  scen <- if (on) "GSN_HalfEarth" else "none"
+  bii  <- on && PROT != "nobii"                              # the BII floor
+  rest <- on && PROT != "bii"                                # protected area, SNV share, environmental flows
+  scen <- if (rest) "GSN_HalfEarth" else "none"
   cfg$gms$c22_protect_scenario          <- scen
   cfg$gms$c22_protect_scenario_noselect <- scen
   cfg$gms$s22_conservation_start  <- 2025
   cfg$gms$s22_conservation_target <- 2050
   cfg$gms$s22_restore_land        <- 1                       # in both levels, as RIKEN
-  cfg$gms$s44_bii_target    <- if (on) 0.78 else 0          # BII floor (module 44)
+  cfg$gms$s44_bii_target    <- if (bii) 0.78 else 0         # BII floor (module 44)
   cfg$gms$s44_start_year    <- 2030                          # MUST be a timestep > sm_fix_SSP2 (2025), else the target never fires
   cfg$gms$s44_target_year   <- 2050
   cfg$gms$c44_bii_decrease  <- 1
-  cfg$gms$s29_snv_shr          <- if (on) 0.2 else 0        # semi-natural vegetation share of cropland (module 29)
-  cfg$gms$s29_snv_shr_noselect <- if (on) 0.2 else 0
+  cfg$gms$s29_snv_shr          <- if (rest) 0.2 else 0      # semi-natural vegetation share of cropland (module 29)
+  cfg$gms$s29_snv_shr_noselect <- if (rest) 0.2 else 0
   cfg$gms$s29_snv_scenario_start  <- 2025
   cfg$gms$s29_snv_scenario_target <- 2050
-  cfg$gms$c42_env_flow_policy   <- if (on) "on" else "off"  # environmental flows (module 42); off overrides the SSP1 column
+  cfg$gms$c42_env_flow_policy   <- if (rest) "on" else "off"  # environmental flows (module 42); off overrides the SSP1 column
   cfg$gms$s42_env_flow_scenario <- 2
   cfg$gms$s42_efp_startyear     <- 2025
   cfg$gms$s42_efp_targetyear    <- 2050
@@ -150,6 +162,9 @@ set_edge_on <- function(cfg) {
   cfg$gms$s35_edge_n       <- 0.7984
   cfg$gms$s35_edge_depth   <- 0.5      # pinned (validation 2026-09-09): previously inherited from default.cfg
   cfg$gms$s35_edge_forestry_buffer <- 1
+  cfg$gms$s35_edge_geometry   <- if (GEOM == "0") 0 else 1   # 1 = forest in the geometry by the maturation rule, per age class (2026-10-05)
+  cfg$gms$sm_edge_mature_vegc <- 20                          # its threshold = the model's secondary-forest maturation threshold
+  cfg$gms$s35_degr_ratchet    <- if (RATCHET == "1") 1 else 0
   cfg$gms$s32_edge_haircut  <- 1     # forestry haircut split: ndc, natural-curve aff and other_planted carry the edge factor, plant exempt
   cfg$gms$s35_edge_agb_only <- 1     # edge factor on aboveground carbon only
   cfg$gms$s35_edge_gate     <- 1     # forest-weighted Koeppen-A tropical share per cluster; f35_edge_scale filled
@@ -197,8 +212,9 @@ launch <- function(cfg_i, title) {
                 cfg_i$gms$c56_emis_policy, cfg_i$gms$c56_mute_ghgprices_until, cfg_i$gms$c22_protect_scenario,
                 cfg_i$gms$s44_bii_target, cfg_i$gms$s29_snv_shr, cfg_i$gms$c42_env_flow_policy,
                 cfg_i$gms$s15_exo_diet, cfg_i$gms$s35_edge_carbon, lam))
-    cat(sprintf("      %-24s npi: aff=%s ad=%s aolc=%s recalc=%s | regional=%s additional=%s calibration=%s\n", "", cfg_i$gms$c32_aff_policy,
-                cfg_i$gms$c35_ad_policy, cfg_i$gms$c35_aolc_policy, cfg_i$recalc_npi_ndc, cfg_i$input[["regional"]], cfg_i$input[["additional"]], cfg_i$input[["calibration"]]))
+    cat(sprintf("      %-24s npi: aff=%s ad=%s aolc=%s recalc=%s | geometry=%s ratchet=%s | regional=%s additional=%s calibration=%s\n", "", cfg_i$gms$c32_aff_policy,
+                cfg_i$gms$c35_ad_policy, cfg_i$gms$c35_aolc_policy, cfg_i$recalc_npi_ndc, cfg_i$gms$s35_edge_geometry, cfg_i$gms$s35_degr_ratchet,
+                cfg_i$input[["regional"]], cfg_i$input[["additional"]], cfg_i$input[["calibration"]]))
     if (nzchar(DUMP)) {
       dir.create(DUMP, showWarnings = FALSE, recursive = TRUE)
       jsonlite::write_json(list(title = title, input = as.list(cfg_i$input), gms = cfg_i$gms),
@@ -215,12 +231,12 @@ for (p in policies) {
   for (edge in if (p$tag %in% edge_off_tags) c("OFF", "ON") else "ON") {
     cfg_i <- build_policy(cfg, p)
     cfg_i <- if (edge == "ON") set_edge_on(cfg_i) else set_edge_off(cfg_i)
-    launch(cfg_i, paste0(p$tag, if (NPI == "none") "noNPI" else "", "_bodirsky_", edge))
+    launch(cfg_i, paste0(p$tag, VARIANT, "_bodirsky_", edge))
   }
 }
 # broad-edge sensitivity = 4
 for (p in policies) if (p$tag %in% broad_tags) {
-  launch(set_edge_broad(build_policy(cfg, p)), paste0(p$tag, if (NPI == "none") "noNPI" else "", "Broad_bodirsky_ON"))
+  launch(set_edge_broad(build_policy(cfg, p)), paste0(p$tag, VARIANT, "Broad_bodirsky_ON"))
 }
 
 if (length(ONLY)) { if (n < length(ONLY)) cat(sprintf("\n[warn] SUITE_ONLY named %d titles but %d matched; check spelling against the dry-run list\n", length(ONLY), n)) }
