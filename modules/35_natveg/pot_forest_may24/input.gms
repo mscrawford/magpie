@@ -48,6 +48,18 @@ s35_edge_n              Closure saturation exponent on log10 of 1 minus p (1)  /
 * the edge-affected carbon stock (still natural forest only). Second audit #2
 * sensitivity lever; default 1 reproduces shipped behaviour bit-identically.
 s35_edge_forestry_buffer Weight on forestry in closure geometry forest area (1) / 1 /
+* Which forest enters the closure GEOMETRY (2026-10-05, Mike: the model's own maturation rule, for every pool).
+* 0 = pool totals (primforest + secdforest + buffer * forestry; the behaviour until 2026-10-05, where forestry
+*     counted from planting, natural regrowth only after the maturation threshold, and secondary forest reset by
+*     harvest or disturbance always).
+* 1 = by age class: primforest, plus every age class of secdforest and of each forestry type whose OWN growth
+*     curve, before any degradation factor, exceeds sm_edge_mature_vegc. Entry and exit follow from the same rule.
+* The geometry only: which pools carry the degradation factor is unchanged (young stands still carry it).
+s35_edge_geometry       Forest area in the closure geometry (0=pool totals 1=age classes past the maturation threshold) / 1 /
+* The threshold of that rule. It must equal the secondary-forest maturation threshold in presolve.gms (the literal 20
+* in the statement that moves young secondary forest from other land to secdforest), so that the geometry counts a
+* stand exactly when the model calls natural regrowth forest. Interface scalar: 32_forestry reads it.
+sm_edge_mature_vegc     Vegc density above which a stand counts as forest in the closure geometry (tC per ha) / 20 /
 * Aboveground-only edge loss (2026-08-28): 0 = the edge factor multiplies TOTAL vegc (above + below
 * ground, the pre-2026-08-28 behaviour), 1 = only the aboveground share (fm_aboveground_fraction)
 * takes the loss. See 02-parameterization/documents/BELOWGROUND_AGB_EDGE_FACTOR.md (fragmentation repo).

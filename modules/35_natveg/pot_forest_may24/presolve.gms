@@ -257,8 +257,22 @@ if(s35_edge_carbon = 1,
 * 0 = forestry excluded). The edge-affected carbon stock below (p35_edge_carbon_loss)
 * is unchanged - still NATURAL forest only - so this lever isolates the geometry
 * assumption. Second audit #2 sensitivity (see input.gms).
+  if(s35_edge_geometry = 0,
   p35_forest_area(j) = pcm_land(j,"primforest") + pcm_land(j,"secdforest")
                       + s35_edge_forestry_buffer * pcm_land(j,"forestry");
+  );
+* s35_edge_geometry = 1 (2026-10-05): the model's own maturation rule for every pool, by age class. A stand counts
+* when its own curve has passed sm_edge_mature_vegc (= the threshold that turns young secondary forest into
+* secdforest above), and drops out when harvest or disturbance resets it to a class below it. pc35_secdforest is
+* this step's distribution after the shift, the disturbance and the maturation; pm_carbon_density_secdforest_ac
+* at index t is still UNREDUCED here (the in-place reduction comes further down); the forestry term is built in
+* 32_forestry, whose presolve runs before this one, on each type's own unreduced curve. Primary forest always counts.
+  if(s35_edge_geometry = 1,
+  p35_forest_area(j) = pcm_land(j,"primforest")
+                      + sum(ac$(pm_carbon_density_secdforest_ac(t,j,ac,"vegc") > sm_edge_mature_vegc), pc35_secdforest(j,ac))
+                      + s35_edge_forestry_buffer * pm_land_forestry_mature(j);
+  );
+  p35_edge_forest_area(t,j) = p35_forest_area(j);
 
 * Forest fraction (dimensionless: forest Mha / total land Mha)
   p35_forest_fraction(j) = 0;

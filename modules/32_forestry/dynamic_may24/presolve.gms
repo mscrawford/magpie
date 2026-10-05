@@ -134,6 +134,13 @@ v32_land.l(j,type32,ac) = p32_land(t,j,type32,ac);
 pc32_land(j,type32,ac) = p32_land(t,j,type32,ac);
 vm_land.l(j,"forestry") = sum((type32,ac), v32_land.l(j,type32,ac));
 pcm_land(j,"forestry") = sum((type32,ac), v32_land.l(j,type32,ac));
+
+* Forestry area that counts as forest in the closure geometry of 35_natveg under s35_edge_geometry = 1: the age
+* classes, after this step's shift, whose own growth curve has passed the maturation threshold. Each type is tested
+* on its own curve (ndc and natural-curve aff on the secondary-forest curve, plant on the plantation curve,
+* other_planted on its own) and on the density BEFORE the degradation factor (p32_vegc_unreduced, set above), so
+* the factor cannot delay a stand's own entry. Read by no equation.
+pm_land_forestry_mature(j) = sum((type32,ac)$(p32_vegc_unreduced(t,j,type32,ac) > sm_edge_mature_vegc), pc32_land(j,type32,ac));
 pcm_land_forestry(j,type32) =  sum(ac, v32_land.l(j,type32,ac));
 
 ** reset all bounds

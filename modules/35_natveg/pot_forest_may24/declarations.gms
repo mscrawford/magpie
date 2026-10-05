@@ -34,6 +34,7 @@ parameters
  p35_land_restoration(j,land_natveg)                     Actual secondary forest and other land restoration area (mio. ha)
  p35_restoration_shift(j)                                Restoration of other land instead of secdforest (mio. ha)
  p35_forest_area(j)                                      Total forest area per cluster for edge calc (mio. ha)
+ p35_edge_forest_area(t,j)                               Forest area that entered the closure geometry per step - diagnostic export - 0 when the edge module is off (mio. ha)
  p35_forest_fraction(j)                                  Forest fraction per cluster (1)
  p35_edge_fraction(j)                                    Fraction of forest that is edge-affected (1)
  p35_edge_fraction_raw(t,j)                              Closure edge fraction per step before the tropical gate and before the aggregation-scale correction - diagnostic export - 0 when the edge module is off (1)

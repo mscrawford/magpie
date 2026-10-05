@@ -35,6 +35,7 @@ parameters
  p32_disturbance_loss_ftype32(t,j,type32,ac)        Loss due to disturbances in all plantation type forests (mio. ha)
  pcm_land_forestry(j,type32)                        Forestry land pools (mio. ha)
  pm_edge_carbon_loss_forestry(t,j)                  LEGACY presolve-basis vegc removed from natural-curve afforestation pools on last step's land by the 35_natveg factor - regression gate only (mio. tC)
+ pm_land_forestry_mature(j)                         Forestry area in age classes whose own unreduced vegc density exceeds sm_edge_mature_vegc - for the closure geometry of 35_natveg (mio. ha)
  p32_degr_applied(t,j,ac)                           Combined vegc deficit fraction applied to the natural-curve forestry pools (ndc aff other_planted) in this step - the previous step's 35_natveg factor (1)
  p32_vegc_unreduced(t,j,type32,ac)                  Vegc density of the afforestation pools before the degradation factor (tC per ha)
  p32_degr_committed(t,j,type32,ac)                  Committed vegc deficit stock on the solved natural-curve forestry pools (ndc aff other_planted) (mio. tC)
