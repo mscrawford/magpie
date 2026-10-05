@@ -77,7 +77,10 @@ GEOM    <- Sys.getenv("SUITE_GEOM", "")
 RATCHET <- Sys.getenv("SUITE_RATCHET", "")
 PROT    <- Sys.getenv("SUITE_PROT", "")
 if (!GEOM %in% c("", "0") || !RATCHET %in% c("", "1") || !PROT %in% c("", "bii", "nobii")) stop("SUITE_GEOM must be unset or 0, SUITE_RATCHET unset or 1, SUITE_PROT unset, bii or nobii")
-VARIANT <- paste0(if (NPI == "none") "noNPI" else "", if (GEOM == "0") "geom0" else "", if (RATCHET == "1") "ratchet" else "", PROT)
+#   SUITE_TAG=<alphanumeric>  a free label appended to the tag, changing nothing else (e.g. to tell a rerun from an earlier run of the same cell)
+TAG <- Sys.getenv("SUITE_TAG", "")
+if (!grepl("^[A-Za-z0-9]*$", TAG)) stop("SUITE_TAG must be alphanumeric")
+VARIANT <- paste0(if (NPI == "none") "noNPI" else "", if (GEOM == "0") "geom0" else "", if (RATCHET == "1") "ratchet" else "", PROT, TAG)
 
 # ---------------------------------------------------------------------------
 # Labor-productivity RCP bracket: module 37 offers only rcp119 / rcp585 -> nearest to the run's forcing.
