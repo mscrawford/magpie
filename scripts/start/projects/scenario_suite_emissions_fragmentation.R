@@ -72,6 +72,7 @@ PATCH <- Sys.getenv("SUITE_INPUT_PATCH", PATCH_DEFAULT)
 # part of the archive name after "patch_f35_shiftcult_" otherwise (e.g. curtisfix).
 PATCHTAG <- if (PATCH == PATCH_DEFAULT) "" else if (PATCH == "none") "nopatch" else gsub("[^A-Za-z0-9]", "", sub("_[0-9]{4}-[0-9]{2}-[0-9]{2}\\.tgz$", "", sub("^patch_f35_shiftcult_", "", basename(PATCH))))
 if (PATCH != PATCH_DEFAULT && !nzchar(PATCHTAG)) stop("cannot derive a title tag from the patch name ", basename(PATCH))
+if (grepl("noNPI|geom[0-9]|ratchet|bii|fade|Broad", PATCHTAG)) stop("the patch name yields the title tag '", PATCHTAG, "', which contains a variant token; rename the archive")
 if (PATCH != "none") {
   if (!file.exists(PATCH)) stop("input patch not found: ", PATCH, " (set SUITE_INPUT_PATCH=none to run the released inputs)")
   cfg$repositories <- append(setNames(list(NULL), dirname(normalizePath(PATCH))), cfg$repositories)
@@ -249,7 +250,7 @@ launch <- function(cfg_i, title) {
                 c("0" = "off", "1" = "constant", "2" = "fades to 2050")[as.character(cfg_i$gms$s35_forest_damage)]))
     if (nzchar(DUMP)) {
       dir.create(DUMP, showWarnings = FALSE, recursive = TRUE)
-      jsonlite::write_json(list(title = title, input = as.list(cfg_i$input), gms = cfg_i$gms),
+      jsonlite::write_json(list(title = title, input = as.list(cfg_i$input), recalc_npi_ndc = cfg_i$recalc_npi_ndc, output = cfg_i$output, gms = cfg_i$gms),
                            file.path(DUMP, paste0(title, ".json")), auto_unbox = TRUE, pretty = TRUE, digits = NA)
     }
     return(invisible(NULL))
@@ -269,7 +270,8 @@ for (p in policies) {
   }
 }
 # broad-edge sensitivity = 4
-for (p in policies) if (p$tag %in% broad_tags && !(nzchar(PROT) && !isTRUE(p$P))) {
+# The broad arm belongs to the plain design only: no variant (geometry, ratchet, BII split) is launched on top of it.
+for (p in policies) if (p$tag %in% broad_tags && !nzchar(GEOM) && RATCHET != "1" && !nzchar(PROT)) {
   launch(set_edge_broad(build_policy(cfg, p)), paste0(p$tag, VARIANT, "Broad_bodirsky_ON"))
 }
 
