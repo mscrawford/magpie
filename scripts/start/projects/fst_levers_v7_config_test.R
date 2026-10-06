@@ -2,19 +2,20 @@
 # nothing cannot pass.
 #
 # What this guards:
-#   * THE BII INSTRUMENT IS NO NET LOSS, AND ONLY IN THE PROTECTION-ON CELLS.
-#     c44_bii_decrease = 0 has no `s44_bii_target > 0` guard in module 44's
-#     presolve, so it acts wherever it is set. Set in a protection-OFF cell it
-#     would put the instrument on both sides of the contrast and the BII limb of
-#     the protection effect would be zero while every run looked healthy.
-#   * NO CELL CARRIES THE NUMERIC FLOOR. 0.78 by 2050 is unmet and penalised
-#     (see the config header); it must not come back through an inherited block.
-#   * THE START YEAR IS ON THE TIMESTEP GRID. Module 44 zeroes the bound for
-#     m_year(t) < s44_start_year, and every earlier arm before FSTL5 lost its floor
-#     to a start year off the grid.
-#   * NOTHING BUT THE BII LIMB DIFFERS FROM FSTL6. Cell by cell, the switch lists
-#     of FSTL7 and FSTL6 must differ in exactly s44_bii_target and
-#     c44_bii_decrease, and only where protection is on.
+#   * THE PROTECTION LEVER IS THE BIOS BUNDLE of paper_healthyLscps.R, instrument by
+#     instrument, with the one stated translation (start year 2025 for his 2020).
+#     The reference values are typed here from that script, not read from the
+#     config under test.
+#   * NO NET LOSS ONLY WHERE PROTECTION IS ON. c44_bii_decrease = 0 has no
+#     `s44_bii_target > 0` guard in module 44's presolve, so it acts wherever it is
+#     set. Set in a protection-OFF cell it would put the instrument on both sides
+#     of the contrast and the BII limb of the protection effect would be zero while
+#     every run looked healthy.
+#   * NOTHING OF THE EARLIER BUNDLE COMES THROUGH: no numeric BII floor, no
+#     GSN_HalfEarth, no 2050 target year, no environmental-flow key in any cell.
+#   * EVERY START AND TARGET YEAR IS ON THE TIMESTEP GRID, and the two protection
+#     blocks agree on all of them, so the factor toggles instruments, not timing.
+#   * OUTSIDE THE PROTECTION BLOCK EVERY CELL EQUALS ITS FSTL6 TWIN.
 #   * THE TAU PIN IS THIS ARM'S OWN BAU. BAU_TCendo (rev4.131 data) must not be in
 #     the scenario list; BAU7 must be, with the base BAU switches.
 #   * NO LIVE OR FINISHED RUN OF AN EARLIER ARM CAN BE DELETED (force_replace).
@@ -22,7 +23,7 @@
 
 source("scripts/start/projects/fst_levers_v7_config.R")
 
-EXPECTED_CHECKS <- 62L
+EXPECTED_CHECKS <- 66L
 n_checks <- 0L
 n_fail   <- 0L
 chk <- function(cond, label) {
@@ -67,41 +68,62 @@ source("scripts/start/projects/fst_levers_config.R", local = (base <- new.env())
 chk(identical(FST_LEVERS_SCENARIOS[[FST_LEVERS_BAU]], base$FST_LEVERS_SCENARIOS$BAU),
     "BAU7 carries exactly the base config's BAU switches")
 
-# --- 5. the BII instrument, per cell (4 x 4 + 4 x 3 = 28 checks) -------------
+# --- 5. the bundle, per cell (4 x 6 + 4 x 4 = 40 checks) ----------------------
 # 18 timesteps, 1995..2050 by 5 then 2055..2100. Hard-coded rather than read from a
 # gdx so this runs before any model does.
 TIMESTEPS <- c(seq(1995, 2050, 5), 2055, 2060, 2070, 2080, 2090, 2100)
+# paper_healthyLscps.R, actions BIOS (lines 139-156 at upstream/develop dfe14e834),
+# with s22_conservation_start and s29_snv_scenario_start moved from his 2020 to 2025
+# (the fix_2025 column of config/projects/scenario_config_year_fix.csv).
+BIOS <- list(c22_protect_scenario = "30by30", s22_conservation_start = 2025,
+             s22_conservation_target = 2030, c44_bii_decrease = 0, s44_start_year = 2030,
+             s29_snv_shr = 0.2, s29_snv_scenario_start = 2025, s29_snv_scenario_target = 2030)
+YEARS <- c("s22_conservation_start", "s22_conservation_target", "s44_start_year",
+           "s29_snv_scenario_start", "s29_snv_scenario_target")
+OLD   <- c("c42_env_flow_policy", "s42_env_flow_scenario", "s42_efp_startyear",
+           "s42_efp_targetyear", "s44_target_year")
 for (s in protOn) {
   blk <- FST_LEVERS_SCENARIOS[[s]]
-  chk(identical(blk$c44_bii_decrease, 0), paste0(s, ": no net loss (c44_bii_decrease = 0)"))
-  chk(identical(blk$s44_bii_target, 0),   paste0(s, ": no numeric BII floor"))
-  chk(blk$s44_start_year %in% TIMESTEPS && blk$s44_start_year > 2025,
-      paste0(s, ": s44_start_year on the timestep grid and after sm_fix_SSP2 = 2025"))
-  chk(identical(blk$c22_protect_scenario, "GSN_HalfEarth") &&
-        identical(blk$s29_snv_shr, 0.2) && identical(blk$c42_env_flow_policy, "on"),
-      paste0(s, ": the other three limbs of the bundle are on"))
+  chk(all(mapply(identical, blk[names(BIOS)], BIOS)),
+      paste0(s, ": every BIOS instrument at its value (differs: ",
+             paste(names(BIOS)[!mapply(identical, blk[names(BIOS)], BIOS)], collapse = ", "), ")"))
+  chk(identical(blk$s44_bii_target, 0), paste0(s, ": no numeric BII floor"))
+  chk(identical(blk$c22_protect_scenario_noselect, blk$c22_protect_scenario) &&
+        identical(blk$s29_snv_shr_noselect, blk$s29_snv_shr),
+      paste0(s, ": the _noselect twins equal the selected values"))
+  chk(all(unlist(blk[YEARS]) %in% TIMESTEPS) && blk$s44_start_year > 2025,
+      paste0(s, ": every start and target year on the timestep grid; BII start after 2025"))
+  chk(!any(OLD %in% names(blk)),
+      paste0(s, ": no environmental-flow key and no BII target year (found: ",
+             paste(intersect(OLD, names(blk)), collapse = ", "), ")"))
+  chk(identical(blk$s22_restore_land, 1), paste0(s, ": restoration at the default, 1"))
 }
 for (s in protOf) {
   blk <- FST_LEVERS_SCENARIOS[[s]]
   chk(identical(blk$c44_bii_decrease, 1),
       paste0(s, ": BII may decrease (the no-net-loss branch has no target guard)"))
-  chk(identical(blk$s44_bii_target, 0), paste0(s, ": no numeric BII floor"))
-  chk(identical(blk$c22_protect_scenario, "none") &&
-        identical(blk$s29_snv_shr, 0) && identical(blk$c42_env_flow_policy, "off"),
-      paste0(s, ": the other three limbs of the bundle are off"))
+  chk(identical(blk$c22_protect_scenario, "none") && identical(blk$s29_snv_shr, 0) &&
+        identical(blk$s44_bii_target, 0),
+      paste0(s, ": no conservation scenario, no SNV share, no BII floor"))
+  chk(!any(OLD %in% names(blk)), paste0(s, ": no environmental-flow key and no BII target year"))
+  on <- FST_LEVERS_SCENARIOS[[sub("_NoProt_", "_Prot_", s)]]
+  toggled <- names(blk)[!mapply(identical, blk, on[names(blk)])]
+  chk(setequal(names(blk), names(on)) &&
+        setequal(toggled, c("c22_protect_scenario", "c22_protect_scenario_noselect",
+                            "c44_bii_decrease", "s29_snv_shr", "s29_snv_shr_noselect")),
+      paste0(s, ": differs from its protection-ON twin in the five toggles only (found: ",
+             paste(toggled, collapse = ", "), ")"))
 }
 
-# --- 6. nothing but the BII limb differs from FSTL6 (8 x 2 = 16 checks) ------
+# --- 6. outside the protection block every cell is its FSTL6 twin (8 checks) --
 # .fstl6 is still in scope: the v7 config sources the v6 config.
+PROT_KEYS <- union(names(.prot_on), names(.prot_on_v7))
 for (s in cells) {
   new <- FST_LEVERS_SCENARIOS[[s]]
   old <- .fstl6[[sub("^FSTL7_", "FSTL6_", s)]]
-  chk(setequal(names(new), names(old)), paste0(s, ": same switch names as its FSTL6 twin"))
-  differs <- names(new)[!mapply(identical, new, old[names(new)])]
-  want    <- if (s %in% protOn) c("c44_bii_decrease", "s44_bii_target") else character(0)
-  chk(setequal(differs, want),
-      paste0(s, ": differs from FSTL6 in exactly {", paste(want, collapse = ", "),
-             "} (found: ", paste(differs, collapse = ", "), ")"))
+  rest <- setdiff(union(names(new), names(old)), PROT_KEYS)
+  chk(length(rest) > 0 && all(mapply(identical, new[rest], old[rest])),
+      paste0(s, ": identical to its FSTL6 twin on all ", length(rest), " keys outside the protection block"))
 }
 
 # --- 7. no collision with anything on disk (2 checks) ------------------------

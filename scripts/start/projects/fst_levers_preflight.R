@@ -20,11 +20,16 @@
 # run, the protection factor is identically zero, and the entire batch is void
 # while looking completely healthy. No error, no warning, no infeasibility.
 
-source("scripts/start/projects/fst_levers_config.R")
-
-PROT_LEVEL <- unique(vapply(FST_LEVERS_DESIGN$scenario[FST_LEVERS_DESIGN$prot == "on"],
-                            function(s) FST_LEVERS_SCENARIOS[[s]]$c22_protect_scenario,
-                            character(1)))
+# The arm under test: FST_LEVERS_CONFIG, as for the orchestrator (default: the base
+# config). The protection scenario is read from the scenarios that arm will launch,
+# so the gate tests the scenario that will actually run. Until 2026-10-06 this
+# script always sourced the base config and so tested GSN_HalfEarth for every arm.
+source(Sys.getenv("FST_LEVERS_CONFIG", "scripts/start/projects/fst_levers_config.R"))
+PROT_LEVEL <- setdiff(unique(unlist(lapply(FST_LEVERS_SCENARIOS, `[[`, "c22_protect_scenario"))),
+                      "none")
+if (length(PROT_LEVEL) != 1L)
+  stop("expected exactly one protection scenario in this arm's cells, found: ",
+       paste(PROT_LEVEL, collapse = ", "))
 FALLBACKS <- c("BH_IFL", "IrrC_95pc_30by30", "30by30")
 
 fails <- 0L
