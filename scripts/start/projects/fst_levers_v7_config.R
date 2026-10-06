@@ -51,8 +51,19 @@
 #    instrument (c22_protect_scenario BH or KBA) and no BII or SNV instrument. It
 #    is a narrower lever than this experiment's "protection", so it was not taken.
 #
-#    ENVIRONMENTAL FLOWS LEAVE THE LEVER. They are not part of his bundle, so
-#    protection no longer acts on water withdrawals directly.
+#    ENVIRONMENTAL FLOWS LEAVE THE LEVER and follow F. Beier's EAT-Lancet 2.0 runs
+#    (Mike, 2026-10-06). Those runs never set an environmental-flow policy: it comes
+#    from the SSP column of config/scenario_config.csv, which is "off" for SSP2.
+#    Read from the 81 run configs of her Deep Dive release (January 2025,
+#    /p/projects/magpie/users/beier/EL2_DeepDive_release_v3/magpie/output): policy
+#    off in all 69 SSP2 and SSP3 runs (on only in SSP1 and SSP5, mixed in SSP4), with
+#    s42_efp_startyear 2025, s42_efp_targetyear 2040, s42_env_flow_scenario 2,
+#    s42_env_flow_fraction 0.2 and s42_env_flow_base_fraction 0.05, all of them this
+#    model's defaults. So no cell here sets a c42 or s42 key, in either protection
+#    arm, and protection does not act on water withdrawals directly.
+#    NOT taken from her runs: c30_bioen_water = "all" (irrigated bioenergy allowed),
+#    which all 81 carry. It is a bioenergy setting, this experiment has bioenergy as
+#    a factor, and SSP2's value here is "rainfed". Open for Mike.
 #
 # 2. THE MODEL. Merged upstream/develop dfe14e834: input data rev4.131 -> rev4.136,
 #    a new land conversion cost calibration (cropland and pasture), observation-based
