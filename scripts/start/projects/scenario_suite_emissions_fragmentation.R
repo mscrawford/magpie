@@ -11,8 +11,9 @@
 # |  'use the switches canonically'; RIKEN found the earlier diet + protection programming wrong):
 # |    M on : c56_pollutant_prices + c60_2ndgen_biodem (and _noselect twins) = R34M410-SSP1-PkBudg650 (1.5C, price and
 # |           bioenergy are the two images of ONE REMIND solution and stay paired).  M off: R34M410-SSP1-NPi2025.
-# |    P on : c22 GSN_HalfEarth 2025->2050 + s22_restore_land 1 + BII floor 0.78 (start 2030 = first timestep > 2025,
-# |           target 2050) + SNV 0.2 2025->2050 + environmental flows on (scenario 2, 2025->2050).
+# |    P on : c22 GSN_HalfEarth 2025->2050 + s22_restore_land 1 + BII as NO NET LOSS from 2030 (c44_bii_decrease 0, no target
+# |           value; start 2030 = first timestep > 2025) + SNV 0.2 2025->2050 + environmental flows on (scenario 2, 2025->2050).
+# |           Until 2026-10-06 the BII instrument was a floor of 0.78 by 2050 with decrease allowed (see SUITE_BII below).
 # |    P off: none of them, set EXPLICITLY (env flows OFF overrides the SSP1 scenario column, which sets them on).
 # |    D on : s15_exo_diet 3 (MAgPIE's own EAT-Lancet realization, exodietmacro.gms:441), c15_kcal_scen healthy_BMI,
 # |           fade 2025->2050, convergence 1; c15_EAT_scen deliberately NOT set (inert under mode 3; a non-BMI kcal
@@ -92,24 +93,29 @@ if (!NPI %in% c("", "none")) stop("SUITE_NPI must be unset or 'none'")
 #   SUITE_GEOM=0     s35_edge_geometry 0: forest in the closure geometry by pool totals (the rule before 2026-10-05)  -> geom0
 #   SUITE_GEOM=2     s35_edge_geometry 2: the maturation rule for forestry only, secondary forest in full              -> geom2
 #   SUITE_RATCHET=1  s35_degr_ratchet 1: the applied edge deficit can only rise (lower bound of the co-benefit)       -> ratchet
-#   SUITE_PROT=bii   protection cells carry the BII floor ONLY;  SUITE_PROT=nobii  the bundle WITHOUT the BII floor   -> bii / nobii
+#   SUITE_PROT=bii   protection cells carry the BII instrument ONLY;  SUITE_PROT=nobii  the bundle WITHOUT it             -> bii / nobii
 GEOM    <- Sys.getenv("SUITE_GEOM", "")
 RATCHET <- Sys.getenv("SUITE_RATCHET", "")
 PROT    <- Sys.getenv("SUITE_PROT", "")
-# The BII instrument of the protection lever (changed 2026-10-06, fragmentation repo L4_BUILD 18.17, 18.18, 18.20 to 18.22). The suite of
-# 2026-10-05 set a floor of 0.78 by 2050 with decrease allowed (RIKEN .prot_on). In the model that floor is not met, carries a penalty
-# of about half a trillion USD a year inside the cost total, moves about 1,600 Mha of pasture and cropland into other land and clears
-# natural forest where a region-biome sits above the floor. Mike: keep the instrument, encoded as Patrick v. Jeetze does. DEFAULT now =
-# his own encoding in scripts/start/projects/paper_healthyLscps.R ("no net nature loss"): c44_bii_decrease 0 from 2030 and NO target
-# value, i.e. each region-biome's BII may not fall below its level of the previous step. PROVISIONAL until Patrick confirms.
+# The BII instrument of the protection lever. DECIDED by Mike on 2026-10-06 ("use the No Net Loss BII configuration rather than a BII
+# floor"; fragmentation repo, L4_BUILD 18.17, 18.18, 18.20 to 18.24): NO NET LOSS from 2030, encoded as P. v. Jeetze does in
+# scripts/start/projects/paper_healthyLscps.R: c44_bii_decrease 0 and NO target value, so each region-biome's BII may not fall below
+# its level of the previous step. Why not the floor the suite of 2026-10-05 ran (0.78 by 2050, decrease allowed, RIKEN .prot_on): it
+# is not met, carries a penalty of about half a trillion USD a year inside the cost total, moves about 1,600 Mha of pasture and
+# cropland into other land and clears natural forest where a region-biome sits above the floor; on plain develop likewise. No net
+# loss on develop: no penalty, no cluster cleared, about 200 Mha into other land by 2050. Patrick's own view is still to come.
 # Upstream's default.cfg has the instrument off (target 0, start 2030, target year 2100, decrease allowed). A numeric floor is named as
 #   SUITE_BII=<target>,<target year>,<decrease 0|1>     e.g. SUITE_BII=0.78,2050,1 reproduces the runs of 2026-10-05
+# The target year is inert without a target value; it stays 2050 in every cell, so that a cell differs from its twin of 2026-10-05
+# in s44_bii_target and c44_bii_decrease only.
 BII <- Sys.getenv("SUITE_BII", "")
 if (nzchar(BII)) {
   BII <- suppressWarnings(as.numeric(trimws(strsplit(BII, ",")[[1]])))
   if (length(BII) != 3 || anyNA(BII) || BII[1] < 0 || BII[1] >= 1 || BII[2] <= 2030 || BII[2] > 2100 || !BII[3] %in% c(0, 1) || (BII[1] == 0 && BII[3] == 1))
     stop("SUITE_BII must be <target in [0,1)>,<target year in (2030,2100]>,<decrease 0 or 1>; a target of 0 needs decrease 0 (no net loss)")
-} else BII <- c(0, 2100, 0)                                   # no net nature loss from 2030 (paper_healthyLscps.R)
+} else BII <- c(0, 2050, 0)                                   # no net loss from 2030 (paper_healthyLscps.R)
+# how the instrument reads in the dry-run line: off | nnl (no net loss) | <target>by<year>/dec<0|1>
+bii_tag <- function(g) if (g$s44_bii_target == 0 && g$c44_bii_decrease == 1) "off" else if (g$s44_bii_target == 0) "nnl" else sprintf("%.2fby%d/dec%d", g$s44_bii_target, g$s44_target_year, g$c44_bii_decrease)
 if (!GEOM %in% c("", "0", "2") || !RATCHET %in% c("", "1") || !PROT %in% c("", "bii", "nobii")) stop("SUITE_GEOM must be unset, 0 or 2, SUITE_RATCHET unset or 1, SUITE_PROT unset, bii or nobii")
 #   SUITE_TAG=<alphanumeric>  a free label appended to the tag, changing nothing else (e.g. to tell a rerun from an earlier run of the same cell)
 TAG <- Sys.getenv("SUITE_TAG", "")
@@ -178,7 +184,7 @@ set_mitigation <- function(cfg, ssp, on) {
 
 # --- Factor P: land + water protection as ONE bundle (RIKEN .prot_on / .prot_off), every instrument on the 2025->2050 schedule ---
 set_protection <- function(cfg, on) {
-  bii  <- on && PROT != "nobii"                              # the BII floor
+  bii  <- on && PROT != "nobii"                              # the BII instrument
   rest <- on && PROT != "bii"                                # protected area, SNV share, environmental flows
   scen <- if (rest) "GSN_HalfEarth" else "none"
   cfg$gms$c22_protect_scenario          <- scen
@@ -186,9 +192,9 @@ set_protection <- function(cfg, on) {
   cfg$gms$s22_conservation_start  <- 2025
   cfg$gms$s22_conservation_target <- 2050
   cfg$gms$s22_restore_land        <- 1                       # in both levels, as RIKEN
-  cfg$gms$s44_bii_target    <- if (bii) BII[1] else 0       # BII floor (module 44); 0 with decrease 0 = no net loss
+  cfg$gms$s44_bii_target    <- if (bii) BII[1] else 0       # BII instrument (module 44); target 0 with decrease 0 = no net loss
   cfg$gms$s44_start_year    <- 2030                          # MUST be a timestep > sm_fix_SSP2 (2025), else the instrument never fires
-  cfg$gms$s44_target_year   <- if (bii) BII[2] else 2100    # inert without a target value
+  cfg$gms$s44_target_year   <- if (bii) BII[2] else 2050    # inert without a target value; 2050 as in every cell of 2026-10-05
   cfg$gms$c44_bii_decrease  <- if (bii) BII[3] else 1       # 1 in cells without the instrument: the 0 branch in presolve has no target guard
   cfg$gms$s29_snv_shr          <- if (rest) 0.2 else 0      # semi-natural vegetation share of cropland (module 29)
   cfg$gms$s29_snv_shr_noselect <- if (rest) 0.2 else 0
@@ -266,12 +272,12 @@ launch <- function(cfg_i, title) {
   cfg_i$title <- title; n <<- n + 1L
   if (DRYRUN) {
     lam <- if (is.null(cfg_i$gms$s35_edge_lambda)) NA_real_ else cfg_i$gms$s35_edge_lambda
-    cat(sprintf("[dry] %-24s cellular=%-56s c52=%-6s c37=%-7s c56=%-24s c60=%-24s emis=%-17s mute=%s c22=%-14s bii=%.2f snv=%.1f efp=%-3s diet=%s edge=%s/%.3f\n",
+    cat(sprintf("[dry] %-24s cellular=%-56s c52=%-6s c37=%-7s c56=%-24s c60=%-24s emis=%-17s mute=%s c22=%-14s bii=%s snv=%.1f efp=%-3s diet=%s edge=%s/%.3f\n",
                 title, basename(cfg_i$input[["cellular"]]),
                 cfg_i$gms$c52_land_carbon_sink_rcp, cfg_i$gms$c37_labor_rcp,
                 cfg_i$gms$c56_pollutant_prices, cfg_i$gms$c60_2ndgen_biodem,
                 cfg_i$gms$c56_emis_policy, cfg_i$gms$c56_mute_ghgprices_until, cfg_i$gms$c22_protect_scenario,
-                cfg_i$gms$s44_bii_target, cfg_i$gms$s29_snv_shr, cfg_i$gms$c42_env_flow_policy,
+                bii_tag(cfg_i$gms), cfg_i$gms$s29_snv_shr, cfg_i$gms$c42_env_flow_policy,
                 cfg_i$gms$s15_exo_diet, cfg_i$gms$s35_edge_carbon, lam))
     cat(sprintf("      %-24s npi: aff=%s ad=%s aolc=%s recalc=%s | geometry=%s ratchet=%s | regional=%s additional=%s calibration=%s\n", "", cfg_i$gms$c32_aff_policy,
                 cfg_i$gms$c35_ad_policy, cfg_i$gms$c35_aolc_policy, cfg_i$recalc_npi_ndc, cfg_i$gms$s35_edge_geometry, cfg_i$gms$s35_degr_ratchet,

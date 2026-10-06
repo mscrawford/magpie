@@ -4,20 +4,22 @@
 # |    allnosoil_M{0,1}P{0,1}D{0,1}: set_cube_backdrop() (c56_emis_policy all_nosoil, c56_mute_ghgprices_until y2025, MACCs pinned) so
 # |      the GHG price is live from 2030, the same step as the diet's first faded step and the price scenario's bioenergy demand
 # |      (the PC pilot of 2026-09-19 had the price start in 2035); M = R34M410-SSP2-PkBudg650 price + bioenergy, D = s15_exo_diet 3,
-# |      P = design B's RIKEN bundle, switch values copied verbatim (GSN_HalfEarth + BII 0.78 from 2030 + SNV 0.2 + env flows, all to 2050), set
+# |      P = design B's bundle (GSN_HalfEarth + BII as NO NET LOSS from 2030 + SNV 0.2 + env flows to 2050; until 2026-10-06 the BII
+# |      instrument was RIKEN's floor of 0.78 by 2050 with decrease allowed, which the twins of 2026-10-01 and 10-05 ran: L4TWIN_BII below), set
 # |      EXPLICITLY in both arms. HalfEarth is the SSP1 narrative target, chosen here so the P effect is comparable with design B's
 # |      SSP1 cube (Mike, 2026-10-01); it is off-narrative for SSP2 (30x30). The bundle moves land through BII, SNV and water as well
 # |      as protected area, so a P effect on the edge stock is not attributable to forest protection alone.
 # |      P-off vs the July base: only s44_target_year (2100 -> 2050) and s42_efp_targetyear (2040 -> 2050) change, both inert when
 # |      their instrument is off (bii_target/presolve.gms guards on s44_bii_target > 0; p42_efp(t,"off") = 0 ignores the fader).
+# |      c44_bii_decrease stays 1 in every cell WITHOUT the BII instrument: its 0 branch in presolve has no target guard.
 # |    ratchet_M{0,1}P0D0: the same backdrop with s35_degr_ratchet = 1 (the applied deficit can only rise): ratchet_M1P0D0 -
 # |      ratchet_M0P0D0 is the lower bound of the price co-benefit that allnosoil_M1P0D0 - allnosoil_M0P0D0 measures with instant recovery.
 # |    The pre-P cell names (allnosoil_M{0,1}D{0,1}, ratchet_M{0,1}D0) are accepted in L4TWIN_CELLS as aliases of their P0 cells.
 # |    inst_area / inst_area_norestore / inst_snv / inst_envflow (2026-10-01): the P bundle split by instrument at M0D0, each cell
 # |      allnosoil_M0P0D0 with one instrument on (inst_area vs inst_area_norestore isolates restoration). Launched only when
 # |      named in L4TWIN_CELLS; the default set stays the ten cube + ratchet cells.
-# |    inst_bii / inst_nobii (2026-10-05, Mike): the BII floor alone, and the bundle without it. With allnosoil_M0P1D0 (bundle)
-# |      and allnosoil_M0P0D0 these close the split: the BII floor's interaction with the rest = bundle - inst_nobii - inst_bii
+# |    inst_bii / inst_nobii (2026-10-05, Mike): the BII instrument alone, and the bundle without it. With allnosoil_M0P1D0 (bundle)
+# |      and allnosoil_M0P0D0 these close the split: the instrument's interaction with the rest = bundle - inst_nobii - inst_bii
 # |      (each as a difference from M0P0D0).
 # |  Base construction as l4_lever_pilot_pc.R: the July SSP2base config overlaid on the current default.cfg, edge ON.
 # |  Usage (HPC, slurm through start_run; one process submits all selected cells):
@@ -100,6 +102,17 @@ set_diet <- function(cfg, on) {
 # --- (RIKEN .prot_on / .prot_off), every instrument on the 2025->2050 schedule, set EXPLICITLY in both arms ---
 # set_protection_parts() sets each instrument separately (2026-10-01, Mike: split the bundle after the P cell lowered natural
 # forest in the most-protected clusters); set_protection(on) is the bundle and reproduces the earlier cells' configs exactly.
+# The BII instrument. DECIDED by Mike on 2026-10-06 ("use the No Net Loss BII configuration rather than a BII floor"): no net loss
+# from 2030 as scripts/start/projects/paper_healthyLscps.R (P. v. Jeetze) sets it, c44_bii_decrease 0 and no target value. The floor
+# of 0.78 by 2050 is not met in the model and is penalised (fragmentation repo, L4_BUILD 18.17 to 18.24). A numeric floor is named as
+#   L4TWIN_BII=<target>,<target year>,<decrease 0|1>     e.g. L4TWIN_BII=0.78,2050,1 reproduces the twins of 2026-10-01 and 10-05
+BII <- Sys.getenv("L4TWIN_BII", "")
+if (nzchar(BII)) {
+  BII <- suppressWarnings(as.numeric(trimws(strsplit(BII, ",")[[1]])))
+  if (length(BII) != 3 || anyNA(BII) || BII[1] < 0 || BII[1] >= 1 || BII[2] <= 2030 || BII[2] > 2100 || !BII[3] %in% c(0, 1) || (BII[1] == 0 && BII[3] == 1))
+    stop("L4TWIN_BII must be <target in [0,1)>,<target year in (2030,2100]>,<decrease 0 or 1>; a target of 0 needs decrease 0 (no net loss)")
+} else BII <- c(0, 2050, 0)                                   # no net loss from 2030 (paper_healthyLscps.R)
+bii_tag <- function(g) if (g$s44_bii_target == 0 && g$c44_bii_decrease == 1) "off" else if (g$s44_bii_target == 0) "nnl" else sprintf("%.2fby%d/dec%d", g$s44_bii_target, g$s44_target_year, g$c44_bii_decrease)
 set_protection_parts <- function(cfg, area, restore = TRUE, bii, snv, envflow) {
   scen <- if (area) "GSN_HalfEarth" else "none"
   cfg$gms$c22_protect_scenario          <- scen
@@ -107,10 +120,10 @@ set_protection_parts <- function(cfg, area, restore = TRUE, bii, snv, envflow) {
   cfg$gms$s22_conservation_start  <- 2025
   cfg$gms$s22_conservation_target <- 2050
   cfg$gms$s22_restore_land        <- if (restore) 1 else 0   # 1 in both bundle levels, as RIKEN
-  cfg$gms$s44_bii_target    <- if (bii) 0.78 else 0         # BII floor (module 44)
-  cfg$gms$s44_start_year    <- 2030                          # MUST be a timestep > sm_fix_SSP2 (2025), else the target never fires
-  cfg$gms$s44_target_year   <- 2050
-  cfg$gms$c44_bii_decrease  <- 1
+  cfg$gms$s44_bii_target    <- if (bii) BII[1] else 0       # BII instrument (module 44); target 0 with decrease 0 = no net loss
+  cfg$gms$s44_start_year    <- 2030                          # MUST be a timestep > sm_fix_SSP2 (2025), else the instrument never fires
+  cfg$gms$s44_target_year   <- if (bii) BII[2] else 2050    # inert without a target value
+  cfg$gms$c44_bii_decrease  <- if (bii) BII[3] else 1       # 1 without the instrument: the 0 branch in presolve has no target guard
   cfg$gms$s29_snv_shr          <- if (snv) 0.2 else 0       # semi-natural vegetation share of cropland (module 29)
   cfg$gms$s29_snv_shr_noselect <- if (snv) 0.2 else 0
   cfg$gms$s29_snv_scenario_start  <- 2025
@@ -183,10 +196,10 @@ for (cell in cells) {
     # strip repository credentials before writing, as start_run does for the run's config.yml
     cfg$repositories <- setNames(vector("list", length(cfg$repositories)), names(cfg$repositories))
     gms::saveConfig(cfg, out)
-    cat(sprintf("DRY RUN: %-16s title=%-32s emis=%-17s mute=%-6s c56=%-24s c60=%-24s c22=%-13s bii=%.2f snv=%.1f efp=%-3s diet=%s ratchet=%s -> %s\n",
+    cat(sprintf("DRY RUN: %-16s title=%-32s emis=%-17s mute=%-6s c56=%-24s c60=%-24s c22=%-13s bii=%s snv=%.1f efp=%-3s diet=%s ratchet=%s -> %s\n",
                 cell, cfg$title, cfg$gms$c56_emis_policy, cfg$gms$c56_mute_ghgprices_until,
                 cfg$gms$c56_pollutant_prices, cfg$gms$c60_2ndgen_biodem, cfg$gms$c22_protect_scenario,
-                cfg$gms$s44_bii_target, cfg$gms$s29_snv_shr, cfg$gms$c42_env_flow_policy, cfg$gms$s15_exo_diet,
+                bii_tag(cfg$gms), cfg$gms$s29_snv_shr, cfg$gms$c42_env_flow_policy, cfg$gms$s15_exo_diet,
                 cfg$gms$s35_degr_ratchet, out))
     next
   }
