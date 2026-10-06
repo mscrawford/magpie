@@ -11,6 +11,7 @@ scalars
  s44_target_year        Year in which the BII target is reached  (1)           / 2100 /
  s44_start_year         Start year for interpolation towards BII target (1)    / 2030 /
  s44_cost_bii_missing   Technical costs for missing BII increase (USD17MER per unit of BII)  / 1e+06 /
+ s44_bii_area_weight    Weight of missing BII in the cost (0=equal for each biome type and region 1=by area relative to the mean biome area) (binary) / 0 /
 ;
 
 

@@ -26,5 +26,5 @@
 *' Costs strongly depend on the choice of `s44_bii_target`.
 
  q44_cost(i2) .. sum(cell(i2,j2), vm_cost_bv_loss(j2)) =e= 
-          sum(biome44, v44_bii_missing(i2,biome44)) * s44_cost_bii_missing;
+          sum(biome44, v44_bii_missing(i2,biome44) * p44_bii_cost_weight(i2,biome44)) * s44_cost_bii_missing;
 
