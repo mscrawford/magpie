@@ -63,7 +63,9 @@ cells <- list(list(title = "devBII_SSP1base",                target = 0,    decr
               list(title = "devBII_SSP1noNetLoss2030",       target = 0,    decrease = 0, areaw = 0, bundle = 0, fixA = 0, fixB = 0),
               list(title = "devSNV_SSP1bundleNoBII",         target = 0,    decrease = 1, areaw = 0, bundle = 1, fixA = 0, fixB = 0),
               list(title = "devSNV_SSP1bundleNoBIIfixA",     target = 0,    decrease = 1, areaw = 0, bundle = 1, fixA = 1, fixB = 0),
-              list(title = "devSNV_SSP1bundleNoBIIfixB",     target = 0,    decrease = 1, areaw = 0, bundle = 1, fixA = 0, fixB = 1))
+              list(title = "devSNV_SSP1bundleNoBIIfixB",     target = 0,    decrease = 1, areaw = 0, bundle = 1, fixA = 0, fixB = 1),
+              # the floor at develop's DEFAULT target year (the answer to "2050 is not a year we would try")
+              list(title = "devBII_SSP1floor078by2100",      target = 0.78, decrease = 1, areaw = 0, bundle = 0, fixA = 0, fixB = 0, ty = 2100))
 titles <- vapply(cells, function(x) x$title, "")
 stopifnot(all(only %in% titles))
 for (cell in cells) {
@@ -86,7 +88,8 @@ for (cell in cells) {
     cfg_i$gms$s35_secdforest_matrix_tied    <- cell$fixA
     cfg_i$gms$s29_snv_reloc_other_only      <- cell$fixB
   }
-  stopifnot(cfg_i$gms$s44_target_year == 2050, cfg_i$gms$s44_start_year == 2030)
+  cfg_i$gms$s44_target_year <- if (is.null(cell$ty)) 2050 else cell$ty
+  stopifnot(cfg_i$gms$s44_target_year %in% c(2050, 2100), cfg_i$gms$s44_start_year == 2030)
   cat(sprintf("===== %s: s44_bii_target %s, start %s, target year %s, decrease %s, area weight %s | bundle %s, fix A %s, fix B %s | cellular %s =====\n", cell$title, cfg_i$gms$s44_bii_target,
               cfg_i$gms$s44_start_year, cfg_i$gms$s44_target_year, cfg_i$gms$c44_bii_decrease, cell$areaw, cell$bundle, cell$fixA, cell$fixB, cfg_i$input[["cellular"]]))
   if (nzchar(Sys.getenv("PAIR_DRYRUN"))) next
