@@ -111,6 +111,19 @@ cfg$sequential        <- FALSE
 
 cfg$gms$c_timesteps   <- TIMESTEPS
 
+# Local mirrors first. The input archives are searched in list order, default.cfg
+# puts the https repositories first, and a compute node has no route to them.
+# Every repository is kept (start_run's config check requires the full set).
+.local_repos <- names(cfg$repositories)[dir.exists(names(cfg$repositories))]
+cfg$repositories <- c(cfg$repositories[.local_repos],
+                      cfg$repositories[setdiff(names(cfg$repositories), .local_repos)])
+.not_local <- cfg$input[!vapply(cfg$input, function(f)
+  any(file.exists(file.path(.local_repos, f))), logical(1))]
+if (length(.not_local) > 0) {
+  message("NOTE: input archive(s) in no local repository, a download needs the network: ",
+          paste(.not_local, collapse = ", "))
+}
+
 # Explicit qos. Left NULL, start_run's auto-selector falls back to "standby",
 # which is PREEMPTIBLE - wrong for a batch with a deadline. It also never picks
 # a _highMem variant. Override with FST_LEVERS_QOS if memory or slots bite.
@@ -295,7 +308,17 @@ message(sprintf("\n========== Phase 1: endogenous-TC runs (TCendo) ==========\n%
 
 p1 <- launchPhase(names(FST_LEVERS_SCENARIOS), "TCendo")
 
-bau_title <- tcRunName("BAU", "TCendo")
+# The tau pin source is the scenario named "BAU" unless the loaded config names
+# another one in FST_LEVERS_BAU. An arm that runs on a different model version
+# or input data revision than the existing BAU_TCendo MUST name its own: a
+# completed BAU_TCendo on disk is skipped, and its tau would then be pinned into
+# runs solved on different data.
+bau_scenario <- if (exists("FST_LEVERS_BAU")) FST_LEVERS_BAU else "BAU"
+if (!bau_scenario %in% names(FST_LEVERS_SCENARIOS)) {
+  stop("BAU scenario '", bau_scenario, "' is not in FST_LEVERS_SCENARIOS; ",
+       "Phase 2 would have no tau pin source.")
+}
+bau_title <- tcRunName(bau_scenario, "TCendo")
 
 if (DRYRUN) {
   message("\n[DRYRUN] Phase 2 would launch: ",
