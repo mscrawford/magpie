@@ -96,6 +96,20 @@ if (!NPI %in% c("", "none")) stop("SUITE_NPI must be unset or 'none'")
 GEOM    <- Sys.getenv("SUITE_GEOM", "")
 RATCHET <- Sys.getenv("SUITE_RATCHET", "")
 PROT    <- Sys.getenv("SUITE_PROT", "")
+# The BII instrument of the protection lever (changed 2026-10-06, fragmentation repo L4_BUILD 18.17, 18.18, 18.20 to 18.22). The suite of
+# 2026-10-05 set a floor of 0.78 by 2050 with decrease allowed (RIKEN .prot_on). In the model that floor is not met, carries a penalty
+# of about half a trillion USD a year inside the cost total, moves about 1,600 Mha of pasture and cropland into other land and clears
+# natural forest where a region-biome sits above the floor. Mike: keep the instrument, encoded as Patrick v. Jeetze does. DEFAULT now =
+# his own encoding in scripts/start/projects/paper_healthyLscps.R ("no net nature loss"): c44_bii_decrease 0 from 2030 and NO target
+# value, i.e. each region-biome's BII may not fall below its level of the previous step. PROVISIONAL until Patrick confirms.
+# Upstream's default.cfg has the instrument off (target 0, start 2030, target year 2100, decrease allowed). A numeric floor is named as
+#   SUITE_BII=<target>,<target year>,<decrease 0|1>     e.g. SUITE_BII=0.78,2050,1 reproduces the runs of 2026-10-05
+BII <- Sys.getenv("SUITE_BII", "")
+if (nzchar(BII)) {
+  BII <- suppressWarnings(as.numeric(trimws(strsplit(BII, ",")[[1]])))
+  if (length(BII) != 3 || anyNA(BII) || BII[1] < 0 || BII[1] >= 1 || BII[2] <= 2030 || BII[2] > 2100 || !BII[3] %in% c(0, 1) || (BII[1] == 0 && BII[3] == 1))
+    stop("SUITE_BII must be <target in [0,1)>,<target year in (2030,2100]>,<decrease 0 or 1>; a target of 0 needs decrease 0 (no net loss)")
+} else BII <- c(0, 2100, 0)                                   # no net nature loss from 2030 (paper_healthyLscps.R)
 if (!GEOM %in% c("", "0", "2") || !RATCHET %in% c("", "1") || !PROT %in% c("", "bii", "nobii")) stop("SUITE_GEOM must be unset, 0 or 2, SUITE_RATCHET unset or 1, SUITE_PROT unset, bii or nobii")
 #   SUITE_TAG=<alphanumeric>  a free label appended to the tag, changing nothing else (e.g. to tell a rerun from an earlier run of the same cell)
 TAG <- Sys.getenv("SUITE_TAG", "")
@@ -172,10 +186,10 @@ set_protection <- function(cfg, on) {
   cfg$gms$s22_conservation_start  <- 2025
   cfg$gms$s22_conservation_target <- 2050
   cfg$gms$s22_restore_land        <- 1                       # in both levels, as RIKEN
-  cfg$gms$s44_bii_target    <- if (bii) 0.78 else 0         # BII floor (module 44)
-  cfg$gms$s44_start_year    <- 2030                          # MUST be a timestep > sm_fix_SSP2 (2025), else the target never fires
-  cfg$gms$s44_target_year   <- 2050
-  cfg$gms$c44_bii_decrease  <- 1
+  cfg$gms$s44_bii_target    <- if (bii) BII[1] else 0       # BII floor (module 44); 0 with decrease 0 = no net loss
+  cfg$gms$s44_start_year    <- 2030                          # MUST be a timestep > sm_fix_SSP2 (2025), else the instrument never fires
+  cfg$gms$s44_target_year   <- if (bii) BII[2] else 2100    # inert without a target value
+  cfg$gms$c44_bii_decrease  <- if (bii) BII[3] else 1       # 1 in cells without the instrument: the 0 branch in presolve has no target guard
   cfg$gms$s29_snv_shr          <- if (rest) 0.2 else 0      # semi-natural vegetation share of cropland (module 29)
   cfg$gms$s29_snv_shr_noselect <- if (rest) 0.2 else 0
   cfg$gms$s29_snv_scenario_start  <- 2025
