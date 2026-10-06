@@ -339,6 +339,20 @@ if (!isTRUE(runFeasible(bau_title))) {
   stop("Phase 1 BAU run ", bau_title, " did not solve feasibly (", feasLabel(bau_title),
        "); cannot continue to Phase 2 (BAU tau is the pin target).")
 }
+# The pin source must be OPTIMAL in every step, not merely feasible. runFeasible
+# accepts solver status 7 (feasible, not optimal), as MAgPIE does; since the
+# 2026-10 develop merge a solve is cut off after 900 s (main.gms reslim), so a 7 is
+# possible, and a tau path taken from a cut-off step would be pinned into every
+# frozen-tau run.
+local({
+  e <- new.env()
+  load(file.path("output", bau_title, "runstatistics.rda"), envir = e)
+  ms <- as.numeric(e$stats$modelstat)
+  if (length(ms) == 0 || !all(ms == 2)) {
+    stop("BAU run ", bau_title, " has solver status other than 2 in some step (",
+         paste(ms, collapse = " "), "); it cannot be the tau pin.")
+  }
+})
 bau_gdx <- file.path("output", bau_title, "fulldata.gdx")
 
 # ---- Phase 2: BAU-pinned TC runs (TCbau) ------------------------------------

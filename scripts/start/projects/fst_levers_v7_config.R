@@ -28,8 +28,9 @@
 #
 #      instrument              paper_healthyLscps.R              here
 #      area-based conservation 30by30, 2020 -> 2030             30by30, 2025 -> 2030
-#      BII                     no net loss: c44_bii_decrease 0, the same
-#                              s44_start_year 2030, no target
+#      BII                     no net loss: c44_bii_decrease 0, no net loss from 2030,
+#                              no target, from HIS first free    THIS experiment's first
+#                              step, 2020 (see below)            free step
 #      semi-natural vegetation s29_snv_shr 0.2, 2020 -> 2030     0.2, 2025 -> 2030
 #      SNV land types          secdforest, other                the same (the default)
 #      restoration             not set (default 1)              1
@@ -41,7 +42,14 @@
 #    history fixed to 2025, and that file's own "fix_2025" column starts the same
 #    instruments in 2025. The target year, 2030, is his. So the instruments are
 #    still at zero in 2025 and at full strength in 2030, the first step in which
-#    any lever of this cube acts; the dietary shift ramps to 2050.
+#    any lever of this cube acts (his ramp over two steps); the dietary shift
+#    ramps to 2050.
+#
+#    CORRECTED 2026-10-06 (audit): his script writes s44_start_year <- 2030, but
+#    the setScenario("fix_2020") call AFTER that line resets it to 2020, so his
+#    no-net-loss bound applies from 2020, his first free step. This arm's 2030 is
+#    its own first free step (module 44 aborts on a start year <= 2025), so the
+#    behaviour matches; "the same start year" would not be a true description.
 #
 #    NOT taken from that script: its run set-up (no climate change impacts, its
 #    own calibration, sticky factor costs, marginal-land and yield-calibration
@@ -87,8 +95,18 @@
 #    a new land conversion cost calibration (cropland and pasture), observation-based
 #    forest growth curves, GAMI age classes, grassland-corrected potential forest,
 #    NPI/NDC bounds that follow their targets. Module 44 is unchanged; module 22
-#    gained three IPLC scenario names; module 29's tree-cover carbon density now reads
-#    the calibrated growth curves.
+#    gained three IPLC scenario names; module 29's tree-cover carbon density reads
+#    the renamed growth-curve parameter.
+#    The audit of 2026-10-06 read the rest of the merge (its reading, not re-derived
+#    here): NPI forest floors now FALL after the last observed year (the floor under
+#    the BAU and every protection-OFF cell); one observation-based forest growth
+#    curve, faster in the first decades, which moves afforestation against bioenergy
+#    under the carbon price; potential forest about 27 % smaller; part of forestry
+#    becomes a harvestable "other planted" pool, whose cutting lowers BII and so
+#    meets the no-net-loss bound; pasture expansion dearer in seven regions; a
+#    sticky cost on timber harvest; soil-carbon emission variables not comparable
+#    across the merge; a 900 s limit per solve (main.gms reslim), after which a step
+#    can end at solver status 7.
 #
 # Both change at once, so FSTL7 against FSTL6 does NOT isolate either. Mike chose
 # this over a pinned-code twin of the eight protection-ON runs (2026-10-06).
@@ -107,7 +125,15 @@
 # 2026-10-06, and module 44 is not to be patched here without him). The bound is
 # soft: a shortfall is priced through v44_bii_missing at s44_cost_bii_missing.
 # READ ov44_bii_missing AND ov_cost_bv_loss FIRST in these runs;
-# analysis/verify_fstl7.R gates on both.
+# analysis/verify_arm.R gates on both.
+#
+# MEASURED IN THIS ARM (2026-10-06, while it was solving): the bound is NOT fully
+# met here either. In FSTL7_CPon_BioOnXJPded_Prot_DietEL_TCendo the penalty is 5.5
+# bn USD/yr in 2050 and 71 bn in 2070 (1.1 % of total cost; 21 of 140 region-biomes
+# short, two European ones most), against 582 to 1,725 bn in 2050 under the August
+# floor. And because the bound restarts each step from the level just reached, a
+# shortfall once paid is not made up later. Numbers and Mike's decision:
+# RIKEN/04-fst-levers/LINEAGE.md.
 #
 # THE BAU TAU PIN IS NEW
 # ----------------------
