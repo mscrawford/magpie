@@ -31,6 +31,7 @@ s35_secdf_distribution Flag for secdf initialization (0=all secondary forest in 
 s35_forest_damage Damage simulation in forests (0=none 1=shifting agriculture 2= Damage from shifting agriculture is faded out by c35_forest_damage_end 4= f35_forest_shock scenario) / 2 /
 s35_forest_damage_end   Year of forest damage end  (1)              / 2050 /
 s35_npi_ndc_reversal    Year in which NPI NDC reversal should take place (1) / Inf /
+s35_secdforest_matrix_tied  Transitions into secondary forest in the land-use matrix (0=free 1=tied to the restored area) (binary) / 0 /
 ;
 
 table f35_forest_lost_share(i,driver_source) Share of area damaged by forest fires (1)

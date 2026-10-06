@@ -68,6 +68,7 @@ equations
  q35_natveg_conservation(j)                              Total natural vegetation conservation constraint (mio. ha)
  q35_secdforest_restoration(j)                           Secondary forest restoration constraint (mio. ha)
  q35_other_restoration(j)                                Other land restoration constraint (mio. ha)
+ q35_secdforest_matrix_tied(j)                           Upper limit of matrix transitions into secondary forest (mio. ha)
 ;
 
 positive variables

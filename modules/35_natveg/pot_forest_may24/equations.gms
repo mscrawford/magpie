@@ -27,6 +27,16 @@
             =g=
             p35_land_restoration(j2,"secdforest");
 
+* Experiment of 2026-10-06, not upstream (s35_secdforest_matrix_tied = 1): the land-use transition matrix may book
+* into secondary forest from agriculture and forestry only the restored area that q35_secdforest_regeneration puts into
+* the youngest age class, so that a transition into secondary forest cannot be paired with one out of it at no change
+* of any area (other land and urban to secondary forest are fixed to zero in presolve under the same switch).
+ q35_secdforest_matrix_tied(j2)$(s35_secdforest_matrix_tied = 1) ..
+            sum(land_ag, vm_lu_transitions(j2,land_ag,"secdforest"))
+          + vm_lu_transitions(j2,"forestry","secdforest")
+            =l=
+            p35_land_restoration(j2,"secdforest");
+
  q35_other_restoration(j2) ..
             sum(land_ag, vm_lu_transitions(j2,land_ag,"other"))
             =g=

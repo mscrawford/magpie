@@ -57,7 +57,9 @@
 *' (@buchhorn_copernicus_2020).
 
   q29_land_snv_trans(j2) ..
-    sum(land_snv, vm_lu_transitions(j2,"crop",land_snv)) =g= sum(ct, p29_snv_relocation(ct,j2));
+    sum(land_snv, vm_lu_transitions(j2,"crop",land_snv))
+    - vm_lu_transitions(j2,"crop","secdforest")$(s29_snv_reloc_other_only = 1)
+    =g= sum(ct, p29_snv_relocation(ct,j2));
 
 *' A penalty is applied for the violation of fallow land rules.
 *' The penalty applies to the missing fallow land, i.e. where fallow land 

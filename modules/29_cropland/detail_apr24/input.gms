@@ -10,6 +10,7 @@ $setglobal c29_marginal_land  q33_marginal
 
 scalars
  s29_snv_shr                     Share of available cropland that is witheld for other land cover types (1) / 0 /
+ s29_snv_reloc_other_only  SNV relocation counted (0=cropland to secondary forest or other land 1=cropland to other land only) (binary) / 0 /
  s29_snv_shr_noselect            Share of available cropland that is witheld for other land cover types (1) / 0 /
  s29_snv_scenario_start          SNV scenario start year       / 2025 /
  s29_snv_scenario_target         SNV scenario target year      / 2050 /

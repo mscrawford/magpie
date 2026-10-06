@@ -47,14 +47,23 @@ cfg$sequential     <- FALSE
 cfg$force_download <- FALSE
 cat("== bii_develop_pair @", system("git rev-parse --short HEAD", intern = TRUE), "| tracked changes:", length(system("git status --short --untracked-files=no", intern = TRUE)), "==\n")
 only <- trimws(strsplit(Sys.getenv("PAIR_ONLY"), ",")[[1]])
-# base and floor ran at plain develop 47249fdc2 (detached). The two cells added the same day run from the branch
-# experiment/bii-area-weight = develop + ONE commit: a weight in q44_cost behind s44_bii_area_weight (default 0 = develop).
+# base and floor ran at plain develop 47249fdc2 (detached). The cells added the same day run from the branch
+# experiment/bii-area-weight = develop + experiment commits, every one behind a switch whose default is develop's behaviour.
 #   ...areaW      the floor of the second cell with the penalty weighted by the area of each region-biome (weights average one)
 #   ...noNetLoss  the floor as paper_healthyLscps.R (P. v. Jeetze) sets it: c44_bii_decrease 0 from 2030, no target value
-cells <- list(list(title = "devBII_SSP1base",                target = 0,    decrease = 1, areaw = 0),
-              list(title = "devBII_SSP1floor078by2050",      target = 0.78, decrease = 1, areaw = 0),
-              list(title = "devBII_SSP1floor078by2050areaW", target = 0.78, decrease = 1, areaw = 1),
-              list(title = "devBII_SSP1noNetLoss2030",       target = 0,    decrease = 0, areaw = 0))
+#   devSNV_...    the rest of the protection bundle of the fragmentation suite WITHOUT any BII instrument (GSN_HalfEarth with
+#                 restoration, semi-natural vegetation 20 %, environmental flows, all 2025 to 2050), as the control for the
+#                 SNV relocation rule (a cropland -> secondary forest booking in the land matrix can be paired with one out of
+#                 secondary forest at no change of any area, and still counts in q29_land_snv_trans), and two candidate fixes:
+#                 fixA  s35_secdforest_matrix_tied 1 (the matrix books into secondary forest only the restored area)
+#                 fixB  s29_snv_reloc_other_only 1   (the relocation rule counts cropland -> other land only)
+cells <- list(list(title = "devBII_SSP1base",                target = 0,    decrease = 1, areaw = 0, bundle = 0, fixA = 0, fixB = 0),
+              list(title = "devBII_SSP1floor078by2050",      target = 0.78, decrease = 1, areaw = 0, bundle = 0, fixA = 0, fixB = 0),
+              list(title = "devBII_SSP1floor078by2050areaW", target = 0.78, decrease = 1, areaw = 1, bundle = 0, fixA = 0, fixB = 0),
+              list(title = "devBII_SSP1noNetLoss2030",       target = 0,    decrease = 0, areaw = 0, bundle = 0, fixA = 0, fixB = 0),
+              list(title = "devSNV_SSP1bundleNoBII",         target = 0,    decrease = 1, areaw = 0, bundle = 1, fixA = 0, fixB = 0),
+              list(title = "devSNV_SSP1bundleNoBIIfixA",     target = 0,    decrease = 1, areaw = 0, bundle = 1, fixA = 1, fixB = 0),
+              list(title = "devSNV_SSP1bundleNoBIIfixB",     target = 0,    decrease = 1, areaw = 0, bundle = 1, fixA = 0, fixB = 1))
 titles <- vapply(cells, function(x) x$title, "")
 stopifnot(all(only %in% titles))
 for (cell in cells) {
@@ -64,9 +73,22 @@ for (cell in cells) {
   cfg_i$gms$s44_bii_target   <- cell$target
   cfg_i$gms$c44_bii_decrease <- cell$decrease
   if (cell$areaw == 1) { stopifnot("s44_bii_area_weight" %in% names(cfg$gms)); cfg_i$gms$s44_bii_area_weight <- 1 }
+  if (cell$bundle == 1) {                                   # set_protection() of the suite launcher, without the BII instrument
+    stopifnot(cfg$gms$s22_conservation_start == 2025, cfg$gms$s22_conservation_target == 2050, cfg$gms$s22_restore_land == 1,
+              cfg$gms$s29_snv_scenario_start == 2025, cfg$gms$s29_snv_scenario_target == 2050, cfg$gms$s42_efp_startyear == 2025,
+              cfg$gms$s42_efp_targetyear == 2050, cfg$gms$s42_env_flow_scenario == 2,
+              all(c("s29_snv_reloc_other_only", "s35_secdforest_matrix_tied") %in% names(cfg$gms)))
+    cfg_i$gms$c22_protect_scenario          <- "GSN_HalfEarth"
+    cfg_i$gms$c22_protect_scenario_noselect <- "GSN_HalfEarth"
+    cfg_i$gms$s29_snv_shr                   <- 0.2
+    cfg_i$gms$s29_snv_shr_noselect          <- 0.2
+    cfg_i$gms$c42_env_flow_policy           <- "on"
+    cfg_i$gms$s35_secdforest_matrix_tied    <- cell$fixA
+    cfg_i$gms$s29_snv_reloc_other_only      <- cell$fixB
+  }
   stopifnot(cfg_i$gms$s44_target_year == 2050, cfg_i$gms$s44_start_year == 2030)
-  cat(sprintf("===== %s: s44_bii_target %s, start %s, target year %s, decrease %s, area weight %s | cellular %s =====\n", cell$title, cfg_i$gms$s44_bii_target,
-              cfg_i$gms$s44_start_year, cfg_i$gms$s44_target_year, cfg_i$gms$c44_bii_decrease, cell$areaw, cfg_i$input[["cellular"]]))
+  cat(sprintf("===== %s: s44_bii_target %s, start %s, target year %s, decrease %s, area weight %s | bundle %s, fix A %s, fix B %s | cellular %s =====\n", cell$title, cfg_i$gms$s44_bii_target,
+              cfg_i$gms$s44_start_year, cfg_i$gms$s44_target_year, cfg_i$gms$c44_bii_decrease, cell$areaw, cell$bundle, cell$fixA, cell$fixB, cfg_i$input[["cellular"]]))
   if (nzchar(Sys.getenv("PAIR_DRYRUN"))) next
   start_run(cfg_i, codeCheck = FALSE)
 }

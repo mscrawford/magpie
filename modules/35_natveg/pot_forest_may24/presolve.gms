@@ -268,3 +268,9 @@ vm_bv.l(j,"secdforest",potnatveg) =
 vm_bv.l(j,"other",potnatveg) = 
   sum(bii_class_secd, sum(ac_to_bii_class_secd(ac,bii_class_secd), sum(othertype35, pc35_land_other(j,othertype35,ac))) *
   fm_bii_coeff(bii_class_secd,potnatveg)) * fm_luh2_side_layers(j,potnatveg);
+
+* Experiment of 2026-10-06, not upstream: see q35_secdforest_matrix_tied
+if(s35_secdforest_matrix_tied = 1,
+  vm_lu_transitions.fx(j,"other","secdforest") = 0;
+  vm_lu_transitions.fx(j,"urban","secdforest") = 0;
+);
