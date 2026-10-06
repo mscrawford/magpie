@@ -4,7 +4,8 @@
 # |    allnosoil_M{0,1}P{0,1}D{0,1}: set_cube_backdrop() (c56_emis_policy all_nosoil, c56_mute_ghgprices_until y2025, MACCs pinned) so
 # |      the GHG price is live from 2030, the same step as the diet's first faded step and the price scenario's bioenergy demand
 # |      (the PC pilot of 2026-09-19 had the price start in 2035); M = R34M410-SSP2-PkBudg650 price + bioenergy, D = s15_exo_diet 3,
-# |      P = design B's bundle (GSN_HalfEarth + BII as NO NET LOSS from 2030 + SNV 0.2 + env flows to 2050; until 2026-10-06 the BII
+# |      P = design B's bundle (30by30 + BII as NO NET LOSS from 2030 + SNV 0.2 + env flows to 2050; until 2026-10-06 the area target
+# |      was GSN_HalfEarth (L4TWIN_AREA=GSN_HalfEarth reproduces it) and the BII
 # |      instrument was RIKEN's floor of 0.78 by 2050 with decrease allowed, which the twins of 2026-10-01 and 10-05 ran: L4TWIN_BII below), set
 # |      EXPLICITLY in both arms. HalfEarth is the SSP1 narrative target, chosen here so the P effect is comparable with design B's
 # |      SSP1 cube (Mike, 2026-10-01); it is off-narrative for SSP2 (30x30). The bundle moves land through BII, SNV and water as well
@@ -114,7 +115,9 @@ if (nzchar(BII)) {
 } else BII <- c(0, 2050, 0)                                   # no net loss from 2030 (paper_healthyLscps.R)
 bii_tag <- function(g) if (g$s44_bii_target == 0 && g$c44_bii_decrease == 1) "off" else if (g$s44_bii_target == 0) "nnl" else sprintf("%.2fby%d/dec%d", g$s44_bii_target, g$s44_target_year, g$c44_bii_decrease)
 set_protection_parts <- function(cfg, area, restore = TRUE, bii, snv, envflow) {
-  scen <- if (area) "GSN_HalfEarth" else "none"
+  # AREA target: 30by30 since 2026-10-06 (Mike: the area target of P. v. Jeetze's own package, paper_healthyLscps.R; Half Earth is
+  # used by no upstream script or preset). L4TWIN_AREA=GSN_HalfEarth reproduces the twins of 2026-10-01 and 10-05.
+  scen <- if (area) Sys.getenv("L4TWIN_AREA", "30by30") else "none"
   cfg$gms$c22_protect_scenario          <- scen
   cfg$gms$c22_protect_scenario_noselect <- scen
   cfg$gms$s22_conservation_start  <- 2025

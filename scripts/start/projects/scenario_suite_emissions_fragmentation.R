@@ -11,7 +11,7 @@
 # |  'use the switches canonically'; RIKEN found the earlier diet + protection programming wrong):
 # |    M on : c56_pollutant_prices + c60_2ndgen_biodem (and _noselect twins) = R34M410-SSP1-PkBudg650 (1.5C, price and
 # |           bioenergy are the two images of ONE REMIND solution and stay paired).  M off: R34M410-SSP1-NPi2025.
-# |    P on : c22 GSN_HalfEarth 2025->2050 + s22_restore_land 1 + BII as NO NET LOSS from 2030 (c44_bii_decrease 0, no target
+# |    P on : c22 30by30 2025->2050 (until 2026-10-06 GSN_HalfEarth; see the AREA note below) + s22_restore_land 1 + BII as NO NET LOSS from 2030 (c44_bii_decrease 0, no target
 # |           value; start 2030 = first timestep > 2025) + SNV 0.2 2025->2050 + environmental flows on (scenario 2, 2025->2050).
 # |           Until 2026-10-06 the BII instrument was a floor of 0.78 by 2050 with decrease allowed (see SUITE_BII below).
 # |    P off: none of them, set EXPLICITLY (env flows OFF overrides the SSP1 scenario column, which sets them on).
@@ -108,6 +108,8 @@ PROT    <- Sys.getenv("SUITE_PROT", "")
 #   SUITE_BII=<target>,<target year>,<decrease 0|1>     e.g. SUITE_BII=0.78,2050,1 reproduces the runs of 2026-10-05
 # The target year is inert without a target value; it stays 2050 in every cell, so that a cell differs from its twin of 2026-10-05
 # in s44_bii_target and c44_bii_decrease only.
+AREA <- Sys.getenv("SUITE_AREA", "30by30")
+if (!AREA %in% c("30by30", "GSN_HalfEarth", "BH", "BH_IFL", "KBA")) stop("SUITE_AREA must be one of 30by30 (default), GSN_HalfEarth, BH, BH_IFL, KBA")
 BII <- Sys.getenv("SUITE_BII", "")
 if (nzchar(BII)) {
   BII <- suppressWarnings(as.numeric(trimws(strsplit(BII, ",")[[1]])))
@@ -186,7 +188,11 @@ set_mitigation <- function(cfg, ssp, on) {
 set_protection <- function(cfg, on) {
   bii  <- on && PROT != "nobii"                              # the BII instrument
   rest <- on && PROT != "bii"                                # protected area, SNV share, environmental flows
-  scen <- if (rest) "GSN_HalfEarth" else "none"
+  # AREA target. DECIDED by Mike on 2026-10-06 ("Ours is too severe. I want to use the most recent default of Patrick's ... Go with
+  # 30x30"): 30by30, the area target of P. v. Jeetze's own protection package (scripts/start/projects/paper_healthyLscps.R: 30by30 +
+  # no net loss + SNV 20 %), on default.cfg's timing 2025 to 2050. GSN_HalfEarth (about half of the land surface; RIKEN, the runs of
+  # 2026-10-01 and 10-05) is used by no upstream script or preset. SUITE_AREA=GSN_HalfEarth reproduces the earlier runs.
+  scen <- if (rest) AREA else "none"
   cfg$gms$c22_protect_scenario          <- scen
   cfg$gms$c22_protect_scenario_noselect <- scen
   cfg$gms$s22_conservation_start  <- 2025
