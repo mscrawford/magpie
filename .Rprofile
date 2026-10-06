@@ -21,8 +21,12 @@ options(renv.config.synchronized.check = FALSE,
 source("renv/activate.R")
 
 # unique strips names which breaks renv, so use duplicated
-options(repos = c(getOption("repos"), pikpiam = "https://pik-piam.r-universe.dev", pik = "https://rse.pik-potsdam.de/r/packages"))
-options(repos = getOption("repos")[!duplicated(getOption("repos"))])
+if (!"pikpiam" %in% names(getOption("repos"))) {
+  options(repos = c(getOption("repos"), pikpiam = Sys.getenv("R_UNIVERSE_URL", "https://pik-piam.r-universe.dev")))
+}
+if (!"pik" %in% names(getOption("repos"))) {
+  options(repos = c(getOption("repos"), pik = "https://rse.pik-potsdam.de/r/packages"))
+}
 
 # bootstrapping, will only run once after this repo is freshly cloned
 if (isTRUE(rownames(installed.packages(priority = "NA")) == "renv")) {
@@ -39,4 +43,8 @@ if (isTRUE(rownames(installed.packages(priority = "NA")) == "renv")) {
 # in case bootstrapping fails halfway, install piamenv and rely on requirement auto-fixing
 if (tryCatch(utils::packageVersion("piamenv") < "0.5.5", error = function(error) TRUE)) {
   renv::install("piamenv", prompt = FALSE)
+}
+
+if (requireNamespace("rlang", quietly = TRUE)) {
+  rlang::global_entrace()
 }
