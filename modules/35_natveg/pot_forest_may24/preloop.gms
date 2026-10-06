@@ -34,6 +34,17 @@ if((s35_edge_carbon = 1) and (s35_edge_gate <> 0) and (s35_edge_gate <> 1),
 if((s35_edge_carbon = 1) and (s35_edge_formula <> 0) and (s35_edge_formula <> 1),
   abort "s35_edge_formula must be 0 or 1";
 );
+** The level anchor (input.gms) was derived for geometry setting 1; with another geometry it would anchor the wrong area.
+** A cluster without a factor carries 1, so a factor of zero or below is a broken table, not a choice.
+if((s35_edge_carbon = 1) and (s35_edge_anchor <> 0) and (s35_edge_anchor <> 1),
+  abort "s35_edge_anchor must be 0 or 1";
+);
+if((s35_edge_carbon = 1) and (s35_edge_anchor = 1) and (s35_edge_geometry <> 1),
+  abort "s35_edge_anchor = 1 needs s35_edge_geometry = 1: the anchor table was derived for the maturation rule";
+);
+if((s35_edge_carbon = 1) and (s35_edge_anchor = 1) and (smin(j, f35_edge_anchor(j)) <= 0),
+  abort "f35_edge_anchor holds a factor of zero or below";
+);
 
 ** initialize other land
 i35_land_other(j,othertype35,ac) = 0;

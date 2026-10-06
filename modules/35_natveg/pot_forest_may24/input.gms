@@ -64,6 +64,15 @@ s35_edge_geometry       Forest area in the closure geometry (0=pool totals 1=age
 * in the statement that moves young secondary forest from other land to secdforest), so that the geometry counts a
 * stand exactly when the model calls natural regrowth forest. Interface scalar: 32_forestry reads it.
 sm_edge_mature_vegc     Vegc density above which a stand counts as forest in the closure geometry (tC per ha) / 20 /
+* Level anchor of the closure (2026-10-06): the intercepts, the exponents, the scale factor and the decay length were
+* fitted on OBSERVED forest (You et al. 2025, year 2020). Under s35_edge_geometry = 1 the closure is evaluated on the
+* mature-stand area instead, a smaller area in the same cluster, and returns a higher edge ratio on no measurement.
+* 1 = each cluster's edge ratio is multiplied by f35_edge_anchor(j), the ratio of (the closure's edge ratio on the observed
+* forest of 2020) to (its edge ratio on the model's geometry area in the 2020 step), so that the closure returns the fitted
+* level at the fit's year and its own response before and after. The table belongs to geometry setting 1, to the cluster
+* map and to the inputs of the runs it was derived from (header of the csv); preloop aborts on any other geometry.
+* 0 = no anchor (every run before 2026-10-06).
+s35_edge_anchor         Level anchor of the closure at the year of its fit (0=off 1=per-cluster factor on the edge ratio) / 0 /
 * Aboveground-only edge loss (2026-08-28): 0 = the edge factor multiplies TOTAL vegc (above + below
 * ground, the pre-2026-08-28 behaviour), 1 = only the aboveground share (fm_aboveground_fraction)
 * takes the loss. See 02-parameterization/documents/BELOWGROUND_AGB_EDGE_FACTOR.md (fragmentation repo).
@@ -140,5 +149,12 @@ parameter f35_edge_trop_share(j) Per-cluster forest-weighted tropical share for 
 /
 $ondelim
 $include "./modules/35_natveg/input/f35_edge_trop_share.csv"
+$offdelim
+/;
+
+parameter f35_edge_anchor(j) Per-cluster factor on the closure edge ratio that anchors its level at the year of the fit (1)
+/
+$ondelim
+$include "./modules/35_natveg/input/f35_edge_anchor.csv"
 $offdelim
 /;
