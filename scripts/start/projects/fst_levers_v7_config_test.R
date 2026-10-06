@@ -12,7 +12,11 @@
 #     of the contrast and the BII limb of the protection effect would be zero while
 #     every run looked healthy.
 #   * NOTHING OF THE EARLIER BUNDLE COMES THROUGH: no numeric BII floor, no
-#     GSN_HalfEarth, no 2050 target year, no environmental-flow key in any cell.
+#     GSN_HalfEarth, no 2050 target year.
+#   * WATER IS BACKDROP, AS IN THE EAT-LANCET 2.0 SSP1 RUNS: environmental flow
+#     protection on and irrigated bioenergy allowed in ALL eight cells, identically
+#     in both protection arms, with no s42 key set (the defaults are her values),
+#     and neither key in the BAU.
 #   * EVERY START AND TARGET YEAR IS ON THE TIMESTEP GRID, and the two protection
 #     blocks agree on all of them, so the factor toggles instruments, not timing.
 #   * OUTSIDE THE PROTECTION BLOCK EVERY CELL EQUALS ITS FSTL6 TWIN.
@@ -23,7 +27,7 @@
 
 source("scripts/start/projects/fst_levers_v7_config.R")
 
-EXPECTED_CHECKS <- 66L
+EXPECTED_CHECKS <- 75L
 n_checks <- 0L
 n_fail   <- 0L
 chk <- function(cond, label) {
@@ -80,8 +84,8 @@ BIOS <- list(c22_protect_scenario = "30by30", s22_conservation_start = 2025,
              s29_snv_shr = 0.2, s29_snv_scenario_start = 2025, s29_snv_scenario_target = 2030)
 YEARS <- c("s22_conservation_start", "s22_conservation_target", "s44_start_year",
            "s29_snv_scenario_start", "s29_snv_scenario_target")
-OLD   <- c("c42_env_flow_policy", "s42_env_flow_scenario", "s42_efp_startyear",
-           "s42_efp_targetyear", "s44_target_year")
+OLD   <- c("s42_env_flow_scenario", "s42_efp_startyear", "s42_efp_targetyear",
+           "s42_env_flow_fraction", "s42_env_flow_base_fraction", "s44_target_year")
 for (s in protOn) {
   blk <- FST_LEVERS_SCENARIOS[[s]]
   chk(all(mapply(identical, blk[names(BIOS)], BIOS)),
@@ -94,7 +98,7 @@ for (s in protOn) {
   chk(all(unlist(blk[YEARS]) %in% TIMESTEPS) && blk$s44_start_year > 2025,
       paste0(s, ": every start and target year on the timestep grid; BII start after 2025"))
   chk(!any(OLD %in% names(blk)),
-      paste0(s, ": no environmental-flow key and no BII target year (found: ",
+      paste0(s, ": no s42 environmental-flow key and no BII target year (found: ",
              paste(intersect(OLD, names(blk)), collapse = ", "), ")"))
   chk(identical(blk$s22_restore_land, 1), paste0(s, ": restoration at the default, 1"))
 }
@@ -105,7 +109,7 @@ for (s in protOf) {
   chk(identical(blk$c22_protect_scenario, "none") && identical(blk$s29_snv_shr, 0) &&
         identical(blk$s44_bii_target, 0),
       paste0(s, ": no conservation scenario, no SNV share, no BII floor"))
-  chk(!any(OLD %in% names(blk)), paste0(s, ": no environmental-flow key and no BII target year"))
+  chk(!any(OLD %in% names(blk)), paste0(s, ": no s42 environmental-flow key and no BII target year"))
   on <- FST_LEVERS_SCENARIOS[[sub("_NoProt_", "_Prot_", s)]]
   toggled <- names(blk)[!mapply(identical, blk, on[names(blk)])]
   chk(setequal(names(blk), names(on)) &&
@@ -115,15 +119,26 @@ for (s in protOf) {
              paste(toggled, collapse = ", "), ")"))
 }
 
+# --- 5b. water backdrop (8 + 1 = 9 checks) ------------------------------------
+# Reference: the SSP1 runs of the EAT-Lancet 2.0 Deep Dive release (config.yml).
+WATER <- list(c42_env_flow_policy = "on", c30_bioen_water = "all")
+for (s in cells) {
+  blk <- FST_LEVERS_SCENARIOS[[s]]
+  chk(all(mapply(identical, blk[names(WATER)], WATER)),
+      paste0(s, ": environmental flow protection on and irrigated bioenergy allowed"))
+}
+chk(!any(names(WATER) %in% names(FST_LEVERS_SCENARIOS[[FST_LEVERS_BAU]])),
+    "BAU7 sets neither water key (it keeps the SSP2 values: policy off, bioenergy rainfed)")
+
 # --- 6. outside the protection block every cell is its FSTL6 twin (8 checks) --
 # .fstl6 is still in scope: the v7 config sources the v6 config.
-PROT_KEYS <- union(names(.prot_on), names(.prot_on_v7))
+PROT_KEYS <- c(union(names(.prot_on), names(.prot_on_v7)), names(WATER))
 for (s in cells) {
   new <- FST_LEVERS_SCENARIOS[[s]]
   old <- .fstl6[[sub("^FSTL7_", "FSTL6_", s)]]
   rest <- setdiff(union(names(new), names(old)), PROT_KEYS)
   chk(length(rest) > 0 && all(mapply(identical, new[rest], old[rest])),
-      paste0(s, ": identical to its FSTL6 twin on all ", length(rest), " keys outside the protection block"))
+      paste0(s, ": identical to its FSTL6 twin on all ", length(rest), " keys outside the protection block and the water backdrop"))
 }
 
 # --- 7. no collision with anything on disk (2 checks) ------------------------

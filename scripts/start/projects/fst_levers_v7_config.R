@@ -51,21 +51,39 @@
 #    instrument (c22_protect_scenario BH or KBA) and no BII or SNV instrument. It
 #    is a narrower lever than this experiment's "protection", so it was not taken.
 #
-#    ENVIRONMENTAL FLOWS LEAVE THE LEVER and follow F. Beier's EAT-Lancet 2.0 runs
-#    (Mike, 2026-10-06). Those runs never set an environmental-flow policy: it comes
-#    from the SSP column of config/scenario_config.csv, which is "off" for SSP2.
-#    Read from the 81 run configs of her Deep Dive release (January 2025,
-#    /p/projects/magpie/users/beier/EL2_DeepDive_release_v3/magpie/output): policy
-#    off in all 69 SSP2 and SSP3 runs (on only in SSP1 and SSP5, mixed in SSP4), with
-#    s42_efp_startyear 2025, s42_efp_targetyear 2040, s42_env_flow_scenario 2,
-#    s42_env_flow_fraction 0.2 and s42_env_flow_base_fraction 0.05, all of them this
-#    model's defaults. So no cell here sets a c42 or s42 key, in either protection
-#    arm, and protection does not act on water withdrawals directly.
-#    NOT taken from her runs: c30_bioen_water = "all" (irrigated bioenergy allowed),
-#    which all 81 carry. It is a bioenergy setting, this experiment has bioenergy as
-#    a factor, and SSP2's value here is "rainfed". Open for Mike.
+#    ENVIRONMENTAL FLOWS LEAVE THE LEVER; see 2.
 #
-# 2. THE MODEL. Merged upstream/develop dfe14e834: input data rev4.131 -> rev4.136,
+# 2. WATER IN THE TRANSFORMATION BACKDROP (Mike, 2026-10-06: in the transformation
+#    scenario, environmental flow protection on and irrigated bioenergy allowed,
+#    aligned with F. Beier's EAT-Lancet 2.0 SSP1 runs).
+#
+#    Her runs never set these per scenario: the environmental-flow policy comes from
+#    the SSP column of config/scenario_config.csv ("on" for SSP1, "off" for SSP2) and
+#    c30_bioen_water = "all" from her project preset, in every run. Read from the 81
+#    run configs of her Deep Dive release (January 2025,
+#    /p/projects/magpie/users/beier/EL2_DeepDive_release_v3/magpie/output), the SSP1
+#    runs carry
+#        c42_env_flow_policy on, s42_efp_startyear 2025, s42_efp_targetyear 2040,
+#        s42_env_flow_scenario 2, s42_env_flow_fraction 0.2,
+#        s42_env_flow_base_fraction 0.05, c30_bioen_water all,
+#    and all but the first and the last are this model's defaults. So ALL 16 cells
+#    here set c42_env_flow_policy = "on" and c30_bioen_water = "all" and no s42 key;
+#    the policy fades in from 2025 and is complete in 2040 (FSTL5 and FSTL6 had it
+#    inside the protection lever, complete in 2050).
+#
+#    Consequences to keep in view:
+#      * it is BACKDROP: on in protection-ON and protection-OFF cells alike, so the
+#        protection effect contains no water instrument;
+#      * BAU7 keeps the SSP2 values (policy off, bioenergy rainfed). Her own BAU runs
+#        carry c30_bioen_water = "all" as well; here BAU7 was already solving when
+#        this was decided, and Mike's instruction named the transformation scenario;
+#      * irrigated bioenergy is now allowed in the bioenergy-ON cells (inert where
+#        the dedicated demand is zero), which FSTL6 did not allow;
+#      * NOT taken: s42_watdem_nonagr_scenario = 1, the other value in which her SSP1
+#        runs differ from her SSP2 runs. It is SSP1's non-agricultural water demand,
+#        a socio-economic driver, and this experiment is SSP2 throughout.
+#
+# 3. THE MODEL. Merged upstream/develop dfe14e834: input data rev4.131 -> rev4.136,
 #    a new land conversion cost calibration (cropland and pasture), observation-based
 #    forest growth curves, GAMI age classes, grassland-corrected potential forest,
 #    NPI/NDC bounds that follow their targets. Module 44 is unchanged; module 22
@@ -104,11 +122,20 @@
 
 source(Sys.getenv("FST_LEVERS_V6_CONFIG", "scripts/start/projects/fst_levers_v6_config.R"))
 
+# ---- Backdrop, v7 level: water as in the EAT-Lancet 2.0 SSP1 runs ------------
+# In every cell. The s42 years and fractions are deliberately not set: the
+# defaults are her values, and a key set here could drift from them.
+.water_el2 <- list(
+  c42_env_flow_policy = "on",
+  c30_bioen_water     = "all"
+)
+FST_BACKDROP_V7 <- c(FST_BACKDROP, .water_el2)
+
 # ---- Factor 2, v7 level: the BIOS bundle ------------------------------------
 # Written out in full, not derived from .prot_on, so that nothing of the earlier
 # bundle can come through by inheritance. Both blocks set the SAME keys; the
 # factor toggles the scenario, the SNV share and the BII switch, and nothing else.
-# No c42 key in either block: environmental flows stay at the default, off.
+# No c42 key in either block: environmental flows are backdrop (above), not lever.
 # _noselect twins as in the base config (zero weight while all countries are
 # selected, load-bearing the moment anyone narrows the country set).
 .prot_on_v7 <- list(
@@ -142,14 +169,14 @@ source(Sys.getenv("FST_LEVERS_V6_CONFIG", "scripts/start/projects/fst_levers_v6_
 )
 
 .fstl7 <- list(
-  FSTL7_CPon_BioOnXJPded_Prot_DietEL    = c(FST_BACKDROP, .cp_on, .bio_on_xjp, .prot_on_v7,  .diet_el),
-  FSTL7_CPon_BioOnXJPded_Prot_DietOff   = c(FST_BACKDROP, .cp_on, .bio_on_xjp, .prot_on_v7,  .diet_off),
-  FSTL7_CPon_BioOnXJPded_NoProt_DietEL  = c(FST_BACKDROP, .cp_on, .bio_on_xjp, .prot_off_v7, .diet_el),
-  FSTL7_CPon_BioOnXJPded_NoProt_DietOff = c(FST_BACKDROP, .cp_on, .bio_on_xjp, .prot_off_v7, .diet_off),
-  FSTL7_CPon_BioNone_Prot_DietEL        = c(FST_BACKDROP, .cp_on, .bio_none,   .prot_on_v7,  .diet_el),
-  FSTL7_CPon_BioNone_Prot_DietOff       = c(FST_BACKDROP, .cp_on, .bio_none,   .prot_on_v7,  .diet_off),
-  FSTL7_CPon_BioNone_NoProt_DietEL      = c(FST_BACKDROP, .cp_on, .bio_none,   .prot_off_v7, .diet_el),
-  FSTL7_CPon_BioNone_NoProt_DietOff     = c(FST_BACKDROP, .cp_on, .bio_none,   .prot_off_v7, .diet_off)
+  FSTL7_CPon_BioOnXJPded_Prot_DietEL    = c(FST_BACKDROP_V7, .cp_on, .bio_on_xjp, .prot_on_v7,  .diet_el),
+  FSTL7_CPon_BioOnXJPded_Prot_DietOff   = c(FST_BACKDROP_V7, .cp_on, .bio_on_xjp, .prot_on_v7,  .diet_off),
+  FSTL7_CPon_BioOnXJPded_NoProt_DietEL  = c(FST_BACKDROP_V7, .cp_on, .bio_on_xjp, .prot_off_v7, .diet_el),
+  FSTL7_CPon_BioOnXJPded_NoProt_DietOff = c(FST_BACKDROP_V7, .cp_on, .bio_on_xjp, .prot_off_v7, .diet_off),
+  FSTL7_CPon_BioNone_Prot_DietEL        = c(FST_BACKDROP_V7, .cp_on, .bio_none,   .prot_on_v7,  .diet_el),
+  FSTL7_CPon_BioNone_Prot_DietOff       = c(FST_BACKDROP_V7, .cp_on, .bio_none,   .prot_on_v7,  .diet_off),
+  FSTL7_CPon_BioNone_NoProt_DietEL      = c(FST_BACKDROP_V7, .cp_on, .bio_none,   .prot_off_v7, .diet_el),
+  FSTL7_CPon_BioNone_NoProt_DietOff     = c(FST_BACKDROP_V7, .cp_on, .bio_none,   .prot_off_v7, .diet_off)
 )
 
 # The BAU switches are the base config's, carried over unchanged (v2 and v6 pass
