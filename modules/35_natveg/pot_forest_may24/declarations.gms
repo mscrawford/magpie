@@ -137,5 +137,6 @@ parameters
  oq35_natveg_conservation(t,j,type)                  Total natural vegetation conservation constraint (mio. ha)
  oq35_secdforest_restoration(t,j,type)               Secondary forest restoration constraint (mio. ha)
  oq35_other_restoration(t,j,type)                    Other land restoration constraint (mio. ha)
+ oq35_secdforest_matrix_tied(t,j,type)               Upper limit of matrix transitions into secondary forest (mio. ha)
 ;
 *##################### R SECTION END (OUTPUT DECLARATIONS) #####################
