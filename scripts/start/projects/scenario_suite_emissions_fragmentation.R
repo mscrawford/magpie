@@ -134,6 +134,11 @@ VARIANT <- paste0(if (NPI == "none") "noNPI" else "", if (nzchar(GEOM)) paste0("
 #       threshold of the geometry rule, variants of the BII floor, a second solve). Needs SUITE_TAG, so that an overridden run
 #       never carries a plain title; a key that the configuration does not hold stops the launcher (no silent typo); a value
 #       that reads as a number is set as a number. The plain design is unchanged when the variable is unset.
+#   SUITE_EDGEOFF=<tag>[,<tag>]  cells that get an edge-OFF twin in addition to the design's three (the all-off corner and the two
+#       context bases), e.g. SUITE_EDGEOFF=SSP1M1P0D0 for the price corner: whether the edge module moves land where carbon is priced
+#       has only been shown for unpriced baselines (fragmentation repo, L4_BUILD 18.14 item 15). The twin is titled <tag>_bodirsky_OFF;
+#       name it in SUITE_ONLY to launch it alone. The plain design is unchanged when the variable is unset.
+EDGEOFF <- Filter(nzchar, trimws(strsplit(Sys.getenv("SUITE_EDGEOFF", ""), ",")[[1]]))
 SET <- Filter(nzchar, trimws(strsplit(Sys.getenv("SUITE_SET", ""), ",")[[1]]))
 if (length(SET) && !nzchar(TAG)) stop("SUITE_SET needs SUITE_TAG: an overridden run must not carry a plain title")
 if (length(SET) && !all(grepl("^[A-Za-z0-9_]+=[^=]+$", SET))) stop("SUITE_SET entries must read key=value")
@@ -267,7 +272,8 @@ build_policy <- function(cfg, p) {
   cfg
 }
 
-edge_off_tags <- c("SSP1M0P0D0", "SSP2base", "SSP3base")               # edge OFF pairs
+if (length(EDGEOFF) && !all(EDGEOFF %in% vapply(policies, function(p) p$tag, ""))) stop("SUITE_EDGEOFF names a cell that is not in the design: ", paste(EDGEOFF, collapse = ", "))
+edge_off_tags <- unique(c("SSP1M0P0D0", "SSP2base", "SSP3base", EDGEOFF))   # edge OFF pairs
 broad_tags    <- c("SSP1M0P0D0", "SSP1M1P1D1", "SSP2base", "SSP3base")  # ~1 km sensitivity
 
 # ---------------------------------------------------------------------------
