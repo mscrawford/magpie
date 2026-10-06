@@ -301,13 +301,6 @@ if(s35_edge_carbon = 1,
            + s35_edge_n * log10(max(1 - p35_forest_fraction(j), 1e-4)))
       / (p35_forest_area(j) * 10000);
 
-* Level anchor (s35_edge_anchor = 1, 2026-10-06): the closure's edge ratio times a static per-cluster factor, so that in
-* the 2020 step the ratio equals the one the closure returns on the observed forest it was fitted on (input.gms).
-* Equivalent to a shift of the cluster's intercept; the fitted intercepts stay as they are.
-  if(s35_edge_anchor = 1,
-    p35_edge_ratio(j) = p35_edge_ratio(j) * f35_edge_anchor(j);
-  );
-
 * Apply edge zone formula to convert E/A ratio into edge-affected fraction
   if(s35_edge_formula = 0,
 * Step function: f_edge = min(E/A * depth, 1)

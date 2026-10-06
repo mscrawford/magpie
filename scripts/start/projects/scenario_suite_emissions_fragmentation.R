@@ -241,10 +241,6 @@ set_edge_on <- function(cfg) {
   cfg$gms$s35_edge_forestry_buffer <- 1
   cfg$gms$s35_edge_geometry   <- if (nzchar(GEOM)) as.numeric(GEOM) else 1   # 1 = forest in the geometry by the maturation rule, per age class (2026-10-05)
   cfg$gms$sm_edge_mature_vegc <- 20                          # its threshold = the model's secondary-forest maturation threshold
-  # Level anchor (Mike, 2026-10-06; fragmentation repo, L4_BUILD 18.29 to 18.31): under the maturation rule the closure is fed less
-  # forest than it was fitted on, so each cluster's edge ratio is anchored at the fit's year (f35_edge_anchor.csv). The table
-  # belongs to geometry setting 1; the geometry variants (SUITE_GEOM) therefore run without it, as before 2026-10-06.
-  cfg$gms$s35_edge_anchor     <- if (cfg$gms$s35_edge_geometry == 1) 1 else 0
   cfg$gms$s35_degr_ratchet    <- if (RATCHET == "1") 1 else 0
   cfg$gms$s32_edge_haircut  <- 1     # forestry haircut split: ndc, natural-curve aff and other_planted carry the edge factor, plant exempt
   cfg$gms$s35_edge_agb_only <- 1     # edge factor on aboveground carbon only
