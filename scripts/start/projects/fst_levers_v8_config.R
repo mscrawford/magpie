@@ -1,5 +1,6 @@
 # ---- LINEAGE / STATUS -------------------------------------------------------
-# NOT RUN (as of 2026-10-06). The config for the NEXT runs after arm FSTL7:
+# RUN on 2026-10-06 as arm FSTL8 (21 runs at commit 44e0e322c). Since 2026-10-07 also the layer
+# under fst_levers_v9_config.R (arm FSTL9). The config of the runs after arm FSTL7:
 #     THIS FILE -> fst_levers_v7_config.R -> v6 -> v2 -> fst_levers_config.R
 # See RIKEN/04-fst-levers/LINEAGE.md for which arm is current.
 # -----------------------------------------------------------------------------
