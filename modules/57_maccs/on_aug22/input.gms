@@ -33,7 +33,10 @@ $offEmpty
 
 table f57_maccs_n2o_2022(t_all,i,maccs_n2o,scen57,maccs_steps)  N2O MACC from Image model (percent)
 $ondelim
-$if not "%c57_macc_version%" == "PBL_2022_spline" $include "./modules/57_maccs/input/f57_maccs_n2o_2022.cs3"
+* gms::singleGAMSfile (start_run) does not evaluate `$if not`: it drops such includes, so each version is listed
+$if "%c57_macc_version%" == "PBL_2007" $include "./modules/57_maccs/input/f57_maccs_n2o_2022.cs3"
+$if "%c57_macc_version%" == "PBL_2019" $include "./modules/57_maccs/input/f57_maccs_n2o_2022.cs3"
+$if "%c57_macc_version%" == "PBL_2022" $include "./modules/57_maccs/input/f57_maccs_n2o_2022.cs3"
 $if "%c57_macc_version%" == "PBL_2022_spline" $include "./modules/57_maccs/input/f57_maccs_n2o_2022_spline.cs3"
 $offdelim
 ;
@@ -52,7 +55,10 @@ $offEmpty
 
 table f57_maccs_ch4_2022(t_all,i,maccs_ch4,scen57,maccs_steps)  N2O MACC from Image model (percent)
 $ondelim
-$if not "%c57_macc_version%" == "PBL_2022_spline" $include "./modules/57_maccs/input/f57_maccs_ch4_2022.cs3"
+* gms::singleGAMSfile (start_run) does not evaluate `$if not`: it drops such includes, so each version is listed
+$if "%c57_macc_version%" == "PBL_2007" $include "./modules/57_maccs/input/f57_maccs_ch4_2022.cs3"
+$if "%c57_macc_version%" == "PBL_2019" $include "./modules/57_maccs/input/f57_maccs_ch4_2022.cs3"
+$if "%c57_macc_version%" == "PBL_2022" $include "./modules/57_maccs/input/f57_maccs_ch4_2022.cs3"
 $if "%c57_macc_version%" == "PBL_2022_spline" $include "./modules/57_maccs/input/f57_maccs_ch4_2022_spline.cs3"
 $offdelim
 ;
