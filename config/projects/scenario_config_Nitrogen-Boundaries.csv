@@ -1,5 +1,6 @@
 ﻿;SSP3_RCP7p0_PolicyLow;SSP5_RCP8p5_PolicyLow;SSP2_RCP4p5_PolicyLow;SSP2_RCP4p5_PolicyMed;SSP2_RCP4p5_PolicyHigh;SSP1_RCP4p5_PolicyHigh;SSP1_RCP2p6_PolicyHighBioenergy;SSP1_RCP2p6_PolicyHighDiet;SSP2_RCP4p5_SensitivityNUEhigh;SSP2_RCP4p5_SensitivityNUEmedium;SSP2_RCP4p5_SensitivityAWMShigh;SSP2_RCP4p5_SensitivityAWMSmedium;SSP2_RCP4p5_PolicyLowDiet
 gms$c55_scen_conf;ssp3;ssp5;ssp2;ssp2;transformation;transformation;transformation;transformation;constant;constant;transformation;ssp2;ssp2
+gms$trade;selfsuff_reduced_bilateral22;selfsuff_reduced_bilateral22;selfsuff_reduced_bilateral22;selfsuff_reduced_bilateral22;selfsuff_reduced_bilateral22;selfsuff_reduced_bilateral22;selfsuff_reduced_bilateral22;selfsuff_reduced_bilateral22;selfsuff_reduced_bilateral22;selfsuff_reduced_bilateral22;selfsuff_reduced_bilateral22;selfsuff_reduced_bilateral22;selfsuff_reduced_bilateral22
 gms$s15_exo_waste;;;;;;;;1;;;;;1
 gms$s15_waste_scen;;;;;;;;1.2;;;;;1.2
 gms$s57_maxmac_n_soil;0;0;0;60;201;201;201;201;201;60;0;0;0
