@@ -10,6 +10,8 @@
 *' based on NPK in feed and N in slaughtered animals (@bodirsky_current_2012.).
 *' Animal waste management is largely based on the IPCC 2006 Guidelines for
 *' National Greenhouse Gas Inventories (@ipcc_2006_2006.).
+*' Future shares in confinement follow AWMS scenarios from one of two input-data versions, chosen with
+*' `c55_awms_shr_version`: `targets` (scenarios built from target shares) or `legacy` (the earlier scenarios).
 
 *####################### R SECTION START (PHASES) ##############################
 $Ifi "%phase%" == "sets" $include "./modules/55_awms/ipcc2006_aug16/sets.gms"

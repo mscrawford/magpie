@@ -11,6 +11,8 @@ $if "%c57_macc_version%" == "PBL_2007" s57_step_length = 6.15;
 $if "%c57_macc_version%" == "PBL_2019" s57_step_length = 22.4;
 * inflated using USD10 --> USD17 MER rate: 20 * 1.12
 $if "%c57_macc_version%" == "PBL_2022" s57_step_length = 22.4;
+* same curves as PBL_2022, smoothed over time (spline anchored at 2025, 2050 and 2100, then made non-decreasing along the price steps)
+$if "%c57_macc_version%" == "PBL_2022_spline" s57_step_length = 22.4;
 
 $ontext
 Determine level of GHG emission abatement depending on GHG prices.

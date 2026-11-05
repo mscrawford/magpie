@@ -5,10 +5,12 @@
 *** |  MAgPIE License Exception, version 1.0 (see LICENSE file).
 *** |  Contact: magpie@pik-potsdam.de
 
-* option: PBL_2007, PBL_2019, PBL_2022
+* option: PBL_2007, PBL_2019, PBL_2022, PBL_2022_spline
 $setglobal c57_macc_version  PBL_2022
-* option: Default, Optimistic, Pessimistic; only applicable for PBL_2022
+* option: Default, Optimistic, Pessimistic; only applicable for PBL_2022 and PBL_2022_spline
 $setglobal c57_macc_scenario  Default
+$if "%c57_macc_version%" == "PBL_2022_spline" $if not exist "./modules/57_maccs/input/f57_maccs_n2o_2022_spline.cs3" $abort "f57_maccs_n2o_2022_spline.cs3 is missing from the input data: use input data that includes it, or set c57_macc_version = PBL_2022"
+$if "%c57_macc_version%" == "PBL_2022_spline" $if not exist "./modules/57_maccs/input/f57_maccs_ch4_2022_spline.cs3" $abort "f57_maccs_ch4_2022_spline.cs3 is missing from the input data: use input data that includes it, or set c57_macc_version = PBL_2022"
 
 scalars
   s57_maxmac_n_soil    activate soil N mitigation independent of pollutant price (step of MACC and -1 is inactive) / -1 /
@@ -31,10 +33,12 @@ $offEmpty
 
 table f57_maccs_n2o_2022(t_all,i,maccs_n2o,scen57,maccs_steps)  N2O MACC from Image model (percent)
 $ondelim
-$include "./modules/57_maccs/input/f57_maccs_n2o_2022.cs3"
+$if not "%c57_macc_version%" == "PBL_2022_spline" $include "./modules/57_maccs/input/f57_maccs_n2o_2022.cs3"
+$if "%c57_macc_version%" == "PBL_2022_spline" $include "./modules/57_maccs/input/f57_maccs_n2o_2022_spline.cs3"
 $offdelim
 ;
 $if "%c57_macc_version%" == "PBL_2022" f57_maccs_n2o(t_all,i,maccs_n2o,maccs_steps) = f57_maccs_n2o_2022(t_all,i,maccs_n2o,"%c57_macc_scenario%",maccs_steps)
+$if "%c57_macc_version%" == "PBL_2022_spline" f57_maccs_n2o(t_all,i,maccs_n2o,maccs_steps) = f57_maccs_n2o_2022(t_all,i,maccs_n2o,"%c57_macc_scenario%",maccs_steps)
 
 
 $onEmpty
@@ -48,7 +52,9 @@ $offEmpty
 
 table f57_maccs_ch4_2022(t_all,i,maccs_ch4,scen57,maccs_steps)  N2O MACC from Image model (percent)
 $ondelim
-$include "./modules/57_maccs/input/f57_maccs_ch4_2022.cs3"
+$if not "%c57_macc_version%" == "PBL_2022_spline" $include "./modules/57_maccs/input/f57_maccs_ch4_2022.cs3"
+$if "%c57_macc_version%" == "PBL_2022_spline" $include "./modules/57_maccs/input/f57_maccs_ch4_2022_spline.cs3"
 $offdelim
 ;
 $if "%c57_macc_version%" == "PBL_2022" f57_maccs_ch4(t_all,i,maccs_ch4,maccs_steps) = f57_maccs_ch4_2022(t_all,i,maccs_ch4,"%c57_macc_scenario%",maccs_steps)
+$if "%c57_macc_version%" == "PBL_2022_spline" f57_maccs_ch4(t_all,i,maccs_ch4,maccs_steps) = f57_maccs_ch4_2022(t_all,i,maccs_ch4,"%c57_macc_scenario%",maccs_steps)

@@ -6,11 +6,14 @@
 *** |  Contact: magpie@pik-potsdam.de
 
 
+$setglobal c55_awms_shr_version  targets
+*   options: targets (scenarios built from target shares: "constant", "ssp1" to "ssp5", "transformation")
+*            legacy  (scenarios of earlier versions: "constant", "ssp1" to "ssp5", "a1", "a2", "b1", "b2", "GoodPractice")
+*   History (up to 2010) and "constant" are the same in both versions; the scenarios after 2010 differ.
+
 $setglobal c55_scen_conf  ssp2
 $setglobal c55_scen_conf_noselect  ssp2
-*   options:   SSP: "ssp1", "ssp2", "ssp3", "ssp4", "ssp5", "constant"
-*             SRES: "a1", "a2", "b1", "b2"
-*             GoodPractice: "GoodPractice"
+*   options: the scenarios of the chosen c55_awms_shr_version (see above)
 
 * Set-switch for countries affected by regional ghg policy
 * Default: all iso countries selected
@@ -50,13 +53,17 @@ $offdelim
 /
 ;
 
+$if "%c55_awms_shr_version%" == "targets" $if not exist "./modules/55_awms/ipcc2006_aug16/input/f55_awms_shr_targets.cs4" $abort "f55_awms_shr_targets.cs4 is missing from the input data: use input data that includes it, or set c55_awms_shr_version = legacy"
+$onEmpty
 parameter f55_awms_shr(t_all,i,scen_conf55,kli,awms_conf) share of Nr in confinement recycled (tNr per tNr)
 /
 $ondelim
-$include "./modules/55_awms/ipcc2006_aug16/input/f55_awms_shr.cs4"
+$if "%c55_awms_shr_version%" == "legacy"  $include "./modules/55_awms/ipcc2006_aug16/input/f55_awms_shr.cs4"
+$if "%c55_awms_shr_version%" == "targets" $include "./modules/55_awms/ipcc2006_aug16/input/f55_awms_shr_targets.cs4"
 $offdelim
 /
 ;
+$offEmpty
 
 parameter f55_manure_fuel_shr(t_all,i,kli,pop_gdp_scen09) share of Nr in confinement recycled (tNr per tNr)
 /

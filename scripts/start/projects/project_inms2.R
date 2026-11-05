@@ -47,6 +47,7 @@ buildInputVector <- function(regionmapping   = "agmip",
 general_settings<-function(title) {
   source("config/default.cfg")
   cfg<-setScenario(cfg,"cc")
+  cfg$gms$c55_awms_shr_version <- "legacy"
   cfg$force_download <- TRUE
   cfg$gms$c_timesteps <- 12
   cfg$gms$som <- "cellpool_jan23"

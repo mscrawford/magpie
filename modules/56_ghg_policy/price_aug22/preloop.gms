@@ -59,7 +59,8 @@ elseif s56_fader_functional_form = 2,
 
 m_linear_time_interpol(p56_fader_cpriceaff,s56_fader_cpriceaff_start,s56_fader_cpriceaff_end,0,s56_c_price_induced_aff);
 
-p56_fader_reg(t_all,i) = p56_fader(t_all) * p56_region_fader_shr(t_all,i) + p56_fader(t_all) * (1-p56_region_fader_shr(t_all,i));
+* Regions are faded in proportion to the population share of the selected countries; the rest of the region sees the full price (factor 1)
+p56_fader_reg(t_all,i) = p56_fader(t_all) * p56_region_fader_shr(t_all,i) + 1 * (1-p56_region_fader_shr(t_all,i));
 im_pollutant_prices(t_all,i,pollutants_fader,emis_source)$(s56_ghgprice_fader = 1) = im_pollutant_prices(t_all,i,pollutants_fader,emis_source) * p56_fader_reg(t_all,i);
 
 ***apply reduction factor on CO2 price to account for potential negative side effects

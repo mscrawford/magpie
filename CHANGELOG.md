@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### changed
+- **55_awms** New switch `c55_awms_shr_version`: `targets` (new default) reads `f55_awms_shr_targets.cs4`, AWMS scenarios built from target shares (`constant`, `ssp1`-`ssp5`, `transformation`; mrcommons `calcAWMSconfShrTargets`); `legacy` reads `f55_awms_shr.cs4` as before (`a1`, `a2`, `b1`, `b2`, `GoodPractice`). History and `constant` are identical; ssp1-ssp5 differ after 2010, and because every run uses `ssp2` up to `sm_fix_SSP2`, default results change from 2015. `scen_conf55` holds both name sets; the run stops if a selected scenario has no data in the chosen version. FSEC and INMS2 keep `legacy`
 - **29_cropland** Fallow land is functional: missing fallow is priced by a two-tier penalty (long and short fallow threshold) that fades towards scenario targets, and fallow is initialised as the residual of the land initialisation. Default `s29_fallow_max` 0 -> 0.8, so fallow exists in the default and base-year croparea falls below the initialisation data.
 - **30_croparea** Croparea is now initiatlized with data that excludes fallow. Rotational constraints are expressed relative to total cropland instead of the sum of crop areas, since with fallow active the two differ. `fm_croparea` is declared over `t_past` instead of `t_all`.
 - **18_residues/53_methane** Regional `f18_multicropping` replaced by cellular `fm_multicropping(t_all,j,w,kcr)`, so residue biomass and rice CH4 scale with harvested instead of physical area.
@@ -15,6 +16,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **inputdata** updated to rev4.138 and additional data rev4.77. The LandInG croparea initialisation separates harvested from physical area, which is what makes fallow land and multiple cropping visible; croparea totals and crop composition differ from earlier revisions.
   
 ### added
+- **57_maccs** `c57_macc_version = "PBL_2022_spline"`: the PBL 2022 curves smoothed over time (spline anchored at 2025, 2050 and 2100, then made non-decreasing along the price steps; mrcommons `calcMACCsN2O/CH4(spline = TRUE)`); default unchanged
+- **scripts/start/projects/run_NitrogenBoundaries.R** Start script for the Nitrogen-Boundaries project (13 scenarios; `NB_SCENARIOS` restricts the loop), with `config/projects/scenario_config_Nitrogen-Boundaries.csv`
+- **scripts/output/extra/disaggregateNitrogen.R** Output script for grid-level nitrogen pollution (`magpie4::getReportGridNitrogenPollution`: surplus, surplus intensity, exceedance of the critical nitrogen surplus); `config/default.cfg` exports `input/criticalNitrogenSurplus_0.5.mz` to the run folder
 - **scripts/output/extra** `crop_rotations_validation.R` compares base-year croparea and fallow per cluster against the croparea initialisation data.
 - **30_croparea** Added realizations `penalties_sep26` and `rules_sep26`, which split the former `detail_apr24` into its penalty-based and hard-constraint-based rotation implementations. `penalties_sep26` is the new default.
 - **30_croparea** The switches `c30_rotation_rules` and `c30_rotation_incentives` are replaced by a single `c30_rotation_policy`, which selects the rule thresholds in `rules_sep26` and the penalty levels in `penalties_sep26`. Both realizations offer a `none` policy, and `agroforestry` is added as a new policy. `penalties_sep26` restricts the rule set to the rules that carry a penalty and uses a single fixed set of thresholds. Minimum-share rules are enforced for the first time. This changes results relative to `detail_apr24` and requires recalibration.
@@ -24,6 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **30_croparea** Removed the `detail_apr24` realization and its switch `s30_implementation`, superseded by `penalties_sep26` (`s30_implementation = 0`) and `rules_sep26` (`s30_implementation = 1`).
 
 ### fixed
+- **56_ghg_policy/price_aug22** The regional share of the GHG policy fader (`fader_countries56`) had no effect: both terms of `p56_fader_reg` carried the fader, so every region was faded uniformly. The unselected population share now sees the full price, as documented. Only affects runs with `s56_ghgprice_fader = 1`. Prices stay muted in all regions until `s56_fader_start`, so the unselected share jumps from zero to the full price in the first time step after `s56_fader_start` (or after `c56_mute_ghgprices_until`, if later)
 -
 
 

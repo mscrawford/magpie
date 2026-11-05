@@ -59,6 +59,7 @@ gms$c50_scen_neff;;;baseeff_add3_add10_add20_max75;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 gms$c50_scen_neff_noselect;;;baseeff_add3_add10_add20_max75;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 gms$c52_land_carbon_sink_rcp;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;RCP19;RCP26;RCP34;RCP45;RCP60;RCPBU;RCPBU;;;
 gms$c55_scen_conf;;;;;;;;;;;;;;;;;GoodPractice;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+gms$c55_awms_shr_version;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy;legacy
 gms$c56_emis_policy;none;;;;;;;;;;;;;;;;;;sdp_cropeff;;;;;;sdp_redd;sdp_redd;;;;;sdp_peatland;sdp_soil;;;sdp_redd_soil_peat;sdp_all;;;;;;;;;;;;;;;
 gms$c56_pollutant_prices;R21M42-SSP2-PkBudg1300;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 gms$s56_c_price_induced_aff;0;;;;;;;;;;;;;;;;;;;;;;;;1;;;;;;;;;;;;;;;;;;;;;;;;;;
