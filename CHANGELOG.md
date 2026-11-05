@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### changed
+- **default.cfg** `f71_livestock_distribution_0.5.mz` added to `files2export`, so that magpie4 `production()`, `ManureExcretion()` and `NitrogenBudget()` can use `disaggLvst = "glw"` on run outputs
 - **55_awms** New switch `c55_awms_shr_version`: `targets` (new default) reads `f55_awms_shr_targets.cs4`, AWMS scenarios built from target shares (`constant`, `ssp1`-`ssp5`, `transformation`; mrcommons `calcAWMSconfShrTargets`); `legacy` reads `f55_awms_shr.cs4` as before (`a1`, `a2`, `b1`, `b2`, `GoodPractice`). History and `constant` are identical; ssp1-ssp5 differ after 2010, and because every run uses `ssp2` up to `sm_fix_SSP2`, default results change from 2015. `scen_conf55` holds both name sets; the run stops if a selected scenario has no data in the chosen version. FSEC and INMS2 keep `legacy`
 - **29_cropland** Fallow land is functional: missing fallow is priced by a two-tier penalty (long and short fallow threshold) that fades towards scenario targets, and fallow is initialised as the residual of the land initialisation. Default `s29_fallow_max` 0 -> 0.8, so fallow exists in the default and base-year croparea falls below the initialisation data.
 - **30_croparea** Croparea is now initiatlized with data that excludes fallow. Rotational constraints are expressed relative to total cropland instead of the sum of crop areas, since with fallow active the two differ. `fm_croparea` is declared over `t_past` instead of `t_all`.
