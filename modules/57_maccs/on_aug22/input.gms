@@ -9,8 +9,6 @@
 $setglobal c57_macc_version  PBL_2022
 * option: Default, Optimistic, Pessimistic; only applicable for PBL_2022 and PBL_2022_spline
 $setglobal c57_macc_scenario  Default
-$if "%c57_macc_version%" == "PBL_2022_spline" $if not exist "./modules/57_maccs/input/f57_maccs_n2o_2022_spline.cs3" $abort "f57_maccs_n2o_2022_spline.cs3 is missing from the input data: use input data that includes it, or set c57_macc_version = PBL_2022"
-$if "%c57_macc_version%" == "PBL_2022_spline" $if not exist "./modules/57_maccs/input/f57_maccs_ch4_2022_spline.cs3" $abort "f57_maccs_ch4_2022_spline.cs3 is missing from the input data: use input data that includes it, or set c57_macc_version = PBL_2022"
 
 scalars
   s57_maxmac_n_soil    activate soil N mitigation independent of pollutant price (step of MACC and -1 is inactive) / -1 /

@@ -53,7 +53,6 @@ $offdelim
 /
 ;
 
-$if "%c55_awms_shr_version%" == "targets" $if not exist "./modules/55_awms/ipcc2006_aug16/input/f55_awms_shr_targets.cs4" $abort "f55_awms_shr_targets.cs4 is missing from the input data: use input data that includes it, or set c55_awms_shr_version = legacy"
 $onEmpty
 parameter f55_awms_shr(t_all,i,scen_conf55,kli,awms_conf) share of Nr in confinement recycled (tNr per tNr)
 /
