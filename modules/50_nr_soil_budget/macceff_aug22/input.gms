@@ -29,6 +29,7 @@ scalar
       s50_fertilizer_costs Costs of fertilizer (USD17MER per tN)            / 738 /
       s50_maccs_global_ef Do maccs assume global emission factor (binary)    /1/
       s50_maccs_implicit_nue_glo Global nitrogen use efficiency implicit to MACCs /0.5/
+      s50_nr_past_withdrawal_fed Pasture N withdrawals count grass used as feed instead of all grass produced (binary) / 0 /
 ;
 
 * Set-switch for countries affected by country-specific neff scenarios

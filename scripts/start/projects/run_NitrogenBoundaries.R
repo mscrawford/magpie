@@ -73,6 +73,17 @@ configureScenario <- function(scenario_name) {
     cfg$force_download <- TRUE
     cfg$output <- c("output_check", "extra/disaggregation", "rds_report", "extra/disaggregateNitrogen")
 
+    # Unfed-pasture test (Mike 2026-11-16): NB_UNFED_VARIANT = ctrl (switches at default), A (pasture N withdrawals =
+    # grass fed, s50_nr_past_withdrawal_fed = 1) or B (pasture production cost kept after the first step,
+    # s31_past_cost_after_calib = 1). The title prefix v13u<variant>_ keeps these runs apart from the v13_ runs.
+    v <- Sys.getenv("NB_UNFED_VARIANT", unset = "")
+    if (nzchar(v)) {
+        if (!v %in% c("ctrl", "A", "B")) stop("NB_UNFED_VARIANT must be ctrl, A or B, not ", v)
+        cfg$gms$s50_nr_past_withdrawal_fed <- as.numeric(v == "A")
+        cfg$gms$s31_past_cost_after_calib  <- as.numeric(v == "B")
+        cfg$title <- paste(paste0(version, "u", v), scenario_name, sep = "_")
+    }
+
     checkLeverTiming(cfg, scenario_name)
     return(cfg)
 }

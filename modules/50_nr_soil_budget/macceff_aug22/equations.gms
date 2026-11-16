@@ -79,10 +79,14 @@ q50_nr_surplus_pasture(i2) ..
                    + sum((cell(i2,j2)), vm_land(j2,"past")) * sum(ct,f50_nr_fixation_rates_pasture(ct,i2))
                    + v50_nr_deposition(i2,"past");
 
-*' Withdrawals include gras harvest by grazing animals and mowing
+*' Withdrawals include gras harvest by grazing animals and mowing. With `s50_nr_past_withdrawal_fed` = 1 they are
+*' the grass used as feed (`vm_supply`); pasture produced above that is not removed from the field. With 0 (default)
+*' all pasture produced counts as withdrawn.
  q50_nr_withdrawals_pasture(i2) ..
             v50_nr_withdrawals_pasture(i2) =e=
-            vm_prod_reg(i2,"pasture") * fm_attributes("nr","pasture");
+            (vm_prod_reg(i2,"pasture") * (1 - s50_nr_past_withdrawal_fed)
+             + vm_supply(i2,"pasture") * s50_nr_past_withdrawal_fed)
+            * fm_attributes("nr","pasture");
 
 *' For both crop land and pasture land, this equation gives the amount of nitrogen deposited from the atmosphere.
  q50_nr_deposition(i2,land) ..

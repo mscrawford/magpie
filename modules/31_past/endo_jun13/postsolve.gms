@@ -7,7 +7,10 @@
 
 ** Deactivate this in case you want to use pasture prodn
 ** Cost even after calibrartion phase
-s31_fac_req_past = 0;
+** s31_past_cost_after_calib = 1 keeps the cost, so pasture production above feed use is no longer free
+if(s31_past_cost_after_calib = 0,
+  s31_fac_req_past = 0;
+);
 
 *#################### R SECTION START (OUTPUT DEFINITIONS) #####################
  ov_cost_prod_past(t,i,"marginal")              = vm_cost_prod_past.m(i);

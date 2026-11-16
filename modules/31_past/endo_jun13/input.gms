@@ -8,4 +8,5 @@
 
 scalars
   s31_fac_req_past  Factor requirements (USD17MER per tDM)          / 1 /
+  s31_past_cost_after_calib  Keep the pasture production cost after the first time step (binary) / 0 /
 ;
