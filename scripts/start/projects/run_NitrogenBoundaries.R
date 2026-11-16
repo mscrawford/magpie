@@ -34,6 +34,7 @@ scenarios <- list(
     SSP1_RCP2p6_PolicyHighBioenergy = list(standard = c("cc", "SSP1", "rcp2p6"),                  boundaries = "SSP1_RCP2p6_PolicyHighBioenergy"), # Bioenergy
     SSP1_RCP2p6_PolicyHighDiet = list(standard = c("cc", "SSP1", "rcp2p6", "eat_lancet_diet_v2"), boundaries = "SSP1_RCP2p6_PolicyHighDiet"), # Best-case+ with Diets
     SSP2_RCP4p5_PolicyLowDiet  = list(standard = c("cc", "SSP2", "rcp4p5", "eat_lancet_diet_v2"), boundaries = "SSP2_RCP4p5_PolicyLowDiet"),  # SSP2-Low + diet shift (isolates diet effect vs SSP2-Low null)
+    SSP2_RCP4p5_PolicyHighDiet = list(standard = c("cc", "SSP2", "rcp4p5", "eat_lancet_diet_v2"), boundaries = "SSP2_RCP4p5_PolicyHighDiet"), # SSP2-High + diet shift (diet on top of high abatement; Mike 2026-11-16)
     SSP2_RCP4p5_SensitivityNUEhigh    = list(standard = c("cc", "SSP2", "rcp4p5"),                boundaries = "SSP2_RCP4p5_SensitivityNUEhigh"),   # Sensitivity - NUE MACCs High
     SSP2_RCP4p5_SensitivityNUEmedium  = list(standard = c("cc", "SSP2", "rcp4p5"),                boundaries = "SSP2_RCP4p5_SensitivityNUEmedium"), # Sensitivity - NUE MACCs Medium
     SSP2_RCP4p5_SensitivityAWMShigh   = list(standard = c("cc", "SSP2", "rcp4p5"),                boundaries = "SSP2_RCP4p5_SensitivityAWMShigh"),  # Sensitivity - AWMS MACCs High
